@@ -4,6 +4,9 @@ import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { PlayerControllerFactory, PlayerControllerInterface } from './PlayerControllerFactory'
 import { salmonLogger } from 'salmonlogger'
+import { SleepTimerController } from './SleepTimerController'
+import { AbLoopController } from './AbLoopController'
+import { PlaybackPolicyController } from './PlaybackPolicyController'
 
 const TAG = 'PlaybackSessionController'
 const ENGINE_SWITCH_RELEASE_TIMEOUT = 1500
@@ -37,7 +40,7 @@ class PlaybackSessionSnapshot {
     const snapshot = new PlaybackSessionSnapshot()
     snapshot.nowPlaying = player.nowPlaying
     snapshot.videoMetaDataList = player.videoMetaDataList
-    snapshot.playTime = player.playTime
+    snapshot.playTime = player.playbackPositionMs
     snapshot.playing = resumePlayback ?? player.playing
     snapshot.skipHistory = player.skipHistory
     snapshot.speed = player.speed
@@ -89,7 +92,15 @@ class PlaybackSessionSnapshot {
   }
 }
 
+@ObservedV2
 export class PlaybackSessionController {
+  readonly policy: PlaybackPolicyController = new PlaybackPolicyController()
+
+  get sleepTimer(): SleepTimerController { return this.policy.sleepTimer }
+  get abLoop(): AbLoopController { return this.policy.abLoop }
+  get onAbLoopFailed(): () => void { return this.policy.onAbLoopFailed }
+  set onAbLoopFailed(callback: () => void) { this.policy.onAbLoopFailed = callback }
+
   private switchTask: Promise<PlayerControllerInterface> | undefined = undefined
   private transitionTask: Promise<void> | undefined = undefined
   private disposeTask: Promise<void> | undefined = undefined
@@ -104,8 +115,21 @@ export class PlaybackSessionController {
     return this.disposed
   }
 
+  get isClosing(): boolean {
+    return this.closing || this.disposed
+  }
+
+  bindPlayer(player: PlayerControllerInterface): void { this.policy.bindPlayer(player) }
+  syncMedia(player: PlayerControllerInterface): void { this.policy.syncMedia(player) }
+  stopAfterCurrent(): void { this.policy.stopAfterCurrent() }
+  toggleAbLoop(): boolean { return this.policy.toggleAbLoop() }
+  saveAbPoint(context: Context, point: 'A' | 'B' | 'clear'): boolean {
+    return this.policy.saveAbPoint(context, point)
+  }
+
   beginClosing(): void {
     this.closing = true
+    this.policy.beginClosing()
   }
 
   async runTransition(operation: () => Promise<void>): Promise<void> {
@@ -114,7 +138,9 @@ export class PlaybackSessionController {
       await this.transitionTask
       return
     }
-    const task = Promise.resolve().then(operation)
+    const task = Promise.resolve().then(async (): Promise<void> => {
+      if (!this.isClosing) { await operation() }
+    })
     this.transitionTask = task
     try {
       await task
@@ -129,7 +155,8 @@ export class PlaybackSessionController {
       await this.disposeTask
       return
     }
-    this.closing = true
+    this.beginClosing()
+    this.policy.dispose()
     const task = this.finishDispose(getCurrentPlayer)
     this.disposeTask = task
     try {
@@ -149,10 +176,12 @@ export class PlaybackSessionController {
     const player = getCurrentPlayer()
     player.setEngineSwitchHandler(undefined)
     await player.dispose()
+    player.playbackPolicy = undefined
   }
 
   async switchEngine(currentPlayer: PlayerControllerInterface, targetEngine: string,
     resumePlayback?: boolean): Promise<PlayerControllerInterface> {
+    if (this.isClosing) { return currentPlayer }
     if (this.isTargetEngine(currentPlayer, targetEngine)) {
       return currentPlayer
     }
@@ -174,7 +203,9 @@ export class PlaybackSessionController {
     resumePlayback?: boolean): Promise<PlayerControllerInterface> {
     const snapshot = PlaybackSessionSnapshot.capture(currentPlayer, resumePlayback)
     currentPlayer.setEngineSwitchHandler(undefined)
+    this.policy.detachPlayer(currentPlayer)
     await this.releaseCurrentPlayer(currentPlayer)
+    if (this.isClosing) { return currentPlayer }
     const nextPlayer = PlayerControllerFactory.createController(targetEngine)
     snapshot.apply(nextPlayer)
     return nextPlayer
@@ -182,18 +213,23 @@ export class PlaybackSessionController {
 
   private async releaseCurrentPlayer(currentPlayer: PlayerControllerInterface): Promise<void> {
     let releaseFinished = false
+    let releaseTimeout: number | undefined = undefined
     const releaseTask = currentPlayer.release().then(() => {
       releaseFinished = true
     }).catch((error: Error) => {
       releaseFinished = true
       salmonLogger.addLog(TAG, `旧播放引擎释放失败: ${error.message}`, true)
     })
-    await Promise.race([
-      releaseTask,
-      new Promise<void>((resolve) => {
-        setTimeout(resolve, ENGINE_SWITCH_RELEASE_TIMEOUT)
-      })
-    ])
+    try {
+      await Promise.race([
+        releaseTask,
+        new Promise<void>((resolve) => {
+          releaseTimeout = setTimeout(resolve, ENGINE_SWITCH_RELEASE_TIMEOUT)
+        })
+      ])
+    } finally {
+      if (releaseTimeout !== undefined) { clearTimeout(releaseTimeout) }
+    }
     if (!releaseFinished) {
       salmonLogger.addLog(TAG,
         `旧播放引擎释放超过${ENGINE_SWITCH_RELEASE_TIMEOUT}ms，继续切换，新引擎不再等待`, true)

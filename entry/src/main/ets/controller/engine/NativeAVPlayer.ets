@@ -23,6 +23,12 @@ export interface NativeBufferingInfo {
   value: number
 }
 
+export interface NativePlaybackSnapshot {
+  positionMs: number
+  rate: number
+  playing: boolean
+}
+
 interface NativePlayerOptions {
   surfaceId?: string
   mode?: number
@@ -168,9 +174,32 @@ export class NativeAVPlayer {
   }
 
   seek(position: number, mode: media.SeekMode = media.SeekMode.SEEK_CLOSEST): void {
-    this.fire('seek', { position: Math.max(0, Math.round(position)), mode: mode })
+    this.seekAsync(position, mode).catch((error: BusinessError) => this.reportError(error))
   }
-  async setPlaybackRate(rate: number): Promise<void> { await this.send('rate', { rate: rate }) }
+  async seekAsync(position: number, mode: media.SeekMode = media.SeekMode.SEEK_CLOSEST): Promise<void> {
+    await this.send('seek', { position: Math.max(0, Math.round(position)), mode: mode, generation: this.generation })
+  }
+  async getPlaybackSnapshot(): Promise<NativePlaybackSnapshot> {
+    const generation = this.generation
+    const result = await this.send('snapshot', { generation: generation })
+    if (generation !== this.generation || this.closed) throw new Error('播放会话已变化')
+    const positionMs = result.positionMs
+    const rate = result.rate
+    if (positionMs === undefined || !Number.isFinite(positionMs) || positionMs < 0 ||
+      rate === undefined || !Number.isFinite(rate) || rate <= 0) throw new Error('无效的播放状态')
+    return { positionMs: positionMs, rate: rate, playing: result.playing === 1 }
+  }
+  async setPlaybackRate(rate: number): Promise<void> {
+    await this.send('rate', { rate: rate, generation: this.generation })
+  }
+  async getPlaybackRate(): Promise<number> {
+    const generation = this.generation
+    const result = await this.send('playbackRate', { generation: generation })
+    if (generation !== this.generation || this.closed) throw new Error('播放会话已变化')
+    const rate = result.rate
+    if (rate === undefined || !Number.isFinite(rate) || rate <= 0) throw new Error('无效的播放速度')
+    return rate
+  }
   async selectTrack(index: number): Promise<void> { await this.send('selectTrack', { index: index }) }
   async selectVideoTrack(index: number): Promise<void> {
     await this.send('selectVideoTrack', { index: index, generation: this.generation })
@@ -184,9 +213,11 @@ export class NativeAVPlayer {
   }
   async deselectTrack(index: number): Promise<void> { await this.send('deselectTrack', { index: index }) }
   async setVolume(volume: number): Promise<void> { await this.send('volume', { volume: volume }) }
-  async setLoudnessGain(gain: number): Promise<void> { await this.send('loudness', { gain: gain }) }
+  async setLoudnessGain(gain: number): Promise<void> {
+    await this.send('loudness', { gain: gain, generation: this.generation })
+  }
   async setMediaMuted(type: media.MediaType, muted: boolean): Promise<void> {
-    await this.send('muted', { type: type, muted: muted })
+    await this.send('muted', { type: type, muted: muted, generation: this.generation })
   }
   async setSuperResolution(enabled: boolean): Promise<void> {
     await this.send('superResolution', { enabled: enabled })

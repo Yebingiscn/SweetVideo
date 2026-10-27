@@ -1,3 +1,5 @@
+import BluRayDirectory from './BluRayDirectory'
+import { NetworkBluRay } from './NetworkBluRay'
 import SmbUtil, { SmbPlayback } from './SmbUtil'
 import WebDavUtil, { WebDavRequest, WebDavSource } from './WebDavUtil'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
@@ -12,6 +14,7 @@ export class NetworkPlayback {
     else await SmbUtil.cacheSubtitle(item)
   }
 
+  private disc: NetworkBluRay | undefined = undefined
   private smb: SmbPlayback = new SmbPlayback()
   private ftp: FtpPlayback = new FtpPlayback()
   private source: string = ''
@@ -25,7 +28,13 @@ export class NetworkPlayback {
     this.close()
     if (/^(ftps|sftp):\/\//i.test(source)) throw new Error(ToolsUtil.getStringResource($r('app.string.ftp_plain_only').id))
     const version = this.version
-    if (FtpUtil.isFtp(source)) {
+    if (BluRayDirectory.isRemoteEntry(source)) {
+      const disc = new NetworkBluRay()
+      this.disc = disc
+      await disc.prepare(source)
+      if (version !== this.version) { disc.close(); throw new Error('Network disc cancelled') }
+      this.url = disc.localRoot
+    } else if (FtpUtil.isFtp(source)) {
       const url = await this.ftp.resolve(source)
       if (version !== this.version) throw new Error(ToolsUtil.getStringResource($r('app.string.ftp_cancelled').id))
       this.url = url
@@ -51,6 +60,7 @@ export class NetworkPlayback {
   }
 
   current(source: string): string {
+    if (BluRayDirectory.isRemoteEntry(source)) return this.discSession(source).localRoot
     if (FtpUtil.isFtp(source) || /^webdav:\/\//i.test(source)) {
       if (source !== this.source || !this.url) throw new Error(ToolsUtil.getStringResource($r('app.string.network_playback_cancelled').id))
       return this.url
@@ -58,13 +68,21 @@ export class NetworkPlayback {
     return this.smb.current(source)
   }
 
+  discSession(source: string): NetworkBluRay {
+    if (source !== this.source || !this.disc?.localRoot) throw new Error('Network disc unavailable')
+    return this.disc
+  }
+
   headers(original?: Record<string, string>): Record<string, string> | undefined {
+    if (this.disc) return this.disc.headers
     if (FtpUtil.isFtp(this.source)) return undefined
     return /^webdav:\/\//i.test(this.source) ? this.authorization : original
   }
 
   close(): void {
     this.version++
+    this.disc?.close()
+    this.disc = undefined
     this.request?.close()
     this.request = undefined
     this.smb.close()

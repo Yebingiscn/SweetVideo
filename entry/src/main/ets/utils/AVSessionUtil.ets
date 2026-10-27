@@ -15,6 +15,25 @@ import { fileIo } from '@kit.CoreFileKit'
 import { media } from '@kit.MediaKit'
 import { audio } from '@kit.AudioKit'
 
+export interface AVSessionControlCallbacks {
+  play: () => void | Promise<void>
+  pause: () => void | Promise<void>
+  seek: (position: number) => void | Promise<void>
+  fastForward: () => void | Promise<void>
+  rewind: () => void | Promise<void>
+  setLoopMode: (mode: avSession.LoopMode) => void | Promise<void>
+  playNext?: () => void | Promise<void>
+  playPrevious?: () => void | Promise<void>
+  outputDeviceChange?: (state: avSession.ConnectionState, device: avSession.OutputDeviceInfo) => void | Promise<void>
+}
+
+interface AVSessionPlayerBinding {
+  session: avSessionManager.AVSession
+  owner: Object
+  callbacks: AVSessionControlCallbacks
+  unsubscribe: Array<() => void>
+}
+
 const TAG = 'AVSessionUtil'
 
 // 播控中心设置类
@@ -32,6 +51,8 @@ export default class AVSessionUtil {
   private static currentPlaybackPosition: number = 0
   private static outputDeviceListener: ((state: avSession.ConnectionState,
     device: avSession.OutputDeviceInfo) => void) | undefined = undefined
+  private static playerBinding: AVSessionPlayerBinding | undefined = undefined
+  private static castExtrasConfigured: boolean = false
   private static metadataKey: string = ''
   private static coverAssetKey: string = ''
   private static coverRequestVersion: number = 0
@@ -56,6 +77,98 @@ export default class AVSessionUtil {
     }
     // 如果没有找到匹配项，返回默的列表循环模式
     return SweetRepeatMode.LIST
+  }
+
+  static isPlayerBound(session: avSessionManager.AVSession | undefined, owner: Object): boolean {
+    const binding = AVSessionUtil.playerBinding
+    return session !== undefined && session === AVSessionUtil.avSession &&
+      binding?.session === session && binding.owner === owner
+  }
+
+  static bindPlayer(session: avSessionManager.AVSession | undefined, owner: Object,
+    callbacks: AVSessionControlCallbacks): boolean {
+    if (!session || session !== AVSessionUtil.avSession) return false
+    const previous = AVSessionUtil.playerBinding
+    if (AVSessionUtil.isPlayerBound(session, owner) && previous &&
+      !!previous.callbacks.playNext === !!callbacks.playNext &&
+      !!previous.callbacks.playPrevious === !!callbacks.playPrevious) {
+      previous.callbacks = callbacks
+      return true
+    }
+    AVSessionUtil.clearPlayerBinding()
+    if (!AVSessionUtil.ensureOutputDeviceListener(session)) return false
+    const binding: AVSessionPlayerBinding = { session, owner, callbacks, unsubscribe: [] }
+    AVSessionUtil.playerBinding = binding
+    const current = (): AVSessionControlCallbacks | undefined =>
+      AVSessionUtil.playerBinding === binding && AVSessionUtil.avSession === session ? binding.callbacks : undefined
+    const subscribe = (register: () => void, unregister: () => void): void => {
+      // 即使注册中途失败，也精确清理本次尝试，避免重试时遗留部分回调。
+      binding.unsubscribe.push(unregister)
+      register()
+    }
+    const play = (): void => AVSessionUtil.runControl(() => current()?.play())
+    const pause = (): void => AVSessionUtil.runControl(() => current()?.pause())
+    const seek = (position: number): void => AVSessionUtil.runControl(() => current()?.seek(position))
+    const fastForward = (): void => AVSessionUtil.runControl(() => current()?.fastForward())
+    const rewind = (): void => AVSessionUtil.runControl(() => current()?.rewind())
+    const setLoopMode = (mode: avSession.LoopMode): void =>
+      AVSessionUtil.runControl(() => current()?.setLoopMode(mode))
+    const playNext = (): void => AVSessionUtil.runControl(() => current()?.playNext?.())
+    const playPrevious = (): void => AVSessionUtil.runControl(() => current()?.playPrevious?.())
+    try {
+      subscribe(() => session.on('play', play), () => session.off('play', play))
+      subscribe(() => session.on('pause', pause), () => session.off('pause', pause))
+      subscribe(() => session.on('seek', seek), () => session.off('seek', seek))
+      subscribe(() => session.on('fastForward', fastForward), () => session.off('fastForward', fastForward))
+      subscribe(() => session.on('rewind', rewind), () => session.off('rewind', rewind))
+      subscribe(() => session.on('setLoopMode', setLoopMode), () => session.off('setLoopMode', setLoopMode))
+      if (callbacks.playNext) {
+        subscribe(() => session.on('playNext', playNext), () => session.off('playNext', playNext))
+      }
+      if (callbacks.playPrevious) {
+        subscribe(() => session.on('playPrevious', playPrevious), () => session.off('playPrevious', playPrevious))
+      }
+      if (AVSessionUtil.playerBinding !== binding) {
+        AVSessionUtil.clearPlayerBinding(binding)
+        return false
+      }
+      return true
+    } catch (error) {
+      AVSessionUtil.clearPlayerBinding(binding)
+      salmonLogger.addLog(TAG, `注册播控监听失败: code=${(error as BusinessError).code}`, true)
+      return false
+    }
+  }
+
+  static unbindPlayer(owner: Object): void {
+    if (AVSessionUtil.playerBinding?.owner === owner) AVSessionUtil.clearPlayerBinding()
+  }
+
+  private static clearPlayerBinding(binding: AVSessionPlayerBinding | undefined = AVSessionUtil.playerBinding): void {
+    if (!binding) return
+    if (AVSessionUtil.playerBinding === binding) {
+      AVSessionUtil.playerBinding = undefined
+      AVSessionUtil.currentPositionReader = undefined
+    }
+    const unsubscribe = binding.unsubscribe
+    binding.unsubscribe = []
+    unsubscribe.forEach((unregister: () => void) => {
+      try {
+        unregister()
+      } catch (error) {
+        salmonLogger.addLog(TAG, `注销播控监听失败: code=${(error as BusinessError).code}`, true)
+      }
+    })
+  }
+
+  private static runControl(action: () => void | Promise<void>): void {
+    try {
+      Promise.resolve(action()).catch((error: BusinessError) => {
+        salmonLogger.addLog(TAG, `执行播控指令失败: code=${error?.code}`, true)
+      })
+    } catch (error) {
+      salmonLogger.addLog(TAG, `执行播控指令失败: code=${(error as BusinessError).code}`, true)
+    }
   }
 
   static async getAVSession(): Promise<avSessionManager.AVSession | undefined> {
@@ -199,12 +312,16 @@ export default class AVSessionUtil {
     }
   }
 
-  static async setSessionInfo(metadata: VideoMetadata, positionReader?: () => number) {
+  static async setSessionInfo(metadata: VideoMetadata, positionReader?: () => number, owner?: Object) {
+    const binding = AVSessionUtil.playerBinding
+    if (owner !== undefined && binding?.owner !== owner) return
     const session = await AVSessionUtil.getAVSession()
     if (!session) {
       salmonLogger.addLog(TAG, 'setSessionInfo skipped: AVSession is unavailable', true)
       return
     }
+    if (owner !== undefined && (AVSessionUtil.playerBinding !== binding ||
+      !AVSessionUtil.isPlayerBound(session, owner))) return
     const sameAsset = AVSessionUtil.currentNowPlaying?.date === metadata.date &&
       AVSessionUtil.currentNowPlaying?.uri === metadata.uri
     if (!sameAsset) {
@@ -218,7 +335,10 @@ export default class AVSessionUtil {
     AVSessionUtil.currentPositionReader = positionReader
     const metadataKey = JSON.stringify([metadata.date, metadata.uri, metadata.title, metadata.time,
       metadata.artist || '', metadata.album || ''])
-    if (AVSessionUtil.metadataKey === metadataKey && AVSessionUtil.isOutputDeviceListenerRegistered) {
+    const isCurrent = (): boolean => session === AVSessionUtil.avSession &&
+      AVSessionUtil.metadataKey === metadataKey && (owner === undefined || AVSessionUtil.playerBinding === binding)
+    if (AVSessionUtil.metadataKey === metadataKey && AVSessionUtil.isOutputDeviceListenerRegistered &&
+      AVSessionUtil.castExtrasConfigured) {
       return
     }
     AVSessionUtil.metadataKey = metadataKey
@@ -226,19 +346,19 @@ export default class AVSessionUtil {
     try {
       await session.setAVMetadata(session_metadata)
     } catch (error) {
-      if (AVSessionUtil.metadataKey === metadataKey) AVSessionUtil.metadataKey = ''
+      if (isCurrent()) AVSessionUtil.metadataKey = ''
       salmonLogger.addLog(TAG, `setAVMetadata failed: code=${(error as BusinessError).code}`, true)
       return
     }
-    if (session !== AVSessionUtil.avSession || AVSessionUtil.metadataKey !== metadataKey) return
+    if (!isCurrent()) return
     if (!sameAsset) {
       const oldPixelMap = AVSessionUtil.pixelMap
       AVSessionUtil.pixelMap = undefined
       await AVSessionUtil.releaseSessionImage(oldPixelMap)
     }
-    if (session !== AVSessionUtil.avSession || AVSessionUtil.metadataKey !== metadataKey) return
-    if (!AVSessionUtil.isOutputDeviceListenerRegistered) await AVSessionUtil.registerCastOutputListener(session)
-    if (session !== AVSessionUtil.avSession || AVSessionUtil.metadataKey !== metadataKey) return
+    if (!isCurrent()) return
+    if (!AVSessionUtil.castExtrasConfigured) await AVSessionUtil.registerCastOutputListener(session)
+    if (!isCurrent()) return
     const coverKey = JSON.stringify([metadata.date, metadata.uri])
     if (AVSessionUtil.coverAssetKey !== coverKey) {
       AVSessionUtil.coverAssetKey = coverKey
@@ -332,6 +452,7 @@ export default class AVSessionUtil {
   }
 
   static destroySession() {
+    AVSessionUtil.clearPlayerBinding()
     AVSessionUtil.metadataKey = ''
     AVSessionUtil.coverAssetKey = ''
     AVSessionUtil.coverRequestVersion++
@@ -344,17 +465,18 @@ export default class AVSessionUtil {
     AVSessionUtil.currentPositionReader = undefined
     AVSessionUtil.currentPlaybackPosition = 0
     AVSessionUtil.currentNowPlaying = undefined
-    if (!AVSessionUtil.avSession) {
-      return
-    }
-    if (AVSessionUtil.isOutputDeviceListenerRegistered) {
+    const session = AVSessionUtil.avSession
+    AVSessionUtil.avSession = undefined
+    const outputDeviceListener = AVSessionUtil.outputDeviceListener
+    AVSessionUtil.isOutputDeviceListenerRegistered = false
+    AVSessionUtil.outputDeviceListener = undefined
+    AVSessionUtil.castExtrasConfigured = false
+    if (session && outputDeviceListener) {
       try {
-        AVSessionUtil.avSession?.off('outputDeviceChange', AVSessionUtil.outputDeviceListener)
+        session.off('outputDeviceChange', outputDeviceListener)
       } catch (e) {
         salmonLogger.addLog(TAG, 'off outputDeviceChange error: ' + e, true)
       }
-      AVSessionUtil.isOutputDeviceListenerRegistered = false
-      AVSessionUtil.outputDeviceListener = undefined
     }
     try {
       AVSessionUtil.castController?.off('playbackStateChange')
@@ -364,37 +486,45 @@ export default class AVSessionUtil {
     AVSessionUtil.castController = undefined
     AVSessionUtil.currentNowPlaying = undefined
     AVSessionUtil.playbackSpeed = 1
-    AVSessionUtil.avSession?.destroy()?.catch(() => {
+    session?.destroy()?.catch(() => {
       salmonLogger.addLog(TAG, 'destroy Session error', true)
     })
-    AVSessionUtil.avSession = undefined
+  }
+
+  private static ensureOutputDeviceListener(session: avSessionManager.AVSession): boolean {
+    if (session !== AVSessionUtil.avSession) return false
+    if (AVSessionUtil.isOutputDeviceListenerRegistered) return true
+    const listener = (connectState: avSession.ConnectionState, device: avSession.OutputDeviceInfo): void => {
+      if (session !== AVSessionUtil.avSession || AVSessionUtil.outputDeviceListener !== listener) return
+      const binding = AVSessionUtil.playerBinding
+      if (binding?.session === session) {
+        AVSessionUtil.runControl(() => binding.callbacks.outputDeviceChange?.(connectState, device))
+      }
+      AVSessionUtil.handleOutputDeviceChange(session, connectState, device).catch((error: BusinessError) => {
+        salmonLogger.addLog(TAG, `handle outputDeviceChange failed: code=${error.code}`, true)
+      })
+    }
+    try {
+      session.on('outputDeviceChange', listener)
+      AVSessionUtil.outputDeviceListener = listener
+      AVSessionUtil.isOutputDeviceListenerRegistered = true
+      salmonLogger.addLog(TAG, 'Cast output device listener registered', false)
+      return true
+    } catch (error) {
+      try {
+        session.off('outputDeviceChange', listener)
+      } catch (_error) {
+      }
+      salmonLogger.addLog(TAG, `注册输出设备监听失败: code=${(error as BusinessError).code}`, true)
+      return false
+    }
   }
 
   private static async registerCastOutputListener(session: avSessionManager.AVSession): Promise<void> {
     try {
-      await session.setExtras({
-        requireAbilityList: ['url-cast']
-      })
-      if (session !== AVSessionUtil.avSession) {
-        return
-      }
-      if (AVSessionUtil.isOutputDeviceListenerRegistered) {
-        try {
-          session.off('outputDeviceChange', AVSessionUtil.outputDeviceListener)
-        } catch (e) {
-          salmonLogger.addLog(TAG, 'off outputDeviceChange error: ' + e, true)
-        }
-        AVSessionUtil.isOutputDeviceListenerRegistered = false
-      }
-      AVSessionUtil.outputDeviceListener = (connectState: avSession.ConnectionState,
-        device: avSession.OutputDeviceInfo) => {
-        AVSessionUtil.handleOutputDeviceChange(session, connectState, device).catch((error: BusinessError) => {
-          salmonLogger.addLog(TAG, `handle outputDeviceChange failed: code=${error.code}`, true)
-        })
-      }
-      session.on('outputDeviceChange', AVSessionUtil.outputDeviceListener)
-      AVSessionUtil.isOutputDeviceListenerRegistered = true
-      salmonLogger.addLog(TAG, 'Cast output device listener registered', false)
+      await session.setExtras({ requireAbilityList: ['url-cast'] })
+      if (session !== AVSessionUtil.avSession) return
+      AVSessionUtil.castExtrasConfigured = AVSessionUtil.ensureOutputDeviceListener(session)
     } catch (error) {
       salmonLogger.addLog(TAG, 'registerCastOutputListener error: ' + error, true)
     }

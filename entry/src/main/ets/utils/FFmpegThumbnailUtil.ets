@@ -15,6 +15,8 @@ import {
   releaseThumbnailExtractor
 } from 'libmpvnative.so'
 import TextEncodingUtil from './TextEncodingUtil'
+import ToolsUtil from './ToolsUtil'
+import { ScreenshotExtractorSession } from './ScreenshotExtractorSession'
 
 const TAG = 'FramePreviewSession'
 
@@ -58,6 +60,9 @@ export interface FFmpegThumbnailResult {
   dolbyVisionProfile: number
   audioType: number
   colorManaged: boolean
+  frameTimeUs: number
+  hdrPreserved: boolean
+  hdrFallbackReason?: string
 }
 
 export interface FFmpegProbeResult {
@@ -85,11 +90,37 @@ function buildFailureResult(error: string): FFmpegThumbnailResult {
     hdrType: 0,
     dolbyVisionProfile: 0,
     audioType: 0,
-    colorManaged: false
+    colorManaged: false,
+    frameTimeUs: 0,
+    hdrPreserved: false
   }
 }
 
+// Never log raw extractor errors: network exceptions may contain a credential-bearing URL.
+function screenshotFailureCategory(error: string): string {
+  const text = error.toLowerCase()
+  if (text.includes('timed out') || text.includes('timeout')) return 'timeout'
+  if (text.includes('cancel') || text.includes('released')) return 'cancelled'
+  if (text.includes('allocate') || text.includes('memory')) return 'allocation'
+  if (text.includes('seek')) return 'seek'
+  if (text.includes('decoder')) return 'decoder'
+  if (text.includes('decode')) return 'decode'
+  if (text.includes('packet')) return 'packet'
+  if (text.includes('source open')) return 'source_open'
+  if (text.includes('media stream') || text.includes('prob')) return 'probe'
+  if (text.includes('header')) return 'headers'
+  if (text.includes('pixelmap') || text.includes('image')) return 'image'
+  return 'unknown'
+}
+
 export default class FFmpegThumbnailUtil {
+  private static screenshotSession: ScreenshotExtractorSession = new ScreenshotExtractorSession({
+    create: (source: string, headers: Record<string, string> | undefined): number =>
+      ToolsUtil.isNetworkUrl(source) ? FFmpegThumbnailUtil.createNetworkExtractor(source, headers) :
+        FFmpegThumbnailUtil.createLocalExtractor(source),
+    release: (extractorId: number): void => { FFmpegThumbnailUtil.releaseExtractor(extractorId) }
+  })
+
   static coverTimeUs(durationMs: number, randomCover: boolean): number {
     if (!randomCover) {
       return durationMs >= 3600000 ? 180000000 : 0
@@ -119,8 +150,18 @@ export default class FFmpegThumbnailUtil {
     }
   }
 
-  static createNetworkExtractor(url: string): number {
-    return createThumbnailExtractor(url)
+  static createNetworkExtractor(url: string, headers?: Record<string, string>): number {
+    let requestHeaders = ''
+    if (headers) {
+      for (const name of Object.keys(headers)) {
+        const value = headers[name]
+        if (!/^[a-zA-Z0-9!#$%&'*+.^_`|~-]+$/.test(name) || /[\r\n]/.test(value)) {
+          throw new Error('Invalid media request headers')
+        }
+        requestHeaders += `${name}: ${value}\r\n`
+      }
+    }
+    return createThumbnailExtractor(url, 0, -1, requestHeaders)
   }
 
   static releaseExtractor(extractorId: number | undefined): void {
@@ -175,17 +216,38 @@ export default class FFmpegThumbnailUtil {
   }
 
   static async extractFrame(extractorId: number, timeUs: number, maxWidth: number,
-    maxHeight: number, preferEmbeddedCover: boolean = false, keyframeCover: boolean = false): Promise<FFmpegThumbnailResult> {
+    maxHeight: number, preferEmbeddedCover: boolean = false, keyframeCover: boolean = false,
+    originalSize: boolean = false, screenshotRequestId: number = 0): Promise<FFmpegThumbnailResult> {
+    const startedAt = Date.now()
+    let stage = 'native_extract'
+    let stageStartedAt = startedAt
     try {
+      if (originalSize) {
+        salmonLogger.addLog(TAG, `[Screenshot#${screenshotRequestId}] stage=${stage} event=begin ` +
+          `extractor=${extractorId}, requestedUs=${timeUs}, originalSize=true`, false)
+      }
       const frameTask: Promise<FFmpegThumbnailFrame> = extractThumbnailFrame(
         extractorId,
         Math.max(0, timeUs),
         Math.max(1, maxWidth),
         Math.max(1, maxHeight),
         preferEmbeddedCover,
-        keyframeCover
+        keyframeCover,
+        true,
+        originalSize
       )
       const frame = await frameTask
+      if (originalSize) {
+        salmonLogger.addLog(TAG, `[Screenshot#${screenshotRequestId}] stage=${stage} event=end ` +
+          `extractor=${extractorId}, elapsedMs=${Date.now() - stageStartedAt}, ` +
+          `size=${frame.width}x${frame.height}, frameUs=${frame.timeUs}, hdrPreserved=${frame.hdrPreserved}`, false)
+      }
+      stage = 'pixelmap'
+      stageStartedAt = Date.now()
+      if (originalSize) {
+        salmonLogger.addLog(TAG, `[Screenshot#${screenshotRequestId}] stage=${stage} event=begin ` +
+          `extractor=${extractorId}, nativePixelMap=${frame.pixelMap !== undefined}`, false)
+      }
       const options: image.InitializationOptions = {
         size: { width: frame.width, height: frame.height },
         srcPixelFormat: image.PixelMapFormat.RGBA_8888,
@@ -193,7 +255,18 @@ export default class FFmpegThumbnailUtil {
         alphaType: image.AlphaType.OPAQUE,
         editable: false
       }
-      const pixelMap = await image.createPixelMap(frame.data, options)
+      // Native HDR PixelMap already owns 10-bit pixels, color space and metadata.
+      // Recreating it through RGBA_8888 would discard the HDR data again.
+      const pixelMap = frame.pixelMap ?? await image.createPixelMap(frame.data, options)
+      if (originalSize) {
+        salmonLogger.addLog(TAG, `[Screenshot#${screenshotRequestId}] stage=${stage} event=end ` +
+          `extractor=${extractorId}, elapsedMs=${Date.now() - stageStartedAt}`, false)
+      }
+      if (frame.hdrFallbackReason) {
+        salmonLogger.addLog(TAG, originalSize ?
+          `[Screenshot#${screenshotRequestId}] HDR fallback: category=${screenshotFailureCategory(frame.hdrFallbackReason)}` :
+          'HDR frame fallback: ' + frame.hdrFallbackReason, true)
+      }
       return {
         pixelMap: pixelMap,
         success: true,
@@ -206,9 +279,17 @@ export default class FFmpegThumbnailUtil {
         hdrType: frame.hdrType,
         dolbyVisionProfile: frame.dolbyVisionProfile,
         audioType: frame.audioType,
-        colorManaged: frame.colorManaged
+        colorManaged: frame.colorManaged,
+        frameTimeUs: frame.timeUs,
+        hdrPreserved: frame.hdrPreserved,
+        hdrFallbackReason: frame.hdrFallbackReason
       }
     } catch (error) {
+      if (originalSize) {
+        salmonLogger.addLog(TAG, `[Screenshot#${screenshotRequestId}] failed: stage=${stage}, ` +
+          `extractor=${extractorId}, category=${screenshotFailureCategory(String(error))}, ` +
+          `stageElapsedMs=${Date.now() - stageStartedAt}, totalElapsedMs=${Date.now() - startedAt}`, true)
+      }
       return buildFailureResult(String(error))
     }
   }
@@ -225,6 +306,38 @@ export default class FFmpegThumbnailUtil {
     } finally {
       FFmpegThumbnailUtil.releaseExtractor(extractorId)
     }
+  }
+
+  /** Independent asynchronous extraction; does not read or pause the player's Surface. */
+  static async extractScreenshot(uri: string, timeMs: number,
+    screenshotRequestId: number = 0): Promise<FFmpegThumbnailResult> {
+    const startedAt = Date.now()
+    try {
+      const result = await FFmpegThumbnailUtil.screenshotSession.run<FFmpegThumbnailResult>(uri, screenshotRequestId, {
+        extract: async (extractorId: number): Promise<FFmpegThumbnailResult> => {
+          const extractStartedAt = Date.now()
+          const result = await FFmpegThumbnailUtil.extractFrame(extractorId,
+            Math.max(0, Math.round(timeMs * 1000)), 1, 1, false, false, true, screenshotRequestId)
+          salmonLogger.addLog(TAG, `[Screenshot#${screenshotRequestId}] stage=extract_frame event=end ` +
+            `extractor=${extractorId}, success=${result.success}, ` +
+            `category=${result.success ? 'none' : screenshotFailureCategory(result.error ?? '')}, ` +
+            `elapsedMs=${Date.now() - extractStartedAt}`, !result.success)
+          return result
+        },
+        succeeded: (result: FFmpegThumbnailResult): boolean => result.success,
+        discard: async (result: FFmpegThumbnailResult): Promise<void> => { await result.pixelMap?.release() }
+      })
+      return result.success ? result : buildFailureResult('FFmpeg screenshot extraction failed')
+    } catch (error) {
+      // Resolved network addresses and exceptions may contain credentials.
+      salmonLogger.addLog(TAG, `[Screenshot#${screenshotRequestId}] failed: stage=screenshot_session, ` +
+        `category=${screenshotFailureCategory(String(error))}, totalElapsedMs=${Date.now() - startedAt}`, true)
+      return buildFailureResult('FFmpeg screenshot extraction failed')
+    }
+  }
+
+  static async releaseScreenshotSession(): Promise<void> {
+    await FFmpegThumbnailUtil.screenshotSession.release()
   }
 
   static async extractCover(uri: string, durationMs: number, maxEdge: number = 480):

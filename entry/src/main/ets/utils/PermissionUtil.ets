@@ -1,3 +1,4 @@
+import BluRayDirectory from './BluRayDirectory'
 import { abilityAccessCtrl, common, Permissions, wantAgent } from '@kit.AbilityKit'
 import { salmonLogger } from 'salmonlogger'
 import AVSessionUtil from './AVSessionUtil'
@@ -26,6 +27,17 @@ export default class PermissionUtil {
     // not HarmonyOS local file URIs and must not enter fileIo/fileShare handling.
     if (ToolsUtil.isNetworkUrl(uri)) {
       return true
+    }
+    if (BluRayDirectory.isEntry(uri)) {
+      // Reactivate the directory grant after restart before checking sibling files.
+      const root = BluRayDirectory.rootUri(uri)
+      await PermissionUtil.activatePermission(root)
+      await PermissionUtil.activatePermission(root + '/BDMV')
+      try {
+        return BluRayDirectory.inspect(uri) !== undefined
+      } catch (_) {
+        return false
+      }
     }
     if (PermissionUtil.permissionCache.has(uri)) {
       return true

@@ -1,4 +1,6 @@
+import BluRayDirectory from './BluRayDirectory'
 import ImageFileUtil from './ImageFileUtil'
+import ImageStorage from './ImageStorage'
 import { window } from '@kit.ArkUI'
 import { audio } from '@kit.AudioKit'
 import { BusinessError, settings, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
@@ -34,6 +36,7 @@ import { SubtitlePreferredLanguage } from '../common/enum/SubtitleLanguage'
 import SubtitleLanguageUtil from './SubtitleLanguageUtil'
 import { VIDEO_HDR_TYPE } from '../common/enum/HDR_TYPE'
 import MediaLibraryService from './MediaLibraryService'
+import lazy FFmpegThumbnailUtil from './FFmpegThumbnailUtil'
 
 const TAG = 'VideoOperateUtil'
 
@@ -43,6 +46,11 @@ export default class VideoOperateUtil {
   public static minVolume: number = 0
   public static windowStage: window.WindowStage | undefined = undefined
   private static mainWin: window.Window | undefined = undefined
+  private static captureInProgress: boolean = false
+  private static captureRequestSequence: number = 0
+  private static activeCaptureRequestId: number = 0
+  private static captureQueue: Promise<void> = Promise.resolve()
+  private static captureQueueDepth: number = 0
 
   // 设置亮度
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
@@ -146,6 +154,7 @@ export default class VideoOperateUtil {
       'backgroundDropBlur': 0,
       'backgroundColorMode': BackgroundColorMode.AUTO,
       'allowBackgroundPlay': true,
+      'autoListenVideo': true,
       'allowConcurrentPlay': false,
       'allowPlayBackExist': false,
       'fastForwardSeconds': '15',
@@ -215,6 +224,7 @@ export default class VideoOperateUtil {
     }
     Setting.backgroundColorMode = valueMap['backgroundColorMode'] as BackgroundColorMode
     Setting.allowBackgroundPlay = valueMap['allowBackgroundPlay'] as boolean
+    Setting.autoListenVideo = valueMap['autoListenVideo'] as boolean
     Setting.allowConcurrentPlay = valueMap['allowConcurrentPlay'] as boolean
     Setting.allowPlayBackExist = valueMap['allowPlayBackExist'] as boolean
     Setting.fastForwardSeconds = valueMap['fastForwardSeconds'] as string
@@ -416,43 +426,198 @@ export default class VideoOperateUtil {
     return baseTimePerPixel * sensitivityFactor
   }
 
-  static saveCaptureScreenToAlbum(surfaceID: string) {
-    try {
-      // 1. 截屏 → 沙箱临时文件
-      const pixelMap = image.createPixelMapFromSurfaceSync(surfaceID)
-      const packOpts: image.PackingOption = { format: 'image/png', quality: 100 }
-      const imagePackerApi = image.createImagePacker()
-      const tempPath = PathUtils.tempPath + '/screenshot.png'
-      const tempFile = fileIo.openSync(tempPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE)
-      let srcUri: string
-      imagePackerApi.packToFile(pixelMap, tempFile.fd, packOpts)
-        .then(() => imagePackerApi.release())
-        .then(async () => {
-          fileIo.closeSync(tempFile)
-          // 2. 用系统对话框保存到相册
-          srcUri = PathUtils.pathToUri(tempPath)
-          const helper = photoAccessHelper.getPhotoAccessHelper(PathUtils.appContext)
-          return await helper.showAssetsCreationDialog(
-            [srcUri],
-            [{ photoType: photoAccessHelper.PhotoType.IMAGE, fileNameExtension: 'png' }]
-          )
-        })
-        .then(dstUris => {
-          // 3. 拷贝到用户选择的相册位置
-          if (dstUris.length) {
-            const src = fileIo.openSync(srcUri, fileIo.OpenMode.READ_ONLY)
-            const dst = fileIo.openSync(dstUris[0], fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE)
-            fileIo.copyFileSync(src.fd, dst.fd)
-            fileIo.closeSync(src)
-            fileIo.closeSync(dst)
-            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.save_success').id))
+  static nextCaptureRequestId(): number {
+    return ++VideoOperateUtil.captureRequestSequence
+  }
+
+  static saveCaptureScreenToAlbum(uri: string, positionMs: number,
+    isCurrent: () => boolean = () => true,
+    requestId: number = VideoOperateUtil.nextCaptureRequestId()): Promise<void> {
+    const requestedAt = Date.now()
+    const ahead = VideoOperateUtil.captureQueueDepth++
+    salmonLogger.addLog(TAG, `[Screenshot#${requestId}] request: positionMs=${positionMs}, ` +
+      `network=${ToolsUtil.isNetworkUrl(uri)}, queuedAhead=${ahead}`, false)
+    if (ahead > 0) {
+      salmonLogger.addLog(TAG, `[Screenshot#${requestId}] queued: activeRequest=${VideoOperateUtil.activeCaptureRequestId}`, false)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.screenshot_queued').id))
+    }
+    // Capture the URI and position at click time. Keep both decoding and the
+    // system save dialog serial; a later click must not overwrite or drop a job.
+    const task = VideoOperateUtil.captureQueue.then(async (): Promise<void> => {
+      try {
+        if (!isCurrent()) {
+          salmonLogger.addLog(TAG, `[Screenshot#${requestId}] ignored: reason=stale_before_start`, false)
+          return
+        }
+        VideoOperateUtil.captureInProgress = true
+        VideoOperateUtil.activeCaptureRequestId = requestId
+        salmonLogger.addLog(TAG, `[Screenshot#${requestId}] dequeued: waitMs=${Date.now() - requestedAt}, ` +
+          `positionMs=${positionMs}`, false)
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.screenshot_processing').id))
+        await VideoOperateUtil.performCaptureScreenToAlbum(uri, positionMs, isCurrent, requestId)
+      } catch (error) {
+        const err = error as BusinessError
+        salmonLogger.addLog(TAG, `[Screenshot#${requestId}] queue task failed: ` +
+          `code=${Number.isFinite(err?.code) ? err.code : 0}`, true)
+        if (isCurrent()) ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.screenshot_failed').id))
+      } finally {
+        VideoOperateUtil.captureQueueDepth--
+        try {
+          if (VideoOperateUtil.captureQueueDepth === 0) {
+            await FFmpegThumbnailUtil.releaseScreenshotSession()
           }
-        })
-        ?.catch((err: BusinessError) => {
-          salmonLogger.addLog(TAG, `packToFile failed: ${err.code}, ${err.message}`, true)
-        })
-    } catch (e) {
-      salmonLogger.addLog(TAG, `captureScreen failed: ${e.code}, ${e.message}`, true)
+        } finally {
+          VideoOperateUtil.captureInProgress = false
+          VideoOperateUtil.activeCaptureRequestId = 0
+        }
+      }
+    })
+    // A failed/cancelled job cannot poison subsequent queued requests.
+    VideoOperateUtil.captureQueue = task.catch((): void => {})
+    return VideoOperateUtil.captureQueue
+  }
+
+  private static async performCaptureScreenToAlbum(uri: string, positionMs: number,
+    isCurrent: () => boolean, requestId: number): Promise<void> {
+    const startedAt = Date.now()
+    let stage = 'extract'
+    let stageStartedAt = startedAt
+    let outcome = 'failed'
+    const beginStage = (nextStage: string): void => {
+      stage = nextStage
+      stageStartedAt = Date.now()
+      salmonLogger.addLog(TAG, `[Screenshot#${requestId}] stage=${stage} event=begin`, false)
+    }
+    const endStage = (): void => {
+      salmonLogger.addLog(TAG, `[Screenshot#${requestId}] stage=${stage} event=end ` +
+        `elapsedMs=${Date.now() - stageStartedAt}`, false)
+    }
+    let pixelMap: image.PixelMap | undefined = undefined
+    let packer: image.ImagePacker | undefined = undefined
+    let encodedSource: image.ImageSource | undefined = undefined
+    let tempFile: fileIo.File | undefined = undefined
+    let sourceFile: fileIo.File | undefined = undefined
+    let targetFile: fileIo.File | undefined = undefined
+    let tempPath: string = ''
+    try {
+      beginStage('extract')
+      const frame = await FFmpegThumbnailUtil.extractScreenshot(uri, positionMs, requestId)
+      endStage()
+      pixelMap = frame.pixelMap
+      if (!isCurrent()) {
+        outcome = 'stale_after_extract'
+        salmonLogger.addLog(TAG, `[Screenshot#${requestId}] ignored: reason=${outcome}`, false)
+        return
+      }
+      if (!frame.success || !pixelMap) {
+        salmonLogger.addLog(TAG, `[Screenshot#${requestId}] extraction failed: ` +
+          `success=${frame.success}, hasPixelMap=${pixelMap !== undefined}`, true)
+        throw new Error(frame.error ?? 'FFmpeg screenshot extraction failed')
+      }
+      beginStage('inspect_frame')
+      const captureInfo = pixelMap.getImageInfoSync()
+      const isHdr = captureInfo.isHdr
+      salmonLogger.addLog(TAG, `[Screenshot#${requestId}] capture: source=ffmpeg, requestedMs=${positionMs}, ` +
+        `frameMs=${Math.round(frame.frameTimeUs / 1000)}, sourceHdrType=${frame.hdrType}, ` +
+        `isHdr=${isHdr}, pixelFormat=${captureInfo.pixelFormat}, ` +
+        `size=${captureInfo.size.width}x${captureInfo.size.height}`, false)
+      endStage()
+      const extension = isHdr ? 'jpg' : 'png'
+      const packOpts: image.PackingOption = {
+        format: isHdr ? 'image/jpeg' : 'image/png',
+        quality: 100,
+        desiredDynamicRange: isHdr ? image.PackingDynamicRange.AUTO : image.PackingDynamicRange.SDR
+      }
+      beginStage('encode')
+      packer = image.createImagePacker()
+      tempPath = PathUtils.tempPath + `/screenshot_${requestId}_${Date.now()}.${extension}`
+      tempFile = fileIo.openSync(tempPath,
+        fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.TRUNC)
+      await packer.packToFile(pixelMap, tempFile.fd, packOpts)
+      endStage()
+      beginStage('release_encoded_resources')
+      ImageStorage.closeFileSafely(tempFile, '截图临时文件')
+      tempFile = undefined
+      await ImageStorage.releaseImageSafely(packer, '截图编码器')
+      packer = undefined
+      await ImageStorage.releaseImageSafely(pixelMap, '截图像素图')
+      pixelMap = undefined
+      endStage()
+
+      // 回读文件头确认编码结果，不能把请求 AUTO 当成 HDR 已保留。
+      beginStage('verify_encoded')
+      try {
+        encodedSource = image.createImageSource(tempPath)
+        const encodedInfo = encodedSource.getImageInfoSync()
+        salmonLogger.addLog(TAG, `[Screenshot#${requestId}] encoded: sourceHdr=${isHdr}, isHdr=${encodedInfo.isHdr}, ` +
+          `format=${encodedInfo.mimeType}`, isHdr && !encodedInfo.isHdr)
+      } catch (error) {
+        const err = error as BusinessError
+        salmonLogger.addLog(TAG, `[Screenshot#${requestId}] encoded info failed: ` +
+          `code=${Number.isFinite(err?.code) ? err.code : 0}`, true)
+      } finally {
+        await ImageStorage.releaseImageSafely(encodedSource, '截图编码结果')
+        encodedSource = undefined
+      }
+      endStage()
+
+      if (!isCurrent()) {
+        outcome = 'stale_before_dialog'
+        salmonLogger.addLog(TAG, `[Screenshot#${requestId}] ignored: reason=${outcome}`, false)
+        return
+      }
+      beginStage('save_dialog')
+      const srcUri = PathUtils.pathToUri(tempPath)
+      const helper = photoAccessHelper.getPhotoAccessHelper(PathUtils.appContext)
+      const dstUris = await helper.showAssetsCreationDialog(
+        [srcUri],
+        [{ photoType: photoAccessHelper.PhotoType.IMAGE, fileNameExtension: extension }]
+      )
+      endStage()
+      if (!dstUris.length) {
+        outcome = 'dialog_cancelled'
+        salmonLogger.addLog(TAG, `[Screenshot#${requestId}] cancelled: reason=save_dialog`, false)
+        return
+      }
+      // 原样复制编码文件，保留 JPEG 中的 HDR 信息。
+      beginStage('copy_to_album')
+      sourceFile = fileIo.openSync(srcUri, fileIo.OpenMode.READ_ONLY)
+      targetFile = fileIo.openSync(dstUris[0], fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE)
+      fileIo.copyFileSync(sourceFile.fd, targetFile.fd)
+      ImageStorage.closeFileSafely(targetFile, '截图相册文件')
+      targetFile = undefined
+      ImageStorage.closeFileSafely(sourceFile, '截图源文件')
+      sourceFile = undefined
+      endStage()
+      outcome = 'saved'
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.save_success').id))
+    } catch (error) {
+      const err = error as BusinessError
+      salmonLogger.addLog(TAG, `[Screenshot#${requestId}] failed: stage=${stage}, ` +
+        `stageElapsedMs=${Date.now() - stageStartedAt}, totalElapsedMs=${Date.now() - startedAt}, ` +
+        `code=${Number.isFinite(err?.code) ? err.code : 0}`, true)
+      if (isCurrent()) ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.screenshot_failed').id))
+    } finally {
+      beginStage('cleanup')
+      ImageStorage.closeFileSafely(targetFile, '截图相册文件')
+      ImageStorage.closeFileSafely(sourceFile, '截图源文件')
+      ImageStorage.closeFileSafely(tempFile, '截图临时文件')
+      await ImageStorage.releaseImageSafely(packer, '截图编码器')
+      await ImageStorage.releaseImageSafely(pixelMap, '截图像素图')
+      if (tempPath) {
+        try {
+          if (fileIo.accessSync(tempPath)) {
+            fileIo.unlinkSync(tempPath)
+          }
+        } catch (error) {
+          const err = error as BusinessError
+          salmonLogger.addLog(TAG, `[Screenshot#${requestId}] temp cleanup failed: ` +
+            `code=${Number.isFinite(err?.code) ? err.code : 0}`, true)
+        }
+      }
+      endStage()
+      salmonLogger.addLog(TAG, `[Screenshot#${requestId}] finished: outcome=${outcome}, ` +
+        `totalElapsedMs=${Date.now() - startedAt}`, false)
     }
   }
 
@@ -472,6 +637,9 @@ export default class VideoOperateUtil {
   }
 
   static resolvePlayerType(metadata: VideoMetadata, reverse: boolean = false) {
+    if (BluRayDirectory.isEntry(metadata.uri)) {
+      return PlayerEngine.MPV_PLAYER
+    }
     const defaultPlayer = Preferences.getDefaultPlayerEngine(PathUtils.appContext!)
     const titleLower = metadata.title?.toLowerCase() ?? ''
     const formatLower = metadata.format?.toLowerCase() ?? ''

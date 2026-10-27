@@ -1,3 +1,4 @@
+import BluRayDirectory from '../../utils/BluRayDirectory'
 import { HiCar } from '../../utils/HiCarUtil'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PathUtils } from '../../utils/PathUtils'
@@ -107,8 +108,11 @@ export struct DirectoryView {
     }
     const folderDate = this.videoListController.directoryOverview ? null : this.videoListController.folder?.date ?? null
     const entries = this.directoryIndex.entries(folderDate,
-      this.videoListController.videoDataSource.data, this._searchValue, this.videoListController.videoDataSource.revision)
-    if (entries === this.directoryEntries) return
+      this.videoListController.videoDataSource.data, this._searchValue,
+      this.videoListController.videoDataSource.revision)
+    if (entries === this.directoryEntries) {
+      return
+    }
     this.directoryEntries = entries
     if (this.directoryEntries.length > 0) {
       // Repeat 会复用目录滚动节点，切换后主动恢复位置，不依赖 onAppear 再次触发。
@@ -139,32 +143,34 @@ export struct DirectoryView {
 
   @Builder
   DirectoryCoverImagesBuilder(folder: Binding<FileFolder>) {
-      Image($r('app.media.sweet_video_alt'))
+    Image($r('app.media.sweet_video_alt'))
+      .attributeModifier(new ImageFancyModifier(16, '100%', '100%'))
+    if (this.directoryIndex.coverDates(folder.value.date).length === 1) {
+      Image(PathUtils.coverUri(this.directoryIndex.coverDates(folder.value.date)[0]))
+        .dynamicRangeMode(DynamicRangeMode.CONSTRAINT)
         .attributeModifier(new ImageFancyModifier(16, '100%', '100%'))
-      if (this.directoryIndex.coverDates(folder.value.date).length === 1) {
-        Image(PathUtils.coverUri(this.directoryIndex.coverDates(folder.value.date)[0]))
-          .attributeModifier(new ImageFancyModifier(16, '100%', '100%'))
-      } else if (this.directoryIndex.coverDates(folder.value.date).length > 1) {
-        // 按实际封面数量排布：两张左右分栏，三张左大右小，四张四格。
-        Repeat<string>(this.directoryIndex.coverDates(folder.value.date))
-          .each((cover: RepeatItem<string>) => {
-            Image(PathUtils.coverUri(cover.item))
-              .draggable(false)
-              .autoResize(true)
-              .width('50%')
-              .height(this.directoryIndex.coverDates(folder.value.date).length === 2 ||
-                (this.directoryIndex.coverDates(folder.value.date).length === 3 && cover.index === 0) ? '100%' : '50%')
-              .objectFit(ImageFit.Cover)
-              .position({
-                x: `${this.directoryIndex.coverDates(folder.value.date).length === 3 ? (cover.index === 0 ? 0 : 50) :
-                  (cover.index % 2) * 50}%`,
-                y: `${this.directoryIndex.coverDates(folder.value.date).length === 2 || cover.index === 0 ? 0 :
-                  (this.directoryIndex.coverDates(folder.value.date).length === 3 ? cover.index - 1 :
-                    Math.floor(cover.index / 2)) * 50}%`
-              })
-          })
-          .key((date: string) => date)
-      }
+    } else if (this.directoryIndex.coverDates(folder.value.date).length > 1) {
+      // 按实际封面数量排布：两张左右分栏，三张左大右小，四张四格。
+      Repeat<string>(this.directoryIndex.coverDates(folder.value.date))
+        .each((cover: RepeatItem<string>) => {
+          Image(PathUtils.coverUri(cover.item))
+            .dynamicRangeMode(DynamicRangeMode.CONSTRAINT)
+            .draggable(false)
+            .autoResize(true)
+            .width('50%')
+            .height(this.directoryIndex.coverDates(folder.value.date).length === 2 ||
+              (this.directoryIndex.coverDates(folder.value.date).length === 3 && cover.index === 0) ? '100%' : '50%')
+            .objectFit(ImageFit.Cover)
+            .position({
+              x: `${this.directoryIndex.coverDates(folder.value.date).length === 3 ? (cover.index === 0 ? 0 : 50) :
+                (cover.index % 2) * 50}%`,
+              y: `${this.directoryIndex.coverDates(folder.value.date).length === 2 || cover.index === 0 ? 0 :
+                (this.directoryIndex.coverDates(folder.value.date).length === 3 ? cover.index - 1 :
+                  Math.floor(cover.index / 2)) * 50}%`
+            })
+        })
+        .key((date: string) => date)
+    }
   }
 
   @Builder
@@ -181,7 +187,8 @@ export struct DirectoryView {
         .scale({
           x: this.directoryHero?.transformCover ? this.directoryHero.coverScaleX : 1,
           y: this.directoryHero?.transformCover ? this.directoryHero.coverScaleY : 1,
-          centerX: 0, centerY: 0
+          centerX: 0,
+          centerY: 0
         })
         .renderGroup(true)
       } else {
@@ -213,6 +220,20 @@ export struct DirectoryView {
     .backgroundColor($r('app.color.search_component_blur'))
     .borderRadius(12)
     .clip(true)
+  }
+
+  @Builder
+  BluRayFolderMenu(folder: FileFolder) {
+    Menu() {
+      Repeat<VideoMetadata>(folder.video_list.filter((item: VideoMetadata) => BluRayDirectory.isEntry(item.uri)))
+        .each((entry: RepeatItem<VideoMetadata>) => {
+          MenuItem({ content: $r('app.string.play_bluray'), labelInfo: entry.item.title })
+            .onClick(async () => {
+              await this.onVideoTap(entry.item)
+            })
+        })
+        .key((item: VideoMetadata) => item.date)
+    }
   }
 
   @Builder
@@ -249,12 +270,10 @@ export struct DirectoryView {
     .width('100%')
     .accessibilityText($r('app.string.directory_folder_accessibility', folder.value.name,
       folder.value.video_list.length, this.directoryIndex.childFolders(folder.value.date).length))
-    .gesture(GestureGroup(GestureMode.Exclusive,
-      LongPressGesture({ repeat: false }).onAction(() => {
-      }),
-      TapGesture().onAction(() => {
-        this.videoListController.requestDirectory(folder.value.date)
-      })))
+    .bindContextMenu(this.BluRayFolderMenu(folder.value), ResponseType.LongPress)
+    .onClick(() => {
+      this.videoListController.requestDirectory(folder.value.date)
+    })
     .backdropBlur(Setting.listItemBackgroundBlur ? 150 : 0)
     .borderRadius(12)
   }
@@ -293,13 +312,11 @@ export struct DirectoryView {
     .padding({ bottom: 12 })
     .accessibilityText($r('app.string.directory_folder_accessibility', folder.value.name,
       folder.value.video_list.length, this.directoryIndex.childFolders(folder.value.date).length))
-    // 单击与长按互斥：长按保持当前目录，单击进入文件夹。
-    .gesture(GestureGroup(GestureMode.Exclusive,
-      LongPressGesture({ repeat: false }).onAction(() => {
-      }),
-      TapGesture().onAction(() => {
-        this.videoListController.requestDirectory(folder.value.date)
-      })))
+    // Long press opens the disc menu; a normal click enters the folder.
+    .bindContextMenu(this.BluRayFolderMenu(folder.value), ResponseType.LongPress)
+    .onClick(() => {
+      this.videoListController.requestDirectory(folder.value.date)
+    })
   }
 
   @Builder
@@ -608,7 +625,12 @@ export struct DirectoryView {
         .width(hero.transformInfo ? hero.infoBaseWidth : hero.infoWidth)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .scale({ x: hero.infoScale, y: hero.infoScale, centerX: 0, centerY: 0 })
+        .scale({
+          x: hero.infoScale,
+          y: hero.infoScale,
+          centerX: 0,
+          centerY: 0
+        })
         .position({ x: 0, y: 0 })
         .translate({ x: hero.infoX, y: hero.infoY })
         .renderGroup(true)
@@ -643,26 +665,38 @@ export struct DirectoryView {
   }
 
   private activateDirectoryEntry(entry: DirectoryEntry): void {
-    if (this.videoListController.directoryTransitioning) return
+    if (this.videoListController.directoryTransitioning) {
+      return
+    }
     if (entry.folder) {
       this.libraryKeyboard.directoryNavigation = true
       this.videoListController.requestDirectory(entry.folder.date)
     } else if (entry.video) {
-      this.onVideoTap(entry.video).catch(() => {})
+      this.onVideoTap(entry.video).catch(() => {
+      })
     }
   }
 
   private restoreKeyboardDirectoryFocus(): void {
-    if (!this.libraryKeyboard.directoryNavigation) return
+    if (!this.libraryKeyboard.directoryNavigation) {
+      return
+    }
     this.libraryKeyboard.directoryNavigation = false
     const key = this.directoryKey()
     clearTimeout(this.directoryKeyboardTimer)
     this.directoryKeyboardTimer = setTimeout(() => {
-      if (!this.directoryAlive || key !== this.directoryKey()) return
+      if (!this.directoryAlive || key !== this.directoryKey()) {
+        return
+      }
       const first = this.directoryEntries[0]
-      const fallback = first ? first.folder ? `home-directory-folder:${first.folder.date}` : `home-video:${first.video!.date}` :
-        'home-directory-header:'
-      this.getUIContext().getFocusController().requestFocus(this.libraryKeyboard.directoryFocus.get(key) ?? fallback)
+      const fallback =
+        first ? first.folder ? `home-directory-folder:${first.folder.date}` : `home-video:${first.video!.date}` :
+          'home-directory-header:'
+      try {
+        this.getUIContext().getFocusController().requestFocus(this.libraryKeyboard.directoryFocus.get(key) ?? fallback)
+      } catch (_) {
+        // The target may have disappeared before the deferred focus request.
+      }
     }, 32)
   }
 
@@ -674,7 +708,9 @@ export struct DirectoryView {
         !controller.directoryOverview && controller.folder?.date === date)) {
       return
     }
-    if (this.directoryIndexDirty) this.rebuildDirectory()
+    if (this.directoryIndexDirty) {
+      this.rebuildDirectory()
+    }
     const target = date ? this.directoryIndex.folder(date) : undefined
     if (date && !target) {
       return

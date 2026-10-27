@@ -4273,6 +4273,88 @@
     {
       "name": "privacy_folder_load_failed",
       "value": "隐私文件夹读取失败，仍可查看全部视频，暂时不能修改文件夹"
-    }
+    },
+    {
+      "name": "ab_loop_invalid_range",
+      "value": "请先设置有效的 AB 区间：0 ≤ A < B ≤ 视频时长"
+    },
+    {
+      "name": "ab_loop_save_failed",
+      "value": "AB 点位保存失败，请重试"
+    },
+    {
+      "name": "ab_loop_seek_failed",
+      "value": "播放器未完成 AB 跳转，已暂停播放并停止 AB 循环"
+    },
+    {
+      "name": "timer_custom_minutes",
+      "value": "自定义定时（分钟）"
+    },
+    {
+      "name": "timer_minutes_range",
+      "value": "请输入 1–1440 分钟的整数"
+    },
+    {
+      "name": "edit_ab_range",
+      "value": "编辑 AB 区间"
+    },
+    {
+      "name": "edit_oped_range",
+      "value": "编辑片头片尾"
+    },
+    {
+      "name": "playback_range_start",
+      "value": "片头结束"
+    },
+    {
+      "name": "playback_range_end",
+      "value": "片尾开始"
+    },
+    {
+      "name": "playback_range_use_current",
+      "value": "使用当前播放位置"
+    },
+    {
+      "name": "range_invalid",
+      "value": "区间无效，请检查起止点和媒体时长"
+    },
+    {
+      "name": "range_save_failed",
+      "value": "保存区间失败；若已切换媒体，请关闭后重新编辑"
+    },
+    {
+      "name": "playback_range_oped_hint",
+      "value": "0 表示不设置单片标记，仍遵循全局片头片尾设置"
+    },
+    {
+      "name": "playback_intro_marker",
+      "value": "片头"
+    },
+    {
+      "name": "playback_outro_marker",
+      "value": "片尾"
+    },
+    {"name":"play_bluray","value":"播放蓝光原盘"},
+    {"name":"bluray_access_error","value":"原盘目录不完整或无法读取，请通过“从文件夹导入”重新选择原盘根目录并授权"},
+    {"name":"bluray_mpv_required","value":"蓝光原盘需要使用 MPV 播放器"},
+    {"name":"bluray_private_unsupported","value":"暂不支持将蓝光原盘目录复制到隐私空间，请在本地媒体库导入"},
+    {"name":"bluray_source_preserved","value":"已移除原盘条目，原盘文件夹保留，请在文件管理器中管理源文件"},
+    {
+      "name": "bluray_titles",
+      "value": "蓝光标题"
+    },
+    {
+      "name": "bluray_title_number",
+      "value": "标题 %d"
+    },
+    {
+      "name": "bluray_title_switch_failed",
+      "value": "无法保存标题选择，请重试"
+    },
+    {"name":"network_bluray_prepare_failed","value":"无法读取网络原盘，请检查连接、权限及 BDMV 目录是否完整"},
+    {"name":"network_bluray_core_required","value":"当前 MPV 内核尚不支持网络原盘，请更新播放器内核"},
+    {"name":"screenshot_processing","value":"正在截图…"},
+    {"name":"screenshot_queued","value":"截图已加入队列"},
+    {"name":"screenshot_failed","value":"截图失败，请重试"}
   ]
 }

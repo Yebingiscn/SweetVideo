@@ -18,8 +18,10 @@ import { WindowUtil } from '../utils/WindowUtil'
 import KnockShareUtil from '../utils/KnockShareUtil'
 import { MediaSmartGestureSession } from '../utils/MediaSmartGestureUtil'
 import { MpvLogBridge } from '../utils/MpvLogBridge'
+import { AppForegroundState } from '../utils/AppForegroundState'
 import { VideoFormData } from '../forms/VideoFormData'
 import HiCarUtil from '../utils/HiCarUtil'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 const TAG = 'EntryAbility'
 
@@ -116,6 +118,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onDestroy(): void {
+    AppForegroundState.reset()
     MediaImportBatch.flushActive()
     HiCarUtil.stop()
     this.windowStageVersion++
@@ -234,6 +237,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onForeground(): void {
+    AppForegroundState.setForeground(true)
     HiCarUtil.refresh()
     MediaSmartGestureSession.setAppForeground(true)
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onForeground')
@@ -244,6 +248,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onBackground(): void {
+    AppForegroundState.setForeground(false)
     MediaImportBatch.flushActive()
     MediaSmartGestureSession.setAppForeground(false)
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onBackground')
@@ -269,6 +274,7 @@ export default class EntryAbility extends UIAbility {
     WindowUtil.recoveryBarColor()
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   private updateWindowBackground(): void {
     try {
       // 窗口旋转时新尺寸的内容可能尚未绘制，底色必须与应用主题一致。
@@ -283,8 +289,16 @@ export default class EntryAbility extends UIAbility {
     const nowPlayingData =
       AppStorage.get('nowPlayingData') as (number | VideoMetadata | boolean)[]
     if (nowPlayingData && !nowPlayingData[2]) {
-      MediaLibraryService.saveVideoTime(nowPlayingData[0] as number, nowPlayingData[1] as VideoMetadata,
-        PathUtils.appContext!)
+      try {
+        MediaLibraryService.saveVideoTime(nowPlayingData[0] as number, nowPlayingData[1] as VideoMetadata,
+          PathUtils.appContext!)
+        Preferences.flushPending(PathUtils.appContext!).catch((error: Error) => {
+          salmonLogger.addLog(TAG, `提交生命周期播放记录失败: ${error.message}`, true)
+        })
+      } catch (error) {
+        // 记录失败不能打断窗口及 Ability 的销毁清理。
+        salmonLogger.addLog(TAG, `保存生命周期播放记录失败: ${error}`, true)
+      }
     }
   }
 }

@@ -10,8 +10,9 @@ export default class RecentPlayUtil {
   private static videoIdMap: Map<string, number> = new Map()
   private static initialized = false
 
-  static addPlayback(context: Context, item: VideoMetadata): void {
+  static addPlayback(context: Context, item: VideoMetadata, requireSuccess: boolean = false): void {
     RecentPlayUtil.loadData(context)
+    const previous = [...RecentPlayUtil.deque]
     if (!RecentPlayUtil.initialized) {
       RecentPlayUtil.initialized = true
     }
@@ -28,7 +29,13 @@ export default class RecentPlayUtil {
       RecentPlayUtil.videoIdMap.delete(removed.uri)
     }
     RecentPlayUtil.updateMapIndices()
-    RecentPlayUtil.persistData(context)
+    try {
+      RecentPlayUtil.persistData(context, requireSuccess)
+    } catch (_error) {
+      RecentPlayUtil.deque = previous
+      RecentPlayUtil.updateMapIndices()
+      throw new Error('Playback history could not be saved')
+    }
   }
 
   static getRecentPlaybacks(): VideoMetadata[] {
@@ -74,8 +81,8 @@ export default class RecentPlayUtil {
     })
   }
 
-  private static persistData(context: Context) {
-    Preferences.saveRecentPlay(context, RecentPlayUtil.deque)
+  private static persistData(context: Context, requireSuccess: boolean = false) {
+    Preferences.saveRecentPlay(context, RecentPlayUtil.deque, requireSuccess)
   }
 
   private static loadData(context: Context) {

@@ -16,7 +16,7 @@ export struct LockVideoBarComponent {
       Button({ type: ButtonType.Circle, stateEffect: false }) {
         SymbolGlyph($r('sys.symbol.camera'))
           .fontSize(27)
-          .fontColor(['#f0f0f0'])
+          .fontColor([$r('app.color.main_color')])
           .opacity(0.8)
       }
       .attributeModifier(new ButtonFancyModifier(40, 40))
@@ -29,7 +29,7 @@ export struct LockVideoBarComponent {
         SymbolGlyph(this.player.isLock ? $r('sys.symbol.lock_fill') : $r('sys.symbol.lock_open_fill'))
           .fontWeight(FontWeight.Bold)
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
+          .fontColor([$r('app.color.main_color')])
           .opacity(0.8)
       }
       .attributeModifier(new ButtonFancyModifier(40, 40))
@@ -40,8 +40,10 @@ export struct LockVideoBarComponent {
         this.onLockClick()
       })
     }
-    .position({ bottom: this.player.screenHeight / 2 - 40,
-      left: this.buttonsOnLeft ? 40 : this.player.screenWidth - 80 })
+    .position({
+      bottom: this.player.screenHeight / 2 - 40,
+      left: this.buttonsOnLeft ? 40 : this.player.screenWidth - 80
+    })
     .transition(TransitionEffect.translate({ x: this.buttonsOnLeft ? -80 : 80 })
       .combine(TransitionEffect.OPACITY)
       .animation(XAnimation.getAnimationCurve()))

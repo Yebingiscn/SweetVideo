@@ -72,10 +72,7 @@ export struct PersonalizeSettingPage {
               symbol: $r('sys.symbol.brush'),
               message: $r('app.string.switch_app_icon'),
               onPress: () => {
-                this.dynamicIconDialogOpen = false
-                setTimeout(() => {
-                  this.dynamicIconDialogOpen = true
-                }, 50)
+                this.dynamicIconDialogOpen = true
               }
             })
           }
@@ -288,7 +285,7 @@ export struct PersonalizeSettingPage {
     .hideBackButton(false)
     .bindToScrollable([this.listScroller])
     .onDisAppear(() => this.applyPendingColorMode())
-    .bindSheet(this.dynamicIconDialogOpen, this.dynamicIconCoverBuilder(), {
+    .bindSheet(this.dynamicIconDialogOpen!!, this.dynamicIconCoverBuilder(), {
       detents: [SheetSize.LARGE, SheetSize.MEDIUM],
       showClose: true,
       dragBar: true,

@@ -1,3 +1,4 @@
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { FileFolderDataSource } from '../../utils/DataUtil'
 import { AddNetworkStreamDialog } from '../Dialog/AddNetworkStreamDialog'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
@@ -333,6 +334,10 @@ export struct SideBarContentComponent {
       // 内容区域：Swiper 切换本地/网络
       Swiper() {
         SideBarFolderComponent({
+          onPlayDisc: async (item: VideoMetadata, list: VideoMetadata[]) => {
+            this.sideBarController.closeIfOverlay(false)
+            await ToolsUtil.routerWhere(this.pathStack, item, list)
+          },
           sideBarController: this.sideBarController,
           videoListController: this.videoListController,
           fileFolderSource: this.fileFolderSource,

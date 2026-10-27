@@ -49,6 +49,18 @@ export struct PlayerSettingPage {
 
         ListItem() {
           SettingsToggleItem({
+            symbol: $r('sys.symbol.headphones'),
+            message: '后台自动听视频（回到前台恢复画面）',
+            enable: Setting.autoListenVideo,
+            onChange: (checked: boolean) => {
+              Setting.autoListenVideo = checked
+              Preferences.saveAutoListenVideo(PathUtils.appContext!, checked)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
             symbol: $r('sys.symbol.play_gobackward'),
             message: ToolsUtil.getStringResource($r('app.string.play_with_others').id),
             tag: 'VIP',

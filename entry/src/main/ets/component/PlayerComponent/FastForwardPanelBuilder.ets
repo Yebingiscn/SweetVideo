@@ -40,12 +40,12 @@ export function FastForwardPanelBuilder(fastForwardInfo: FastForwardInfo) {
     // 中间：当前倍速（带边框高亮）
     Row({ space: 2 }) {
       Text(`${VideoInfoUtil.optimizedFormat(fastForwardInfo.speed).replace('x', '')}`)
-        .fontColor($r('sys.color.white'))
+        .fontColor($r('app.color.main_color'))
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
 
       Text('x')
-        .fontColor($r('sys.color.white'))
+        .fontColor($r('app.color.main_color'))
         .fontSize(12)
         .fontWeight(FontWeight.Medium)
         .margin({ bottom: 4 })
@@ -53,7 +53,7 @@ export function FastForwardPanelBuilder(fastForwardInfo: FastForwardInfo) {
       if (fastForwardInfo.speedLocked) {
         SymbolGlyph($r('sys.symbol.lock_fill'))
           .attributeModifier(new SymbolGlyphFancyModifier(12, '', ''))
-          .fontColor([$r('sys.color.white')])
+          .fontColor([$r('app.color.main_color')])
           .margin({ left: 2, bottom: 4 })
       }
     }

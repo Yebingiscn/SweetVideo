@@ -1,3 +1,4 @@
+import BluRayDirectory from '../../utils/BluRayDirectory'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
@@ -22,6 +23,7 @@ export struct WebDavPage {
   @Local server: WebDavServer | undefined = undefined
   @Local entries: WebDavEntry[] = []
   @Local folder: string = ''
+  @Local discIndexPath: string | undefined = undefined
   @Local loading: boolean = false
   @Local error: string = ''
   @Local contentWidth: number = 360
@@ -122,6 +124,9 @@ export struct WebDavPage {
               .textOverflow({ overflow: TextOverflow.Ellipsis })
             Button($r('app.string.refresh')).onClick(() => this.browse(this.server!, this.folder)).enabled(!this.loading)
           }.width('100%').padding({ left: 16, right: 16 })
+          if (this.discIndexPath !== undefined) {
+            Button($r('app.string.play_bluray')).onClick(() => this.playDisc()).enabled(!this.loading)
+          }
         }
         if (this.error) {
           Text(this.error).fontSize(14).fontColor($r('app.color.text_color')).padding(16).width('100%')
@@ -343,6 +348,7 @@ export struct WebDavPage {
       this.directoryVersion++
       this.folder = folder
       this.allEntries = entries
+      this.discIndexPath = BluRayDirectory.networkIndexPath(folder, entries)
       this.entries = entries.filter((entry: WebDavEntry) => entry.directory || SmbUtil.playable(entry.name))
       this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
     } catch (error) {
@@ -392,6 +398,30 @@ export struct WebDavPage {
     metadata.webdav_subtitle_uri = subtitle ? WebDavAddress.uri(server, subtitlePath) : undefined
     metadata.external_subtitle_format = subtitle ? VideoInfoUtil.getExtension(subtitle.name) : ''
     return metadata
+  }
+
+  private async playDisc(): Promise<void> {
+    const server = this.server
+    const indexPath = this.discIndexPath
+    if (!server || indexPath === undefined || this.loading) return
+    const version = ++this.requestVersion
+    this.loading = true
+    this.error = ''
+    try {
+      const uri = WebDavAddress.uri(server, indexPath)
+      const previous = RecentPlayUtil.getRecentPlaybacks().find((item: VideoMetadata) => item.uri === uri)
+      const root = indexPath.replace(/(?:^|\/)BDMV\/index\.bdmv$/, '')
+      const title = root.substring(root.lastIndexOf('/') + 1) || server.name
+      const item = previous ?? VideoInfoUtil.buildNetworkVideoMetadata(uri, await WebDavUtil.fileId(uri), title, '', [0, 0])
+      item.format = 'BDMV'
+      item.has_video_track = true
+      if (version !== this.requestVersion) return
+      await ToolsUtil.routerWhere(this.pathStack, item, [item])
+    } catch (_error) {
+      if (version === this.requestVersion) this.error = ToolsUtil.getStringResource($r('app.string.network_bluray_prepare_failed').id)
+    } finally {
+      if (version === this.requestVersion) this.loading = false
+    }
   }
 
   private async select(entry: WebDavEntry): Promise<void> {

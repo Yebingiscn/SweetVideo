@@ -27,6 +27,7 @@ export default class PreferencesUtil {
       pref.putSync(key, value)
       PreferencesUtil.debouncedFlush(pref)
     } catch (e) {
+      salmonLogger.addLog(TAG, `put failed: key=${key}, code=${e.code}`, true)
       if (requireSuccess) throw new Error('Metadata could not be saved')
       ToolsUtil.showToast(`数据库异常，保存失败，原因是:${e}，ValueType: ${value}，获取参数为 ${name}}: ${key}`)
     }
@@ -54,6 +55,20 @@ export default class PreferencesUtil {
         salmonLogger.addLog(TAG, 'flush error', true)
       })
     }, PreferencesUtil.FLUSH_DELAY)
+  }
+
+  // 后台和退出显式提交已有写入，避免等待防抖期间进程被回收。
+  static async flushPending(context: Context, name: string): Promise<void> {
+    if (PreferencesUtil.flushTimer !== null) {
+      clearTimeout(PreferencesUtil.flushTimer)
+      PreferencesUtil.flushTimer = null
+    }
+    try {
+      await PreferencesUtil.getPreferencesInstance(context, name).flush()
+    } catch (_error) {
+      salmonLogger.addLog(TAG, 'flush pending failed', true)
+      throw new Error('Metadata could not be flushed')
+    }
   }
 
   static getPreferencesValue(context: Context, name: string, key: string, defaultValue: preferences.ValueType,

@@ -371,6 +371,8 @@ export struct PrivacySpace { // 隐私空间页
             videoCount: this.allVideos.length })
         }
           .height(36)
+          .padding({ left: 16, right: 16 })
+          .flexShrink(0)
           .backgroundColor(this.currentFolderDate === PrivacyFolderUtil.ALL ? $r('app.color.main_color') : Color.Transparent)
           .onClick(() => this.openFolder(PrivacyFolderUtil.ALL))
         Scroll() {

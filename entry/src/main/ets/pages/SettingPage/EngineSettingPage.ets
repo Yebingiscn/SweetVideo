@@ -27,7 +27,6 @@ export struct EngineSettingPage {
   private listScroller: Scroller = new Scroller()
   @Local private usbNames: string[] = [ToolsUtil.getStringResource($r('app.string.usb_auto_select').id)]
   private usbIds: string[] = ['']
-  @Local private confEnabled: boolean = false
   @Local private confVisible: boolean = false
   @Local private confDraft: string = ''
   @Local private confBusy: boolean = false
@@ -35,9 +34,7 @@ export struct EngineSettingPage {
 
   aboutToAppear(): void {
     try {
-      this.confEnabled = MpvConfigStore.enabled()
     } catch (_error) {
-      this.confEnabled = false
     }
     try {
       const devices = UsbAudioSession.devices()
@@ -449,7 +446,6 @@ export struct EngineSettingPage {
             MpvConfigStore.setEnabled(enabled)
             ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.mpv_conf_next_core').id))
           } catch (_error) {
-            this.confEnabled = !enabled
             ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.mpv_conf_invalid').id))
           }
         })

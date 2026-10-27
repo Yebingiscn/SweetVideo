@@ -1,3 +1,5 @@
+import BluRayDirectory from '../../utils/BluRayDirectory'
+import { IMenuItem } from '../../interfaces/IMenuItemInterface'
 import FolderHierarchy from '../../utils/FolderHierarchy'
 import { FileFolderDataSource } from '../../utils/DataUtil'
 import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
@@ -39,6 +41,7 @@ export struct SideBarFolderComponent {
   @Param file_folder_list: FileFolder[] = []
   @Param sideBarScroller: Scroller = new Scroller()
   @Param currentSourceTab: number = 0
+  @Event onPlayDisc: (item: VideoMetadata, list: VideoMetadata[]) => Promise<void> = async () => {}
   @BuilderParam importActions: () => void
   @Local expandedFolderDates: Set<string> = new Set()
   @Local collapsedFolderDates: Set<string> = new Set()
@@ -204,6 +207,15 @@ export struct SideBarFolderComponent {
     }.width('100%').padding({ left: 16, right: 16, bottom: 8 })
   }
 
+  private discMenus(folder: FileFolder): IMenuItem[] {
+    return folder.video_list.filter((item: VideoMetadata) => BluRayDirectory.isEntry(item.uri))
+      .map((item: VideoMetadata): IMenuItem => ({
+        icon: $r('sys.symbol.play'),
+        content: ToolsUtil.getStringResource($r('app.string.play_bluray').id) + ' · ' + item.title,
+        onAction: async () => { await this.onPlayDisc(item, folder.video_list) }
+      }))
+  }
+
   @Builder
   FileFolderSelectMenu(folder: FileFolder) {
     if (this.folderSelectionMode) {
@@ -217,6 +229,7 @@ export struct SideBarFolderComponent {
       }])
     } else if (folder.name !== '首页') {
       FolderSelectMenuBuilder([
+        ...this.discMenus(folder),
         {
           icon: $r('sys.symbol.checkmark_square'), content: $r('app.string.multiple_choice'),
           onAction: () => {
@@ -270,6 +283,7 @@ export struct SideBarFolderComponent {
       ])
     } else {
       FolderSelectMenuBuilder([
+        ...this.discMenus(folder),
         {
           icon: $r('sys.symbol.checkmark_square'), content: $r('app.string.multiple_choice'),
           onAction: () => {

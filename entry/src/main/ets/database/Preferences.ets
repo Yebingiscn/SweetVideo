@@ -153,6 +153,18 @@ export default class Preferences {
     return result
   }
 
+  // Cleanup needs confirmed persisted identifiers without replacing the live library cache.
+  static getSavedVideoDates(context: Context, privateMode: boolean): Set<string> {
+    const dates: Set<string> = new Set()
+    if (privateMode) {
+      Preferences.getVideoMetaDataEncryption(context, true).forEach(video => dates.add(video.date))
+    } else {
+      const folders = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'file_folder', [], true) as FileFolder[]
+      folders.forEach(folder => folder.video_list.forEach(video => dates.add(video.date)))
+    }
+    return dates
+  }
+
   // 最近播放视频数据
   static getRecentPlay(context: Context, requireSuccess: boolean = false) {
     const videos = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'recent_play', [], requireSuccess) as VideoMetadata[]
@@ -170,6 +182,16 @@ export default class Preferences {
 
   static getVideoSpeed(context: Context) {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'video_speed', '1x') as string
+  }
+
+  static getLoudnessGain(context: Context): number {
+    const gain = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'loudness_gain', 0)
+    return typeof gain === 'number' && Number.isFinite(gain) ? Math.max(-90, Math.min(24, gain)) : 0
+  }
+
+  static saveLoudnessGain(context: Context, gain: number): void {
+    if (!Number.isFinite(gain)) return
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'loudness_gain', Math.max(-90, Math.min(24, gain)))
   }
 
   static getRepeatModeState(context: Context) {
@@ -298,6 +320,10 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "allowPlayBackExist", isEnabled)
   }
 
+  static saveAutoListenVideo(context: Context, enabled: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "autoListenVideo", enabled)
+  }
+
   static saveAllowBackgroundPlayState(context: Context, isEnabled: boolean) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "allowBackgroundPlay", isEnabled)
   }
@@ -411,12 +437,9 @@ export default class Preferences {
     return accepted.length
   }
 
-  static savePlaybackMetadata(context: Context, videoDate: string, requireSuccess: boolean = false): void {
-    const found = Preferences.findVideoByDate(context, videoDate)
-    if (!found[0] || !found[2]) throw new Error('Video metadata no longer exists')
-    const video = found[0]
+  static copyPlaybackMetadata(video: VideoMetadata): VideoMetadata {
     const copied = Preferences.deepCopyFileFolders([
-      { name: '', date: found[2], parent_date: null, video_list: [video] }
+      { name: '', date: '', parent_date: null, video_list: [video] }
     ])[0].video_list[0]
     copied.external_audio_file = video.external_audio_file
     copied.external_audio_name = video.external_audio_name
@@ -426,6 +449,16 @@ export default class Preferences {
     copied.smb_subtitle_uri = video.smb_subtitle_uri
     copied.webdav_subtitle_uri = video.webdav_subtitle_uri
     copied.ftp_subtitle_uri = video.ftp_subtitle_uri
+    return copied
+  }
+
+  static savePlaybackMetadata(context: Context, videoDate: string, requireSuccess: boolean = false,
+    update?: (video: VideoMetadata) => void): VideoMetadata {
+    const found = Preferences.findVideoByDate(context, videoDate)
+    if (!found[0] || !found[2]) throw new Error('Video metadata no longer exists')
+    const video = found[0]
+    const copied = Preferences.copyPlaybackMetadata(video)
+    update?.(copied)
     const updated = Preferences.getFileFolder(context).map((folder: FileFolder): FileFolder => {
       if (folder.date !== found[2]) return folder
       return {
@@ -434,8 +467,14 @@ export default class Preferences {
       }
     })
     // 播放设置不改变 URI、标识或层级，无需修复全库及重建检索索引。
-    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', updated, requireSuccess)
+    // 先写成功再发布新对象；失败时不能让缓存伪装成已经保存。
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', updated, true)
     Preferences.fileFolderCache = updated
+    return copied
+  }
+
+  static flushPending(context: Context): Promise<void> {
+    return PreferencesUtil.flushPending(context, DATA_BASE_NAME)
   }
 
   static saveRecentPlay(context: Context, recent_play_deque: VideoMetadata[], requireSuccess: boolean = false) {
@@ -736,6 +775,7 @@ export default class Preferences {
           has_video_track: v.has_video_track,
           time: v.time,
           last_play: v.last_play,
+          bluray_title_id: v.bluray_title_id,
           last_played_at: v.last_played_at,
           format: v.format,
           video_size: v.video_size,

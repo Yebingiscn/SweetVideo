@@ -27,6 +27,7 @@ import { MpvPlayerEngineAdapter } from '../engine/MpvPlayerEngineAdapter'
 import { AudioEffectConfig } from '../../interfaces/AudioEffectInterface'
 import { AudioControllerInterface } from '../PlayerControllerFactory'
 import MediaLibraryService from '../../utils/MediaLibraryService'
+import Preferences from '../../database/Preferences'
 
 const TAG = 'MpvAudioController'
 
@@ -294,11 +295,14 @@ export class MpvAudioController implements AudioControllerInterface {
     }
   }
 
-  setLoudnessGain(loudnessGain: number) {
+  setLoudnessGain(loudnessGain: number, persist: boolean = true): void {
     if (this.state.usbExclusiveActive) { ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.adjust_usb_volume').id)); return }
-    this.state.volumeLoudnessGain = loudnessGain
+    if (!Number.isFinite(loudnessGain)) return
+    const gain = Math.max(-90, Math.min(24, loudnessGain))
+    this.state.volumeLoudnessGain = gain
+    if (persist && PathUtils.appContext) Preferences.saveLoudnessGain(PathUtils.appContext, gain)
     if (this.engine.handle) {
-      mpvSetLoudnessGain(this.engine.handle, loudnessGain)
+      mpvSetLoudnessGain(this.engine.handle, gain)
     }
   }
 

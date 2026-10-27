@@ -42,7 +42,14 @@ export default class ImageStorage {
     try {
       packer = image.createImagePacker()
       file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-      await packer.packToFile(pixelMap, file.fd, { format: options?.format ?? 'image/webp', quality: 85 })
+      const isHdr = pixelMap.getImageInfoSync().isHdr
+      const format = options?.format ?? (isHdr ? 'image/jpeg' : 'image/webp')
+      await packer.packToFile(pixelMap, file.fd, {
+        format: format,
+        quality: 85,
+        desiredDynamicRange: isHdr && format === 'image/jpeg' ? image.PackingDynamicRange.AUTO :
+          image.PackingDynamicRange.SDR
+      })
       return filePath
     } catch (err) {
       salmonLogger.addLog(TAG, `Failed to save pixelMap to ${filePath}: ${JSON.stringify(err)} :${err.message}`, true)

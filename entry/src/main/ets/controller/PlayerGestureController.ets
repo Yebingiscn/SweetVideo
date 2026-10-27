@@ -113,6 +113,7 @@ export class PlayerGestureController {
   }
 
   onHorizonPanStart(): void {
+    this.player.playbackPolicy?.onSeekStart()
     this.seekStartTime = this.player.playTime
     this.player.onSwiping = true
     framePreviewSession.requestFrame(this.player, this.player.playTime, true)
@@ -212,7 +213,7 @@ export class PlayerGestureController {
       return
     }
     this.activeLongPressSpeedSession = ++this.longPressSpeedSession
-    this.longPressBaseSpeed = this.player.speed
+    this.longPressBaseSpeed = this.player.getRequestedPlaybackSpeed?.() ?? this.player.speed
     this.player.speedLocked = false
     this.player.updatePlaybackSpeed(Setting.longPressSpeed)
     XAnimation.runWithAnimation(() => {

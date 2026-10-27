@@ -10,9 +10,87 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { ShortVideoPlayer } from './ShortVideoPlayer'
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
 import { handleScreenDoubleClick } from '../../common/GestureUtil'
+import { PlaybackPolicyController } from '../PlaybackPolicyController'
+import { PlaybackPolicyCallbacks, PlaybackPolicyHost } from '../PlaybackPolicyInterface'
+import { salmonLogger } from 'salmonlogger'
+
+/** 适配当前短视频，不让相邻预加载项或进度预览成为策略的数据源。 */
+class ShortVideoPolicyHost implements PlaybackPolicyHost {
+  readonly player: ShortVideoPlayer
+  private manager: ShortVideoPlayerManager
+
+  constructor(player: ShortVideoPlayer, manager: ShortVideoPlayerManager) {
+    this.player = player
+    this.manager = manager
+  }
+
+  get nowPlaying(): VideoMetadata {
+    return this.player.item
+  }
+
+  get playbackPositionMs(): number {
+    return this.player.playbackPositionMs
+  }
+
+  get durationMs(): number {
+    return this.player.duration
+  }
+
+  get repeatMode(): SweetRepeatMode {
+    return this.manager.repeatMode
+  }
+
+  get playing(): boolean {
+    return this.player.state === 'playing'
+  }
+
+  get onSwiping(): boolean {
+    return this.manager.onSwiping
+  }
+
+  get isSliderPlayTimeChange(): boolean {
+    return this.manager.isProgressSeeking
+  }
+
+  get initialPlayTime(): number | undefined {
+    return undefined
+  }
+
+  get playbackPolicy(): PlaybackPolicyCallbacks | undefined {
+    return this.player.playbackPolicy
+  }
+
+  set playbackPolicy(callbacks: PlaybackPolicyCallbacks | undefined) {
+    this.player.playbackPolicy = callbacks
+  }
+
+  seekTime(positionMs: number): void {
+    this.player.seek(positionMs)
+  }
+
+  play(): void {
+    this.player.resumeAfterPolicySeek()
+  }
+
+  pause(): void {
+    void this.player.pause()
+  }
+
+  setABLoop(_pointAMs?: number, _pointBMs?: number): boolean {
+    return false
+  }
+
+  finishAtEnding(): void {
+    void this.player.finishAtEnding()
+  }
+}
 
 @ObservedV2
 export class ShortVideoPlayerManager implements PiPPlayerController {
+  readonly policy: PlaybackPolicyController = new PlaybackPolicyController()
+  private policyHost: ShortVideoPolicyHost | undefined = undefined
+  private closing: boolean = false
+  private pipTask: Promise<boolean> | undefined = undefined
   @Trace seekStartTime: number = 0
   @Trace selectedSpeed: number = 1
   @Trace onSwiping: boolean = false
@@ -30,7 +108,6 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   private generation: number = 0
   private skipHistory: boolean = false
   private avSession: avSession.AVSession | undefined = undefined
-  private sessionListenersRegistered: boolean = false
   private sessionMetadataIndex: number = -1
   private lastSessionPosition: number = -1
   private lastSessionPlaying: boolean = false
@@ -40,6 +117,14 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
 
   get nowPlaying(): VideoMetadata | undefined {
     return this.items[this.currentIndex]
+  }
+
+  get isClosing(): boolean {
+    return this.closing || this.policy.isClosing
+  }
+
+  get isProgressSeeking(): boolean {
+    return this.progressSeeking
   }
 
   get playing(): boolean {
@@ -78,7 +163,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   getOrCreate(index: number): ShortVideoPlayer | undefined {
-    if (index < 0 || index >= this.items.length) {
+    if (this.isClosing || index < 0 || index >= this.items.length) {
       return undefined
     }
     let player = this.players.get(index)
@@ -97,6 +182,9 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   bindSurface(index: number, surfaceId: string, controller: XComponentController): void {
+    if (this.isClosing) {
+      return
+    }
     const oldIndices = Array.from(this.surfaceControllers.keys())
     oldIndices.forEach((oldIndex: number) => {
       if (oldIndex !== index && this.surfaceControllers.get(oldIndex) === controller) {
@@ -108,6 +196,9 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     const player = this.getOrCreate(index)
     player?.bindSurface(surfaceId)
     if (index === this.currentIndex) {
+      if (player) {
+        this.bindPolicy(player)
+      }
       player?.setActive(true)
     } else if (this.currentIndex >= 0 && this.indexDistance(index, this.currentIndex) <= 1) {
       player?.prepare().catch(() => {
@@ -127,7 +218,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   async activate(index: number): Promise<void> {
-    if (index < 0 || index >= this.items.length) {
+    if (this.isClosing || this.policy.sleepTimer.checkDeadline() || index < 0 || index >= this.items.length) {
       return
     }
     this.onSwiping = false
@@ -138,6 +229,9 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     const target = this.getOrCreate(index)
     target?.setPlaybackRate(this.selectedSpeed)
     this.currentIndex = index
+    if (target) {
+      this.bindPolicy(target)
+    }
     this.currentTime = target?.currentTime || 0
     this.duration = target?.duration || this.items[index]?.time || 0
     const oldPlayer = this.players.get(oldIndex)
@@ -146,17 +240,19 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
       const deactivateTask: Promise<void> = oldPlayer.setActive(false)
       await deactivateTask
     }
-    if (generation !== this.generation) {
+    if (generation !== this.generation || this.isClosing) {
       return
     }
     if (oldIndex !== index || target?.state !== 'playing') {
       await target?.setActive(true)
     }
-    if (generation !== this.generation) {
+    if (generation !== this.generation || this.isClosing) {
       return
     }
-    await this.updateBackgroundSession(index)
-    if (generation !== this.generation) {
+    await this.updateBackgroundSession(index).catch((error: Error) => {
+      salmonLogger.addLog('ShortVideoPlayerManager', `更新后台播放会话失败: ${error.message}`, true)
+    })
+    if (generation !== this.generation || this.isClosing) {
       return
     }
     this.preload(this.adjacentIndex(index, -1))
@@ -165,6 +261,9 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   play(): void {
+    if (this.isClosing || this.policy.sleepTimer.checkDeadline()) {
+      return
+    }
     this.players.get(this.currentIndex)?.setActive(true)
   }
 
@@ -194,6 +293,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     if (!player || player.duration <= 0) {
       return
     }
+    player.playbackPolicy?.onSeekStart()
     this.seekStartTime = player.currentTime
     this.swipingTime = player.currentTime
     this.currentTime = player.currentTime
@@ -228,6 +328,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     if (!player || player.duration <= 0) {
       return
     }
+    player.playbackPolicy?.onSeekStart()
     this.progressSeeking = true
     this.currentTime = player.currentTime
   }
@@ -249,17 +350,52 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   async startPip(): Promise<boolean> {
+    if (this.pipTask) {
+      return await this.pipTask
+    }
+    const task = this.startPipInternal()
+    this.pipTask = task
+    try {
+      return await task
+    } finally {
+      if (this.pipTask === task) {
+        this.pipTask = undefined
+      }
+    }
+  }
+
+  private async startPipInternal(): Promise<boolean> {
+    if (this.isClosing || this.policy.sleepTimer.checkDeadline()) {
+      return false
+    }
+    const generation = this.generation
+    const index = this.currentIndex
     const controller = this.surfaceControllers.get(this.currentIndex)
     if (!controller || !this.nowPlaying) {
       return false
     }
     await PiPWindowUtil.createPipController(controller, this)
+    if (this.isClosing || generation !== this.generation || index !== this.currentIndex) {
+      if (PiPWindowUtil.playerController === this) {
+        await PiPWindowUtil.destroyPipController()
+      }
+      return false
+    }
     PiPWindowUtil.updateContentSize()
     await PiPWindowUtil.startPip()
+    if (this.isClosing || generation !== this.generation || index !== this.currentIndex) {
+      if (PiPWindowUtil.playerController === this) {
+        await PiPWindowUtil.destroyPipController()
+      }
+      return false
+    }
     return PiPWindowUtil.pipOpenState
   }
 
   async toggle(index: number): Promise<void> {
+    if (this.isClosing || this.policy.sleepTimer.checkDeadline() || index !== this.currentIndex) {
+      return
+    }
     return this.players.get(index)?.toggle()
   }
 
@@ -271,6 +407,9 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   seek(index: number, position: number): void {
+    if (this.isClosing || this.policy.sleepTimer.checkDeadline() || index !== this.currentIndex) {
+      return
+    }
     const player = this.players.get(index)
     if (!player) {
       return
@@ -284,6 +423,9 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   selectSpeed(speed: number): void {
+    if (this.isClosing) {
+      return
+    }
     if (!VideoInfoUtil.videoSpeedListAll.includes(speed)) {
       return
     }
@@ -293,6 +435,9 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   selectRepeatMode(repeatMode: SweetRepeatMode): void {
+    if (this.isClosing) {
+      return
+    }
     if (repeatMode === this.repeatMode) {
       return
     }
@@ -304,6 +449,9 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   beginLongPress(index: number): void {
+    if (this.isClosing) {
+      return
+    }
     if (index === this.currentIndex) {
       this.players.get(index)?.setPlaybackRate(Setting.longPressSpeed)
       AVSessionUtil.updatePlaybackSessionState(this.playing, this.currentTime,
@@ -331,15 +479,32 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   async releaseAll(): Promise<void> {
+    this.beginClosing()
+    AVSessionUtil.unbindPlayer(this)
+    this.policy.dispose()
+    try {
+      await this.pipTask
+    } catch (error) {
+      salmonLogger.addLog('ShortVideoPlayerManager', `等待小窗创建结束失败: ${error}`, true)
+    }
     ++this.generation
-    Preferences.saveVideoSpeed(PathUtils.appContext!, `${this.selectedSpeed}x`)
-    Preferences.saveRepeatModeState(PathUtils.appContext!, this.repeatMode)
-    await PiPWindowUtil.destroyPipController()
+    try {
+      Preferences.saveVideoSpeed(PathUtils.appContext!, `${this.selectedSpeed}x`)
+      Preferences.saveRepeatModeState(PathUtils.appContext!, this.repeatMode)
+    } catch (error) {
+      salmonLogger.addLog('ShortVideoPlayerManager', `保存播放偏好失败: ${error}`, true)
+    }
+    try {
+      if (PiPWindowUtil.playerController === this) {
+        await PiPWindowUtil.destroyPipController()
+      }
+    } catch (error) {
+      salmonLogger.addLog('ShortVideoPlayerManager', `关闭小窗失败: ${error}`, true)
+    }
     const players = Array.from(this.players.values())
     this.players.clear()
     this.surfaceControllers.clear()
     this.avSession = undefined
-    this.sessionListenersRegistered = false
     this.sessionMetadataIndex = -1
     this.lastSessionPosition = -1
     this.lastSessionPlaying = false
@@ -354,7 +519,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   private handleCompleted(index: number): void {
-    if (index !== this.currentIndex) {
+    if (this.isClosing || index !== this.currentIndex) {
       return
     }
     // 随机模式已打乱 Swiper 队列，自动切换与上滑必须沿同一条队列前进。
@@ -375,7 +540,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   private handlePlaybackStateChanged(index: number, playing: boolean, currentTime: number): void {
-    if (index !== this.currentIndex) {
+    if (this.isClosing || index !== this.currentIndex) {
       return
     }
     const item = this.items[index]
@@ -384,7 +549,8 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     }
     this.duration = this.players.get(index)?.duration || item?.time || 0
     if (item) {
-      AppStorage.setOrCreate('nowPlayingData', [currentTime, item, this.skipHistory])
+      AppStorage.setOrCreate('nowPlayingData',
+        [this.players.get(index)?.playbackPositionMs ?? 0, item, this.skipHistory])
     }
     const playbackStateChanged = playing !== this.lastSessionPlaying
     if (playbackStateChanged || this.lastSessionPosition < 0) {
@@ -395,42 +561,64 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   private async updateBackgroundSession(index: number): Promise<void> {
-    if (!Setting.allowBackgroundPlay) {
+    const generation = this.generation
+    if (this.isClosing || !Setting.allowBackgroundPlay) {
       return
     }
-    if (!this.avSession) {
-      this.avSession = await AVSessionUtil.getAVSession()
+    if (!this.avSession || this.avSession !== AVSessionUtil.avSession) {
+      const session = await AVSessionUtil.getAVSession()
+      if (this.isClosing || generation !== this.generation || index !== this.currentIndex) {
+        return
+      }
+      if (this.avSession !== session) {
+        this.sessionMetadataIndex = -1
+      }
+      this.avSession = session
+      if (!session) {
+        return
+      }
     }
-    if (!this.sessionListenersRegistered) {
-      this.setSessionListeners()
+    if (this.isClosing || generation !== this.generation || index !== this.currentIndex) {
+      return
+    }
+    if (!AVSessionUtil.isPlayerBound(this.avSession, this)) {
+      if (!this.setSessionListeners()) {
+        return
+      }
+      this.sessionMetadataIndex = -1
     }
     if (this.sessionMetadataIndex !== index) {
+      await AVSessionUtil.setSessionInfo(this.items[index], () => this.players.get(index)?.playbackPositionMs ?? 0, this)
+      if (this.isClosing || generation !== this.generation || index !== this.currentIndex ||
+        !AVSessionUtil.isPlayerBound(this.avSession, this)) {
+        return
+      }
       this.sessionMetadataIndex = index
-      await AVSessionUtil.setSessionInfo(this.items[index], () => this.players.get(index)?.currentTime ?? 0)
+    }
+    if (this.isClosing || generation !== this.generation || index !== this.currentIndex ||
+      !AVSessionUtil.isPlayerBound(this.avSession, this)) {
+      return
     }
     const player = this.players.get(index)
     AVSessionUtil.updatePlaybackSessionState(player?.state === 'playing', player?.currentTime || 0,
       this.repeatMode, this.selectedSpeed)
   }
 
-  private setSessionListeners(): void {
-    try {
-      this.avSession?.on('play', () => this.play())
-      this.avSession?.on('pause', () => this.pause())
-      this.avSession?.on('seek', (position: number) => this.seek(this.currentIndex, position))
-      this.avSession?.on('fastForward', () => this.fastForward())
-      this.avSession?.on('rewind', () => this.backForward())
-      this.avSession?.on('outputDeviceChange', () => this.pause())
-      this.avSession?.on('setLoopMode', (mode: avSession.LoopMode) => {
+  private setSessionListeners(): boolean {
+    return AVSessionUtil.bindPlayer(this.avSession, this, {
+      play: () => this.play(),
+      pause: () => this.pause(),
+      seek: (position: number) => this.seek(this.currentIndex, position),
+      fastForward: () => this.fastForward(),
+      rewind: () => this.backForward(),
+      outputDeviceChange: () => this.pause(),
+      setLoopMode: (mode: avSession.LoopMode) => {
         this.selectRepeatMode(AVSessionUtil.getRepeatModeFromAvSession(mode))
         Preferences.saveRepeatModeState(PathUtils.appContext!, this.repeatMode)
         AVSessionUtil.updatePlaybackSessionState(this.playing, this.currentPlayer?.currentTime || 0,
           this.repeatMode, this.selectedSpeed)
-      })
-      this.sessionListenersRegistered = true
-    } catch (_error) {
-      this.sessionListenersRegistered = false
-    }
+      }
+    })
   }
 
   private preload(index: number): void {
@@ -487,6 +675,10 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
 
   private releasePlayer(index: number): Promise<void> {
     const player = this.players.get(index)
+    if (player && this.policyHost?.player === player) {
+      this.policy.detachPlayer(this.policyHost)
+      this.policyHost = undefined
+    }
     this.players.delete(index)
     return player?.release(this.skipHistory) ?? Promise.resolve()
   }
@@ -502,5 +694,27 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
       }
     }
     await Promise.all(releaseTasks)
+  }
+
+  private bindPolicy(player: ShortVideoPlayer): void {
+    if (this.isClosing || this.policyHost?.player === player) {
+      return
+    }
+    this.policyHost = new ShortVideoPolicyHost(player, this)
+    this.policy.bindPlayer(this.policyHost)
+  }
+
+  beginClosing(): void {
+    if (this.closing) {
+      return
+    }
+    this.closing = true
+    AVSessionUtil.unbindPlayer(this)
+    ++this.generation
+    this.policy.beginClosing()
+    // 取消 active 意图，异步 prepared/play 回调不能在退出时恢复声音。
+    this.players.forEach((player: ShortVideoPlayer) => {
+      void player.setActive(false)
+    })
   }
 }

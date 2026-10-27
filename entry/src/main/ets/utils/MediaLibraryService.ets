@@ -1,3 +1,4 @@
+import BluRayDirectory from './BluRayDirectory'
 import { Context } from '@kit.AbilityKit'
 import { fileIo, fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import VideoInfoUtil from './VideoInfoUtil'
@@ -42,22 +43,28 @@ export default class MediaLibraryService {
     salmonLogger.addLog(TAG,
       `开始保存播放数据: playTime=${options.playTime}, totalTime=${options.totalTime}, target_time=${target_data.time}, last_play=${target_data.last_play}`,
       false)
-    let save_time: number = 0
-    if (target_data.time === 0 && options.totalTime) {
-      target_data.time = options.totalTime
+    if (options.blurayTitleId !== undefined && (!BluRayDirectory.isEntry(target_data.uri) ||
+      !Number.isInteger(options.blurayTitleId) || options.blurayTitleId < 0 || options.blurayTitleId > 99999)) {
+      throw new Error('Invalid Blu-ray title')
     }
-    if (options.playTime) {
-      const totalDuration = target_data?.time
+    let save_time: number = 0
+    if (options.playTime !== undefined && (!Number.isFinite(options.playTime) || options.playTime < 0)) {
+      salmonLogger.addLog(TAG, `拒绝无效播放进度: videoId=${target_data.date}`, true)
+      return
+    }
+    if (options.playTime !== undefined) {
+      const totalDuration = target_data.time || options.totalTime || 0
       const endTime = VideoInfoUtil.getEndingPosition(target_data)
       const skipOutroMs = Number(Setting.skipOutroTime) * 1000
       let shouldMarkAsWatched = false
       if (totalDuration && options.playTime > totalDuration * 0.95) {
         shouldMarkAsWatched = true
         salmonLogger.addLog(TAG, '播放进度超过95%，标记为已观看', false)
-      } else if (endTime > 0 && options.playTime >= endTime - 1000) {
+      } else if (options.playTime > 0 && endTime > 0 && options.playTime >= endTime - 1000) {
         shouldMarkAsWatched = true
         salmonLogger.addLog(TAG, '播放至指定结束时间，标记为已观看', false)
-      } else if (totalDuration && skipOutroMs > 0 && options.playTime >= totalDuration - skipOutroMs) {
+      } else if (options.playTime > 0 && totalDuration && skipOutroMs > 0 &&
+        options.playTime >= totalDuration - skipOutroMs) {
         shouldMarkAsWatched = true
         salmonLogger.addLog(TAG, '播放至全局片尾跳过区域，标记为已观看', false)
       }
@@ -66,11 +73,11 @@ export default class MediaLibraryService {
     let lastPlayedAt: number | undefined = undefined
     if (options.playTime !== undefined && options.playTime > 0) {
       lastPlayedAt = systemDateTime.getTime(false)
-      // 网络流等临时播放项可能不在本地文件夹数据库中，也要让最近播放记录拿到时间戳。
-      target_data.last_played_at = lastPlayedAt
     }
     const audioChange = options.externalAudioFile !== undefined || options.externalAudioName !== undefined ||
       options.externalAudioSelected !== undefined || options.externalAudioOffsetMs !== undefined
+    const rangeChange = options.blurayTitleId !== undefined || options.pointA !== undefined || options.pointB !== undefined ||
+      options.startTime !== undefined || options.endTime !== undefined
     const audioTargets: VideoMetadata[] = []
     const audioSnapshots: SaveOptions[] = []
     const updateVideo = (video: VideoMetadata) => {
@@ -81,16 +88,16 @@ export default class MediaLibraryService {
           externalAudioSelected: video.external_audio_selected, externalAudioOffsetMs: video.external_audio_offset_ms
         })
       }
-      if (options.playTime) {
+      if (options.playTime !== undefined) {
         video.last_play = save_time
       }
       if (lastPlayedAt !== undefined) {
         video.last_played_at = lastPlayedAt
       }
-      if (options.startTime) {
+      if (options.startTime !== undefined) {
         video.start_time = options.startTime
       }
-      if (options.endTime) {
+      if (options.endTime !== undefined) {
         video.end_time = options.endTime
         video.end_time_is_duration = false
       }
@@ -102,10 +109,10 @@ export default class MediaLibraryService {
       if (options.totalTime && video.time === 0) {
         video.time = options.totalTime
       }
-      if (options.pointA) {
+      if (options.pointA !== undefined) {
         video.pointA = options.pointA
       }
-      if (options.pointB) {
+      if (options.pointB !== undefined) {
         video.pointB = options.pointB
       }
       if (options.subtitleMode !== undefined) {
@@ -146,6 +153,22 @@ export default class MediaLibraryService {
       if (options.audioType !== undefined) {
         video.audio_type = options.audioType
       }
+      if (options.blurayTitleId !== undefined) {
+        // A disc entry remains one library item, but each title has its own timeline/tracks.
+        video.bluray_title_id = options.blurayTitleId
+        video.last_play = 0
+        video.time = 0
+        video.start_time = 0
+        video.end_time = 0
+        video.end_time_is_duration = false
+        video.pointA = 0
+        video.pointB = 0
+        video.audio_track_id = undefined
+        video.subtitle_track_id = undefined
+        video.size = [0, 0]
+        video.hdr_type = 0
+        video.audio_type = 0
+      }
     }
     try {
       if (PrivacySpaceUtil.getPrivacyMode()) {
@@ -153,11 +176,14 @@ export default class MediaLibraryService {
         const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context)
         const targetVideoMetaDataEncryption = videoMetaDataEncryption.find(v => v.date === target_data.date)
         if (targetVideoMetaDataEncryption) {
-          updateVideo(targetVideoMetaDataEncryption)
-          Preferences.saveVideoMetaDataEncryption(context, videoMetaDataEncryption, audioChange)
+          const updatedVideo = Preferences.copyPlaybackMetadata(targetVideoMetaDataEncryption)
+          updateVideo(updatedVideo)
+          const updated = videoMetaDataEncryption.map(video => video.date === target_data.date ? updatedVideo : video)
+          Preferences.saveVideoMetaDataEncryption(context, updated, true)
+          updateVideo(target_data)
           salmonLogger.addLog(TAG, '隐私空间数据更新完成', false)
         } else {
-          if (audioChange) throw new Error('Video metadata no longer exists')
+          if (audioChange || rangeChange) throw new Error('Video metadata no longer exists')
           salmonLogger.addLog(TAG, '未在隐私空间中找到目标视频数据', true)
         }
         return
@@ -167,12 +193,12 @@ export default class MediaLibraryService {
       const targetVideoMetaData = findResult[0]
 
       if (targetVideoMetaData) {
-        updateVideo(targetVideoMetaData)
-        Preferences.savePlaybackMetadata(context, target_data.date, audioChange)
+        Preferences.savePlaybackMetadata(context, target_data.date, true, updateVideo)
       } else {
         // External and network playback also need an up-to-date recent-play position.
-        updateVideo(target_data)
-        MediaLibraryService.saveExternalRecentPlay(context, target_data)
+        const updatedVideo = Preferences.copyPlaybackMetadata(target_data)
+        updateVideo(updatedVideo)
+        MediaLibraryService.saveExternalRecentPlay(context, updatedVideo, updateVideo)
       }
       if (audioChange) {
         const streams = Preferences.getNetworkStreams(context)
@@ -191,7 +217,37 @@ export default class MediaLibraryService {
         }
         if (!targetVideoMetaData && !stream && !recentItem) throw new Error('Video metadata no longer exists')
       }
+      if (rangeChange) {
+        try {
+          // 最近播放可能是媒体唯一的持久记录；同时同步 AB 和片头片尾，避免从历史进入恢复旧区间。
+          const recent = Preferences.getRecentPlay(context, true)
+          const recentItem = recent.find((item: VideoMetadata) => item.date === target_data.date)
+          if (recentItem) {
+            const updatedItem = Preferences.copyPlaybackMetadata(recentItem)
+            updateVideo(updatedItem)
+            Preferences.saveRecentPlay(context,
+              recent.map(item => item.date === target_data.date ? updatedItem : item), true)
+          } else if (!targetVideoMetaData && Setting.recentPlay) {
+            const updatedItem = Preferences.copyPlaybackMetadata(target_data)
+            updateVideo(updatedItem)
+            RecentPlayUtil.addPlayback(context, updatedItem, true)
+          }
+        } catch (error) {
+          // The canonical title has already been committed. Do not keep playing the
+          // old title and later save its position into the newly selected title.
+          if (options.blurayTitleId === undefined || !targetVideoMetaData) throw new Error('Recent playback could not be saved')
+          salmonLogger.addLog(TAG, '蓝光标题已保存，最近播放副本更新失败', true)
+        }
+      }
+      // 播放页可能仍持有替换缓存前的对象，成功后同步它，不能依赖引用碰巧相同。
+      updateVideo(target_data)
       salmonLogger.addLog(TAG, '文件夹数据更新完成', false)
+      if (options.playTime !== undefined) {
+        const canonicalPosition = Preferences.findVideoByDate(context, target_data.date)[0]?.last_play
+        salmonLogger.addLog(TAG,
+          `播放记录更新确认: videoId=${target_data.date}, positionMs=${save_time}, currentMs=${target_data.last_play}, canonicalMs=${canonicalPosition ?? 'external'}`,
+          false)
+      }
     } catch (_error) {
       for (let index = audioTargets.length - 1;index >= 0;index--) {
         const target = audioTargets[index]
@@ -201,26 +257,27 @@ export default class MediaLibraryService {
         target.external_audio_selected = previous.externalAudioSelected
         target.external_audio_offset_ms = previous.externalAudioOffsetMs
       }
+      salmonLogger.addLog(TAG, `播放记录更新失败: videoId=${target_data.date}`, true)
       throw new Error('Video metadata could not be saved')
     }
   }
 
-  // 网络串流不在文件夹里，把最近播放时间写回串流列表，供“按最近播放”排序和详情使用。
-  private static saveExternalRecentPlay(context: Context, target_data: VideoMetadata) {
-    const playedAt = target_data.last_played_at
-    if (playedAt === undefined || playedAt <= 0) {
-      return
-    }
+  // 网络串流不在文件夹里，按最新串流记录应用本次变更，避免旧播放对象覆盖其他字段。
+  private static saveExternalRecentPlay(context: Context, target_data: VideoMetadata,
+    update: (video: VideoMetadata) => void) {
     try {
       const streams = Preferences.getNetworkStreams(context)
       const targetStream = streams.find(stream => stream.date === target_data.date)
-      if (!targetStream || targetStream.last_played_at === playedAt) {
+      if (!targetStream) {
         return
       }
-      targetStream.last_played_at = playedAt
-      Preferences.saveNetworkStreams(context, streams)
+      const savedStream = Preferences.copyPlaybackMetadata(targetStream)
+      update(savedStream)
+      const updated = streams.map(stream => stream.date === target_data.date ? savedStream : stream)
+      Preferences.saveNetworkStreams(context, updated, true)
     } catch (error) {
-      salmonLogger.addLog(TAG, `保存串流最近播放时间失败: ${error}`, true)
+      salmonLogger.addLog(TAG, '保存串流播放记录失败', true)
+      throw new Error('Stream playback metadata could not be saved')
     }
   }
 
@@ -369,18 +426,24 @@ export default class MediaLibraryService {
   }
 
   static saveVideoTime(play_time: number, nowPlaying: VideoMetadata, context: Context) {
+    if (!Number.isFinite(play_time) || play_time < 0) return
     MediaLibraryService.saveData(context, nowPlaying, { playTime: play_time })
     if (Setting.recentPlay && !PrivacySpaceUtil.getPrivacyMode() &&
       !MediaLibraryService.isPathFromSource(nowPlaying.uri, VideoSource.PRIVACY_SPACE)) {
       const result = Preferences.findVideoByDate(context, nowPlaying.date)
-      RecentPlayUtil.addPlayback(context, result[0] ?? nowPlaying!)
+      try {
+        RecentPlayUtil.addPlayback(context, Preferences.copyPlaybackMetadata(result[0] ?? nowPlaying!), true)
+      } catch (_error) {
+        salmonLogger.addLog(TAG, `最近播放记录更新失败: videoId=${nowPlaying.date}`, true)
+        throw new Error('Playback history could not be saved')
+      }
     }
   }
 
   static saveVideoPlayTimeIfNeed(playTime: number, nowPlaying: VideoMetadata | undefined,
     skipHistory: boolean, context: Context): void {
     salmonLogger.addLog(TAG, `保存视频播放时间开始${playTime}, ${nowPlaying?.date}`, false)
-    if (!nowPlaying || playTime <= 0 || skipHistory) {
+    if (!nowPlaying || !Number.isFinite(playTime) || playTime < 0 || skipHistory) {
       return
     }
     MediaLibraryService.saveVideoTime(playTime, nowPlaying, context)
@@ -512,6 +575,11 @@ export default class MediaLibraryService {
       salmonLogger.addLog(TAG, `删除视频封面失败: ${error.message}`, true)
     })
     if (requireSuccess && cleanupFailed) throw new Error('Video resource cleanup incomplete')
+    // Removing an index alone would corrupt a multi-file disc; only remove its library entry.
+    if (BluRayDirectory.isEntry(item.uri) && deleteType !== DeleteType.SOFT) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.bluray_source_preserved').id))
+      return
+    }
     if (deleteType === DeleteType.HARD) {
       try {
         await fileIo.unlink(item.uri)

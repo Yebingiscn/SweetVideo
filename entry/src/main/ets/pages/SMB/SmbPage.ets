@@ -1,3 +1,4 @@
+import BluRayDirectory from '../../utils/BluRayDirectory'
 import ImageStorage from '../../utils/ImageStorage'
 import { smbClose, SmbEntry } from 'libmpvnative.so'
 import { fileIo as fs } from '@kit.CoreFileKit'
@@ -31,6 +32,7 @@ export struct SmbPage {
   @Local server: SmbServer | undefined = undefined
   @Local entries: SmbEntry[] = []
   @Local folder: string = ''
+  @Local discIndexPath: string | undefined = undefined
   @Local loading: boolean = false
   @Local error: string = ''
   @Local contentWidth: number = 360
@@ -82,6 +84,7 @@ export struct SmbPage {
         .fontSize(32).fontColor([$r('app.color.main_color')])
       if (!$$.entry.directory && this.covers[$$.entry.name]) {
         Image(this.covers[$$.entry.name]).width('100%').height('100%').objectFit(ImageFit.Cover)
+          .dynamicRangeMode(DynamicRangeMode.CONSTRAINT)
           .onComplete((event) => {
             if (event && event.width > 0 && event.height > 0) {
               const ratio = Math.max(0.6, Math.min(2.4, event.width / event.height))
@@ -154,6 +157,9 @@ export struct SmbPage {
               .textOverflow({ overflow: TextOverflow.Ellipsis })
             Button($r('app.string.refresh')).onClick(() => this.browse(this.server!, this.folder)).enabled(!this.loading)
           }.width('100%').padding({ left: 16, right: 16 })
+          if (this.discIndexPath !== undefined) {
+            Button($r('app.string.play_bluray')).onClick(() => this.playDisc()).enabled(!this.loading)
+          }
         }
         if (this.error) {
           Text(this.error).fontSize(14).fontColor($r('app.color.text_color')).padding(16).width('100%')
@@ -382,6 +388,7 @@ export struct SmbPage {
       this.directoryVersion++
       this.folder = folder
       this.allEntries = entries
+      this.discIndexPath = BluRayDirectory.networkIndexPath(folder, entries)
       this.entries = entries.filter((entry: SmbEntry) => entry.directory || SmbUtil.playable(entry.name))
       this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
     } catch (error) {
@@ -409,7 +416,7 @@ export struct SmbPage {
     }
   }
 
-  private async metadata(entry: SmbEntry): Promise<VideoMetadata> {
+  private async metadata(entry: SmbEntry, candidates: SmbEntry[]): Promise<VideoMetadata> {
     const server = this.server!
     const path = this.folder ? `${this.folder}/${entry.name}` : entry.name
     const uri = SmbUtil.uri(server, path)
@@ -418,7 +425,7 @@ export struct SmbPage {
       return previous
     }
     const base = VideoInfoUtil.getVideoTitle(entry.name).toLowerCase()
-    const subtitles = this.allEntries.filter((file: SmbEntry) => {
+    const subtitles = candidates.filter((file: SmbEntry) => {
       const lower = file.name.toLowerCase()
       const stem = VideoInfoUtil.splitFileName(lower).stem
       return !file.directory && file.size <= 8 * 1024 * 1024 && /\.(srt|ass|vtt)$/.test(lower) &&
@@ -433,6 +440,30 @@ export struct SmbPage {
     metadata.smb_subtitle_uri = subtitle ? SmbUtil.uri(server, subtitlePath) : undefined
     metadata.external_subtitle_format = subtitle ? VideoInfoUtil.getExtension(subtitle.name) : ''
     return metadata
+  }
+
+  private async playDisc(): Promise<void> {
+    const server = this.server
+    const indexPath = this.discIndexPath
+    if (!server || indexPath === undefined || this.loading) return
+    const version = ++this.requestVersion
+    this.loading = true
+    this.error = ''
+    try {
+      const uri = SmbUtil.uri(server, indexPath)
+      const previous = RecentPlayUtil.getRecentPlaybacks().find((item: VideoMetadata) => item.uri === uri)
+      const root = indexPath.replace(/(?:^|\/)BDMV\/index\.bdmv$/, '')
+      const title = root.substring(root.lastIndexOf('/') + 1) || server.name
+      const item = previous ?? VideoInfoUtil.buildNetworkVideoMetadata(uri, await SmbUtil.fileId(uri), title, '', [0, 0])
+      item.format = 'BDMV'
+      item.has_video_track = true
+      if (version !== this.requestVersion) return
+      await ToolsUtil.routerWhere(this.pathStack, item, [item])
+    } catch (_error) {
+      if (version === this.requestVersion) this.error = ToolsUtil.getStringResource($r('app.string.network_bluray_prepare_failed').id)
+    } finally {
+      if (version === this.requestVersion) this.loading = false
+    }
   }
 
   private async select(entry: SmbEntry): Promise<void> {
@@ -450,8 +481,13 @@ export struct SmbPage {
     try {
       this.recentItems.clear()
       RecentPlayUtil.getRecentPlaybacks().forEach((file: VideoMetadata) => this.recentItems.set(file.uri, file))
-      const list = await Promise.all(this.entries.filter((file: SmbEntry) => !file.directory)
-        .map((file: SmbEntry) => this.metadata(file)))
+      const candidates = this.allEntries.filter((file: SmbEntry) => !file.directory &&
+        file.size <= 8 * 1024 * 1024 && /\.(srt|ass|vtt)$/i.test(file.name))
+      const list: VideoMetadata[] = []
+      for (const file of this.entries.filter((file: SmbEntry) => !file.directory)) {
+        if (version !== this.requestVersion) return
+        list.push(await this.metadata(file, candidates))
+      }
       if (version !== this.requestVersion) {
         return
       }

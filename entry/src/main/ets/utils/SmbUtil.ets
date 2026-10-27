@@ -4,7 +4,7 @@ import { util } from '@kit.ArkTS'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { http } from '@kit.NetworkKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
-import { smbClose, SmbEntry, smbList, smbOpen, SmbOptions } from 'libmpvnative.so'
+import { smbClose, SmbEntry, smbList, smbOpen, smbOpenDisc, SmbOptions } from 'libmpvnative.so'
 import { SmbServer } from '../interfaces/SmbInterface'
 import { PathUtils } from './PathUtils'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
@@ -229,6 +229,16 @@ export default class SmbUtil {
       SmbUtil.logDiagnostic(error as SmbNativeError)
       throw error instanceof Error ? error : new Error(String(error))
     }
+  }
+
+  static async openDisc(uri: string, password?: string): Promise<string> {
+    const canonical = await SmbUtil.prepareUri(uri)
+    const match = /^smb:\/\/([0-9a-f-]{36})\/(.*)$/i.exec(canonical)
+    if (!match || !/BDMV\/index\.bdmv$/i.test(match[2])) throw new Error('Invalid disc reference')
+    const server = SmbUtil.servers().find((item: SmbServer) => item.id === match[1])
+    if (!server) throw new Error(ToolsUtil.getStringResource($r('app.string.smb_server_deleted').id))
+    const path = SmbAddress.decodePath(match[2]).replace(/(?:^|\/)BDMV\/index\.bdmv$/i, '')
+    return smbOpenDisc(SmbUtil.options(server, password ?? await SmbUtil.password(server.id)), path, util.generateRandomUUID(true))
   }
 
   static playable(name: string): boolean {

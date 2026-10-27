@@ -15,6 +15,8 @@ import PermissionUtil from '../../utils/PermissionUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import Preferences from '../../database/Preferences'
+import { PlaybackPolicyCallbacks } from '../PlaybackPolicyInterface'
 
 const TAG = 'ShortVideoPlayer'
 
@@ -27,12 +29,14 @@ export class ShortVideoPlayer {
   readonly item: VideoMetadata
   @Trace state: ShortVideoState = 'idle'
   @Trace currentTime: number = 0
+  @Trace playbackPositionMs: number = 0
   @Trace duration: number = 0
   @Trace errorMessage: string = ''
   @Trace playbackRate: number = 1
   @Trace videoWidth: number = 0
   @Trace videoHeight: number = 0
   @Trace audioCoverUri: string = ''
+  playbackPolicy: PlaybackPolicyCallbacks | undefined = undefined
   private player: NativeAVPlayer | undefined = undefined
   private surfaceId: string = ''
   private prepareTask: Promise<void> | undefined = undefined
@@ -40,10 +44,15 @@ export class ShortVideoPlayer {
   private preparedResolver: (() => void) | undefined = undefined
   private preparedRejecter: ((reason: Error) => void) | undefined = undefined
   private active: boolean = false
+  private activationVersion: number = 0
   private hasBeenActive: boolean = false
   private disposed: boolean = false
   private skipHistory: boolean = false
   private lastSavedTime: number = -1
+  private readyPolicy: PlaybackPolicyCallbacks | undefined = undefined
+  private readyPlayer: NativeAVPlayer | undefined = undefined
+  private policyHandledReady: boolean = false
+  private playbackEnded: boolean = false
   private onCompleted: () => void = () => {
   }
   private onPlaybackStateChanged: (playing: boolean, currentTime: number) => void =
@@ -59,6 +68,49 @@ export class ShortVideoPlayer {
     this.skipHistory = skipHistory
     this.onCompleted = onCompleted
     this.onPlaybackStateChanged = onPlaybackStateChanged
+  }
+
+  get isActive(): boolean {
+    return this.active && !this.disposed
+  }
+
+  get playing(): boolean {
+    return this.isActive && this.state === 'playing'
+  }
+
+  async finishAtEnding(): Promise<void> {
+    const player = this.player
+    if (!this.active || this.disposed || !player) { return }
+    const activationVersion = this.activationVersion
+    await this.pause()
+    if (!this.active || this.disposed || this.player !== player || activationVersion !== this.activationVersion) { return }
+    this.playbackEnded = true
+    this.state = 'completed'
+    this.saveHistory()
+    this.onPlaybackStateChanged(false, this.currentTime)
+    this.onCompleted()
+  }
+
+  /** 激活已预加载的播放器时，也需要让同一会话策略接管起播位置。 */
+  notifyPolicyReady(): boolean {
+    const player = this.player
+    const policy = this.playbackPolicy
+    if (!this.active || this.disposed || !player || !policy ||
+      (this.state !== 'prepared' && this.state !== 'paused' && this.state !== 'playing' &&
+        this.state !== 'completed')) {
+      return false
+    }
+    if (this.readyPlayer === player && this.readyPolicy === policy) {
+      return this.policyHandledReady
+    }
+    this.readyPlayer = player
+    this.readyPolicy = policy
+    this.policyHandledReady = false
+    const handled = policy.onReady()
+    if (!this.disposed && this.active && this.player === player && this.playbackPolicy === policy) {
+      this.policyHandledReady = handled
+    }
+    return handled
   }
 
   bindSurface(surfaceId: string): void {
@@ -100,8 +152,12 @@ export class ShortVideoPlayer {
     if (this.disposed) {
       return
     }
+    if (this.active !== active) { this.activationVersion++ }
     this.active = active
     if (!active) {
+      this.readyPlayer = undefined
+      this.readyPolicy = undefined
+      this.policyHandledReady = false
       await this.pause()
       if (this.disposed || this.active) {
         return
@@ -139,20 +195,40 @@ export class ShortVideoPlayer {
 
   private async playWhenReady(): Promise<void> {
     await this.prepare()
-    if (!this.active || this.disposed || !this.player || this.state === 'playing') {
+    if (!this.active || this.disposed || !this.player) {
+      return
+    }
+    const player = this.player
+    this.notifyPolicyReady()
+    if (!this.active || this.disposed || this.player !== player ||
+      (this.state === 'playing' && !this.playbackEnded)) {
       return
     }
     if (this.state === 'completed') {
       this.resetToBeginning()
     }
-    const player = this.player
     try {
+      this.playbackEnded = false
       await player.play()
     } catch (error) {
       if (this.active) {
         this.fail(error, player)
       }
     }
+  }
+
+  /** EOF 策略已完成定位，不复用尚未结束的首次 playTask，也不重置到片头。 */
+  resumeAfterPolicySeek(): void {
+    const player = this.player
+    if (!this.active || this.disposed || !player) {
+      return
+    }
+    this.playbackEnded = false
+    player.play().catch((error: BusinessError) => {
+      if (this.active && !this.disposed && this.player === player) {
+        this.fail(error, player)
+      }
+    })
   }
 
   async toggle(): Promise<void> {
@@ -177,14 +253,19 @@ export class ShortVideoPlayer {
   }
 
   seek(position: number): void {
-    if (!this.player || this.duration <= 0) {
+    if (!this.active || this.disposed || !this.player || this.duration <= 0 || !Number.isFinite(position)) {
       return
     }
+    const player = this.player
     const target = Math.max(0, Math.min(position, this.duration))
+    this.playbackPolicy?.onSeek(target)
+    if (!this.active || this.disposed || this.player !== player) {
+      return
+    }
     this.currentTime = target
     this.onPlaybackStateChanged(this.state === 'playing', target)
     try {
-      this.player.seek(target, media.SeekMode.SEEK_CLOSEST)
+      player.seek(target, media.SeekMode.SEEK_CLOSEST)
     } catch (error) {
       salmonLogger.addLog(TAG, `seek failed: ${error}`, true)
     }
@@ -215,11 +296,17 @@ export class ShortVideoPlayer {
   }
 
   saveHistory(skipHistory: boolean = this.skipHistory): void {
-    if (!this.hasBeenActive || skipHistory || this.currentTime <= 0 || this.currentTime === this.lastSavedTime) {
+    const position = this.playbackPositionMs
+    if (!this.hasBeenActive || skipHistory || !Number.isFinite(position) || position <= 0 ||
+      position === this.lastSavedTime) {
       return
     }
-    MediaLibraryService.saveVideoPlayTimeIfNeed(this.currentTime, this.item, false, PathUtils.appContext!)
-    this.lastSavedTime = this.currentTime
+    try {
+      MediaLibraryService.saveVideoPlayTimeIfNeed(position, this.item, false, PathUtils.appContext!)
+      this.lastSavedTime = position
+    } catch (_error) {
+      salmonLogger.addLog(TAG, `保存播放记录失败: videoId=${this.item.date}`, true)
+    }
   }
 
   async release(skipHistory: boolean = false): Promise<void> {
@@ -227,6 +314,9 @@ export class ShortVideoPlayer {
       return
     }
     this.disposed = true
+    this.playbackPolicy = undefined
+    this.readyPlayer = undefined
+    this.readyPolicy = undefined
     this.state = 'released'
     this.audioCoverUri = ''
     this.smbPlayback.close()
@@ -312,6 +402,9 @@ export class ShortVideoPlayer {
           player.prepare().catch((error: BusinessError) => this.fail(error, player))
           break
         case 'prepared':
+          player.setLoudnessGain(Preferences.getLoudnessGain(PathUtils.appContext!)).catch(() => {
+            salmonLogger.addLog(TAG, '恢复响度失败', true)
+          })
           this.state = 'prepared'
           try {
             player.audioInterruptMode = AVSessionUtil.getInterruptMode()
@@ -324,13 +417,20 @@ export class ShortVideoPlayer {
           if (this.duration > 0 && this.item.time === 0) {
             this.item.time = this.duration
           }
-          this.seekToRememberedPosition(player)
+          const wasActive = this.active
+          const policyHandledReady = this.active && this.playbackPolicy ? this.notifyPolicyReady() : false
+          if (!this.disposed && this.player === player && (!wasActive || this.active) && !policyHandledReady) {
+            this.seekToRememberedPosition(player)
+          }
           this.preparedResolver?.()
           this.clearPrepareCallbacks()
           break
         case 'playing':
           this.state = 'playing'
-          this.onPlaybackStateChanged(true, this.currentTime)
+          this.playbackEnded = false
+          if (this.active) {
+            this.onPlaybackStateChanged(true, this.currentTime)
+          }
           if (this.playbackRate !== 1) {
             this.setPlaybackRate(this.playbackRate)
           }
@@ -341,11 +441,21 @@ export class ShortVideoPlayer {
           break
         case 'paused':
           this.state = 'paused'
-          this.onPlaybackStateChanged(false, this.currentTime)
+          if (this.active) {
+            this.onPlaybackStateChanged(false, this.currentTime)
+          }
           break
         case 'completed':
+          this.playbackEnded = true
+          if (!this.active) {
+            return
+          }
+          if (this.playbackPolicy?.onCompleted() || !this.active || this.disposed || this.player !== player) {
+            return
+          }
           this.state = 'completed'
           this.currentTime = this.duration || this.item.time
+          this.playbackPositionMs = this.currentTime
           this.onPlaybackStateChanged(false, this.currentTime)
           this.saveHistory()
           this.onCompleted()
@@ -364,8 +474,34 @@ export class ShortVideoPlayer {
       if (this.disposed || this.player !== player) {
         return
       }
+      if (!Number.isFinite(time) || time < 0) {
+        return
+      }
+      this.playbackPositionMs = time
       this.currentTime = time
-      this.onPlaybackStateChanged(this.state === 'playing', time)
+      if (!this.active) {
+        return
+      }
+      this.playbackPolicy?.onPosition(time)
+      if (!this.active || this.disposed || this.player !== player) {
+        return
+      }
+      this.onPlaybackStateChanged(this.state === 'playing', this.currentTime)
+    })
+    player.on('seekDone', (position: number) => {
+      if (this.disposed || this.player !== player || !Number.isFinite(position) || position < 0) {
+        return
+      }
+      this.playbackPositionMs = position
+      this.currentTime = position
+      if (!this.active) {
+        return
+      }
+      this.playbackPolicy?.onSeekDone(position)
+      if (!this.active || this.disposed || this.player !== player) {
+        return
+      }
+      this.onPlaybackStateChanged(this.state === 'playing', position)
     })
     player.on('error', (error: BusinessError) => {
       if (this.disposed || this.player !== player) {
@@ -379,6 +515,7 @@ export class ShortVideoPlayer {
     try {
       player.off('stateChange')
       player.off('timeUpdate')
+      player.off('seekDone')
       player.off('error')
     } catch (_error) {
     }
@@ -408,7 +545,7 @@ export class ShortVideoPlayer {
 
   private hasReachedWatchedThreshold(): boolean {
     const totalTime = this.duration || this.item.time
-    return totalTime > 0 && this.currentTime > totalTime * 0.95
+    return totalTime > 0 && this.playbackPositionMs > totalTime * 0.95
   }
 
   private resetToBeginning(): void {

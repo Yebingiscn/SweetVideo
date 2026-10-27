@@ -13,8 +13,8 @@ export function sanitizeMpvLog(text: string): string {
 export class MpvLogBridge {
   //MPV DEBUG 日志开关
   private static started: boolean = false
-  // Hidden developer switch. Runtime Want parameters can override this default.
-  private static diagnosticsEnabled: boolean = false
+  // Enabled for screenshot investigation; runtime Want parameters can still disable it.
+  private static diagnosticsEnabled: boolean = true
 
   static applyDiagnosticsWant(want: Want): void {
     const enabled = want.parameters?.['mpvDiagnostics']
@@ -26,6 +26,7 @@ export class MpvLogBridge {
   static setDiagnostics(enabled: boolean): void {
     setMpvDiagnostics(enabled)
     MpvLogBridge.diagnosticsEnabled = enabled
+    salmonLogger.addLog('MPV/log', `详细诊断开关: enabled=${enabled}`, false)
   }
 
   static start(): void {
@@ -45,6 +46,7 @@ export class MpvLogBridge {
         // Preserve native occurrence time: the ArkTS thread may dispatch later.
         salmonLogger.addLog(`MPV/${prefix}`, `[${label} nativeTime=${timestampMs}] ${message}`, level <= 30)
       })
+      salmonLogger.addLog('MPV/log', `原生日志已接入，详细诊断 enabled=${MpvLogBridge.diagnosticsEnabled}`, false)
     } catch (error) {
       salmonLogger.addLog('MPV/log', `原生日志接入失败: ${error}`, true)
     }

@@ -1,8 +1,14 @@
+import BluRayDirectory from '../../utils/BluRayDirectory'
+import { PlaybackRangeDialog, PlaybackRangeMode, PlaybackRangeValues } from '../../component/PlayerComponent/PlaybackRangeDialog'
+import { playbackPolicyMarkers } from '../../component/PlayerComponent/PlaybackPolicyMarkers'
 import { PlayerGestureController } from '../../controller/PlayerGestureController'
+import { PlayerViewportState } from '../../controller/PlayerViewportState'
+import { AppForegroundState } from '../../utils/AppForegroundState'
 import { PlayerControlAutoHide } from '../../controller/PlayerControlAutoHide'
 import { HiCar } from '../../utils/HiCarUtil'
 import { framePreviewSession } from '../../utils/FFmpegThumbnailUtil'
 import MediaLibraryService from '../../utils/MediaLibraryService'
+import TimeUtil from '../../utils/TimeUtil'
 import { DanmakuSession } from '../../utils/DanmakuSession'
 import { DanmakuOverlay } from '../../component/PlayerComponent/DanmakuOverlay'
 import { DanmakuMenuComponent } from '../../component/PlayerComponent/DanmakuMenuBuilder'
@@ -31,6 +37,7 @@ import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/Subtitle
 import { Pc, Privacy, Setting } from '../../utils/ObservedUtil'
 import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
+import { MpvPlayerState } from '../../controller/MpvController/MpvPlayerState'
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { PlaybackSessionController } from '../../controller/PlaybackSessionController'
 import { XComponents } from '../../component/PlayerComponent/XComponents'
@@ -136,6 +143,44 @@ export struct VideoPlayer {
     onDidDisappear: () => this.onKeyboardOverlay('aspect-dialog', false)
   })
   @Local isPlayerConfigured: boolean = false
+  private sleepTimerDialog: CustomDialogController = new CustomDialogController({
+    builder: NumberInputDialog({
+      title: ToolsUtil.getStringResource($r('app.string.timer_custom_minutes').id),
+      placeholderColor: ToolsUtil.getStringResource($r('app.string.timer_minutes_range').id),
+      confirm: (minutes: number): void => {
+        if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.timer_minutes_range').id))
+          return
+        }
+        if (this.isPageDisappearing || this.playbackSession.isClosing) { return }
+        this.playbackSession.sleepTimer.start(minutes * 60000)
+        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.timer_set_minutes').id, minutes))
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow,
+    onWillAppear: () => this.onKeyboardOverlay('sleep-timer', true),
+    onDidDisappear: () => this.onKeyboardOverlay('sleep-timer', false)
+  })
+  private rangeMode: PlaybackRangeMode = 'ab'
+  private rangeMediaKey: string = ''
+  private rangeDuration: number = 0
+  private rangeEditorDialog: CustomDialogController = new CustomDialogController({
+    builder: PlaybackRangeDialog({
+      options: {
+        mode: this.rangeMode,
+        getDuration: (): number => this.rangeDuration,
+        getCurrentPosition: (): number => this.rangeMediaKey === this.currentRangeMediaKey() ?
+          this.player.playbackPositionMs : Number.NaN,
+        getRange: (): PlaybackRangeValues => this.rangeMode === 'ab' ?
+          { start: this.playbackSession.policy.abLoop.pointA, end: this.playbackSession.policy.abLoop.pointB } :
+          { start: this.playbackSession.policy.openingEnding.startTime, end: this.playbackSession.policy.openingEnding.endTime },
+        onSave: (start: number, end: number): boolean => this.saveEditedRange(start, end),
+        onClear: (): boolean => this.saveEditedRange(0, 0)
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow,
+    onWillAppear: () => { this.onKeyboardOverlay('playback-range', true) },
+    onDidDisappear: () => { this.onKeyboardOverlay('playback-range', false) }
+  })
+
   @Local subtitlePreferenceRestored: boolean = false
   xComponentController: XComponentController = new XComponentController()
   osdXController: XComponentController = new XComponentController()
@@ -143,7 +188,6 @@ export struct VideoPlayer {
   @Local sideBarStatusTmp: Visibility = Visibility.Hidden
   @Local sideBarStatus: boolean = false
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
-  @Local exitVideoTime: number = 0
   @Local isAdjustingSubtitleOffset: boolean = false
   @Local lockRotation: boolean = false
   @Local playerExitTransitionEnabled: boolean = false
@@ -151,12 +195,15 @@ export struct VideoPlayer {
   private containerWidth: number = 0
   private containerHeight: number = 0
   private gestures: PlayerGestureController = new PlayerGestureController(this.player)
-  private playbackSession: PlaybackSessionController = new PlaybackSessionController()
+  @Local playbackSession: PlaybackSessionController = new PlaybackSessionController()
   private isPageDisappearing: boolean = false
   private playerExitToken: number | undefined = undefined
   private waitingForPreviousExit: boolean = false
-  private exitPlayTime: number = 0
+  private exitProgressSave: Promise<void> | undefined = undefined
+  private backgroundViewport: PlayerViewportState = new PlayerViewportState()
   private playerDestinationShown: boolean = false
+  private appForegroundSubscription: number = 0
+  private appBackgrounded: boolean = false
   private controlTouches: Set<number> = new Set<number>()
   private controlsIdle: PlayerControlAutoHide = new PlayerControlAutoHide(AUTO_HIDE_SHOW_CONTROL_TIME,
     () => this.canAutoHideControls(), () => { this.player.showControl = false })
@@ -311,6 +358,8 @@ export struct VideoPlayer {
     this.playerDestinationShown = false
     this.playerReadyToStart = false
     this.playerExitTransitionEnabled = false
+    this.appBackgrounded = false
+    this.observeAppForeground()
     this.pageParams = this.readPlayerParams()
     KnockShareUtil.setShareProvider(KNOCK_SHARE_VIDEO_PLAYER_OWNER,
       (_coordinate: KnockCoordinate | undefined): VideoMetadata[] => {
@@ -358,14 +407,14 @@ export struct VideoPlayer {
         this.player.onDisappearSaveSubtitlePreference(this.subtitleManager.subtitleVisibility,
           this.subtitleManager.isAIAsrShown, this.subtitleManager.subtitle3DMode)
         MediaLibraryService.saveLastPlayVideoIndex(this.player.videoMetaDataList, this.player.nowPlaying?.date)
-        MediaLibraryService.saveVideoPlayTimeIfNeed(this.exitPlayTime, this.player.nowPlaying,
-          this.player.skipHistory, PathUtils.appContext!)
+        await this.exitProgressSave
+        await Preferences.flushPending(PathUtils.appContext!)
       } catch (error) {
         salmonLogger.addLog(TAG, `保存退出播放记录失败: ${error}`, true)
       }
       this.player.onDisappearCleanup()
-      clearTimeout(this.exitVideoTime)
       this.gestures.reset()
+      this.backgroundViewport.clear()
       this.unregisterPlayerMonitors(this.player)
       try {
         await AVSessionUtil.stopCastingIfActive()
@@ -430,6 +479,21 @@ export struct VideoPlayer {
     return true
   }
 
+  private captureCurrentFrame(): void {
+    const player = this.player
+    const metadata = player.nowPlaying
+    const requestId = VideoOperateUtil.nextCaptureRequestId()
+    salmonLogger.addLog(TAG, `[Screenshot#${requestId}] click: engine=${player.isMpvPlayer() ? 'mpv' : 'avplayer'}, ` +
+      `hasMedia=${metadata !== undefined}, configured=${this.isPlayerConfigured}, exiting=${this.isPageDisappearing}`, false)
+    if (!metadata || !this.isPlayerConfigured || this.isPageDisappearing) {
+      salmonLogger.addLog(TAG, `[Screenshot#${requestId}] ignored: reason=player_not_ready`, false)
+      return
+    }
+    const date = metadata.date
+    void VideoOperateUtil.saveCaptureScreenToAlbum(metadata.uri, player.playbackPositionMs,
+      () => !this.isPageDisappearing && this.player === player && this.player.nowPlaying?.date === date, requestId)
+  }
+
   private async executePlayerShortcut(action: ShortcutAction): Promise<void> {
     switch (action) {
       case ShortcutAction.PLAY_PAUSE:
@@ -480,9 +544,10 @@ export struct VideoPlayer {
       case ShortcutAction.SPEED_DOWN:
       case ShortcutAction.SPEED_UP:
         const speeds = VideoInfoUtil.videoSpeedListAll
-        const faster = speeds.find(speed => speed > this.player.speed + 0.001)
-        const slower = speeds.slice().reverse().find(speed => speed < this.player.speed - 0.001)
-        this.player.updatePlaybackSpeed((action === ShortcutAction.SPEED_UP ? faster : slower) ?? this.player.speed)
+        const requestedSpeed = this.player.getRequestedPlaybackSpeed?.() ?? this.player.speed
+        const faster = speeds.find(speed => speed > requestedSpeed + 0.001)
+        const slower = speeds.slice().reverse().find(speed => speed < requestedSpeed - 0.001)
+        this.player.updatePlaybackSpeed((action === ShortcutAction.SPEED_UP ? faster : slower) ?? requestedSpeed)
         break
       case ShortcutAction.SPEED_RESET:
         this.player.updatePlaybackSpeed(1)
@@ -666,9 +731,7 @@ export struct VideoPlayer {
                 this.player.showControl = true
               },
               onCaptureScreen: () => {
-                if (this.player.surfaceId) {
-                  VideoOperateUtil.saveCaptureScreenToAlbum(this.player.surfaceId)
-                }
+                this.captureCurrentFrame()
               }
             })
           }
@@ -738,14 +801,13 @@ export struct VideoPlayer {
           })
 
         }
-        .onAreaChange(async (_oldValue: Area, newValue: Area) => {
+        .onAreaChange((_oldValue: Area, newValue: Area) => {
           const width = Math.floor(new Number(newValue.width).valueOf())
           const height = Math.floor(new Number(newValue.height).valueOf())
+          if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return
           this.containerWidth = width
           this.containerHeight = height
-          this.player.screenWidth = this.containerWidth
-          this.player.screenHeight = this.containerHeight
-          this.player.setRotation()
+          PlayerViewportState.resize(this.player, width, height)
         })
         .height('100%')
         .width('100%')
@@ -776,7 +838,18 @@ export struct VideoPlayer {
       if (this.isPageDisappearing) {
         return
       }
-      this.playbackSession = new PlaybackSessionController()
+      this.playbackSession.beginClosing()
+      this.rangeEditorDialog.close()
+      const session = new PlaybackSessionController()
+      this.playbackSession = session
+      session.sleepTimer.onExpired = (): void => {
+        if (this.playbackSession === session) { this.exitVideo(0) }
+      }
+      session.onAbLoopFailed = (): void => {
+        if (this.playbackSession === session && !this.isPageDisappearing) {
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.ab_loop_seek_failed').id))
+        }
+      }
       this.isPlayerConfigured = false
       const playerParams = this.pageParams ?? this.readPlayerParams()
       if (!playerParams) {
@@ -795,6 +868,7 @@ export struct VideoPlayer {
         this.registerPlayerMonitors(this.player)
         const metadata = playerParams.metadata as VideoMetadata
         this.player.nowPlaying = metadata
+        this.playbackSession.bindPlayer(this.player)
         if (playerParams.resumeFromCard) {
           const position = Number.isFinite(metadata.last_play) ? Math.max(0, metadata.last_play) : 0
           this.player.initialPlayTime = metadata.time > 0 && position >= metadata.time * 0.95 ? 0 : position
@@ -842,6 +916,8 @@ export struct VideoPlayer {
       return false
     })
     .onShown(() => {
+      if (this.playbackSession.sleepTimer.checkDeadline() || this.playbackSession.isClosing ||
+        this.isPageDisappearing) { return }
       this.keyboard.reset()
       this.playerExitTransitionEnabled = true
       this.playerDestinationShown = true
@@ -861,21 +937,8 @@ export struct VideoPlayer {
       this.player.isSliderPlayTimeChange = false
       this.player.onSwipingVoice = false
       this.player.onSwipingBrightness = false
-      if (PiPWindowUtil.pipOpenState) {
-        PiPWindowUtil.stopPip().then(() => {
-          this.syncDanmakuVrrPolicy()
-        })
-      }
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
-      if (this.autoListenVideoEnabled) {
-        this.registerWindowStageEvent()
-        const restoreDelay = this.autoListenVideoWindowResumedSession === this.autoListenVideoSession ? 0 :
-          AUTO_LISTEN_VIDEO_FOREGROUND_FALLBACK_MS
-        this.scheduleAutoListenVideoRestore(restoreDelay)
-      }
-      if (this.isPlayerConfigured && Setting.autoResumeOnReturn && !this.player.playing) {
-        this.player.play()
-      }
+      this.restoreAfterAppBackground()
     })
     .onHidden(() => {
       this.keyboard.reset()
@@ -895,32 +958,8 @@ export struct VideoPlayer {
       this.player.onSwipingVoice = false
       this.player.onSwipingBrightness = false
       if (this.isPageDisappearing) return
-      MediaLibraryService.saveVideoPlayTimeIfNeed(this.player.playTime, this.player.nowPlaying,
-        this.player.skipHistory, PathUtils.appContext!)
-      if (!Setting.allowBackgroundPlay && !PiPWindowUtil.pipOpenState) {
-        this.stopAutoListenVideoRestoreObservation()
-        if (this.player instanceof AVPlayerController) {
-          this.player.pauseForBackground()
-        } else {
-          this.player.pause()
-        }
-        salmonLogger.addLog(TAG, '后台播放已关闭，页面隐藏时暂停播放', false)
-        return
-      }
-      if (!this.isPageDisappearing && this.player instanceof AVPlayerController && !PiPWindowUtil.pipOpenState &&
-        !Setting.autoActivePip && VideoInfoUtil.hasVideoTrack(this.player.nowPlaying) &&
-        (this.autoListenVideoEnabled || !this.player.isListenVideo)) {
-        this.cancelAutoListenVideoRestoreTimer()
-        this.registerWindowStageEvent()
-        this.autoListenVideoSession++
-        this.autoListenVideoEnabled = true
-        if (!this.player.isListenVideo) {
-          this.player.isListenVideo = true
-          this.player.setListenVideoStatus().catch((error: Error) => {
-            salmonLogger.addLog(TAG, `后台切换只听视频模式失败：${error}`, true)
-          })
-        }
-      }
+      void this.savePlaybackProgress().then(() => Preferences.flushPending(PathUtils.appContext!))
+        .catch((error: Error) => salmonLogger.addLog(TAG, `保存页面隐藏播放记录失败: ${error.message}`, true))
     })
     .onWillDisappear(() => {
       this.beginPlayerExit()
@@ -1093,9 +1132,11 @@ export struct VideoPlayer {
   VideoSlider() {
     VideoSliderComponent({
       player: this.player,
+      markers: playbackPolicyMarkers(this.playbackSession.policy),
       onSliderChange: (value: number, mode?: SliderChangeMode) => {
         this.controlsIdle.activity()
         const finished = mode === SliderChangeMode.End || mode === SliderChangeMode.Click
+        if (!finished) { this.player.playbackPolicy?.onSeekStart() }
         this.player.isSliderPlayTimeChange = !finished
         this.player.playTime = value
         if (finished) {
@@ -1108,6 +1149,7 @@ export struct VideoPlayer {
       },
       onSliderTouch: (event: TouchEvent) => {
         if (event.type == TouchType.Down) {
+          this.player.playbackPolicy?.onSeekStart()
           this.player.onSwiping = true
           framePreviewSession.requestFrame(this.player, this.player.playTime, true)
         }
@@ -1226,49 +1268,37 @@ export struct VideoPlayer {
   VideoSettingBuilder() {
     VideoSettingComponent({
       player: this.player,
-      exitVideoTime: this.exitVideoTime,
+      sleepTimer: this.playbackSession.sleepTimer,
+      abLoop: this.playbackSession.policy.abLoop,
+      openingEnding: this.playbackSession.policy.openingEnding,
+      onEditRange: (mode: PlaybackRangeMode): void => this.openRangeEditor(mode),
+      onSetIntro: (): void => this.saveOpeningEndingPoint('start'),
+      onSetOutro: (): void => this.saveOpeningEndingPoint('end'),
+      onClearOpeningEnding: (): void => this.saveOpeningEndingPoint('clear'),
       forward_80_s: (time: number) => {
         salmonLogger.addLog(TAG, `执行快进80秒操作，目标时间：${time}`, false)
         this.player.seekTime(time)
       },
-      closeAfter15min: (time: number) => {
-        this.exitVideo(time)
-      },
-      closeAfter30min: (time: number) => {
-        this.exitVideo(time)
-      },
-      closeAfter60min: (time: number) => {
-        this.exitVideo(time)
-      },
+      onStartTimer: (time: number) => this.playbackSession.sleepTimer.start(time),
+      onCancelTimer: () => this.playbackSession.sleepTimer.cancel(),
+      onEndCurrent: () => this.playbackSession.stopAfterCurrent(),
+      onCustomTimer: (): void => { this.sleepTimerDialog.open() },
       toggleListenVideo: () => {
         this.player.toggleListenVideo()
       },
       captureScreen: () => {
-        if (this.player.surfaceId) {
-          VideoOperateUtil.saveCaptureScreenToAlbum(this.player.surfaceId)
-        }
+        this.captureCurrentFrame()
       },
-      updateStarTime: (time: number) => {
-        this.player.nowPlaying!.start_time = time
-      },
-      updateEndTime: (time: number) => {
-        this.player.nowPlaying!.end_time = time
-        this.player.nowPlaying!.end_time_is_duration = false
-      },
-      updatePointATime: (time: number) => {
-        this.player.nowPlaying!.pointA = time
-      },
-      updatePointBTime: (time: number) => {
-        this.player.nowPlaying!.pointB = time
-      },
+      onSetPointA: () => this.saveAbPoint('A'),
+      onSetPointB: () => this.saveAbPoint('B'),
+      onClearAbLoop: () => this.saveAbPoint('clear'),
       onScreenMirror: () => {
         this.player.angle === DEFAULT_ANGLE ? this.player.angle = MIRRORED_ANGLE : this.player.angle = DEFAULT_ANGLE
       },
-      setRepeatModeToOnce: () => {
-        this.player.repeatMode = SweetRepeatMode.ONCE
-      },
       onABCircleStatusClick: () => {
-        this.player.abCircleStatus = !this.player.abCircleStatus
+        if (!this.playbackSession.toggleAbLoop()) {
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.ab_loop_invalid_range').id))
+        }
       },
       onSwitchPlayerEngine: (targetEngine: string) => {
         this.switchPlayerEngine(targetEngine, 'manual switch').catch(() => {
@@ -1383,6 +1413,91 @@ export struct VideoPlayer {
     return false
   }
 
+  private observeAppForeground(): void {
+    this.stopAppForegroundObservation()
+    this.appForegroundSubscription = AppForegroundState.subscribe((foreground: boolean): void => {
+      this.onAppForegroundChanged(foreground)
+    })
+  }
+
+  private stopAppForegroundObservation(): void {
+    if (this.appForegroundSubscription !== 0) {
+      AppForegroundState.unsubscribe(this.appForegroundSubscription)
+      this.appForegroundSubscription = 0
+    }
+    this.appBackgrounded = false
+  }
+
+  private onAppForegroundChanged(foreground: boolean): void {
+    if (this.isPageDisappearing || this.playbackSession.isClosing || this.playbackSession.isDisposed) return
+    if (foreground) {
+      this.startPlayerAfterDestinationShown()
+      this.restoreAfterAppBackground()
+      return
+    }
+    this.cancelAutoListenVideoRestoreTimer()
+    if (!this.isPlayerConfigured) return
+    this.appBackgrounded = true
+    this.backgroundViewport.capture(this.player)
+    salmonLogger.addLog(TAG, '[Lifecycle] Ability entered background; applying playback policy', false)
+    void this.savePlaybackProgress().then(() => Preferences.flushPending(PathUtils.appContext!))
+      .catch((error: Error) => salmonLogger.addLog(TAG, `保存后台播放记录失败: ${error.message}`, true))
+    if (!Setting.allowBackgroundPlay && !PiPWindowUtil.pipOpenState && !PiPWindowUtil.pipStarting) {
+      this.stopAutoListenVideoRestoreObservation()
+      if (this.player instanceof AVPlayerController) {
+        this.player.pauseForBackground()
+      } else {
+        this.player.pause()
+      }
+      salmonLogger.addLog(TAG, '后台播放已关闭，应用退后台时暂停播放', false)
+      return
+    }
+    if (Setting.autoListenVideo &&
+      (this.player instanceof AVPlayerController || this.player instanceof MpvController) &&
+      !PiPWindowUtil.pipOpenState && !PiPWindowUtil.pipStarting && !Setting.autoActivePip &&
+      VideoInfoUtil.hasVideoTrack(this.player.nowPlaying) && (this.autoListenVideoEnabled || !this.player.isListenVideo)) {
+      this.registerWindowStageEvent()
+      this.autoListenVideoSession++
+      this.autoListenVideoEnabled = true
+      if (!this.player.isListenVideo) {
+        this.player.isListenVideo = true
+        this.player.setListenVideoStatus().catch((error: Error) => {
+          salmonLogger.addLog(TAG, `后台切换只听视频模式失败：${error}`, true)
+        })
+      }
+    }
+  }
+
+  private restoreAfterAppBackground(): void {
+    if ((!this.appBackgrounded && !this.autoListenVideoEnabled) || !AppForegroundState.isForeground || !this.playerDestinationShown ||
+      !this.isPlayerConfigured || this.isPageDisappearing || this.playbackSession.isClosing ||
+      this.playbackSession.isDisposed || this.playbackSession.sleepTimer.checkDeadline()) return
+    const returningFromBackground = this.appBackgrounded
+    this.appBackgrounded = false
+    if (returningFromBackground) {
+      salmonLogger.addLog(TAG, '[Lifecycle] Ability returned to foreground; restoring playback policy', false)
+      if (this.backgroundViewport.restore(this.player)) {
+        salmonLogger.addLog(TAG, `[Viewport] foreground: scale=${this.player.scaleFactor}, ` +
+          `offset=${this.player.translateX},${this.player.translateY}, aspect=${this.player.selectedText}`, false)
+      }
+      if (PiPWindowUtil.pipOpenState) {
+        PiPWindowUtil.stopPip().then(() => { this.syncDanmakuVrrPolicy() })
+      }
+    }
+    if (this.autoListenVideoEnabled) {
+      this.registerWindowStageEvent()
+      const restoreDelay = this.autoListenVideoWindowResumedSession === this.autoListenVideoSession ? 0 :
+        AUTO_LISTEN_VIDEO_FOREGROUND_FALLBACK_MS
+      this.scheduleAutoListenVideoRestore(restoreDelay)
+    } else if (returningFromBackground && this.player instanceof AVPlayerController) {
+      this.player.syncForegroundPlaybackParameters().catch((error: Error) => {
+        salmonLogger.addLog(TAG, `前台恢复播放参数失败: ${error.message}`, true)
+      })
+    }
+    if (returningFromBackground && Setting.autoResumeOnReturn && !this.player.playing && !this.isPageDisappearing &&
+      !this.playbackSession.isClosing) this.player.play()
+  }
+
   private registerWindowStageEvent(): boolean {
     const windowStage = VideoOperateUtil.windowStage
     if (!windowStage) {
@@ -1425,7 +1540,8 @@ export struct VideoPlayer {
   }
 
   private scheduleAutoListenVideoRestore(delayMs: number): void {
-    if (!this.autoListenVideoEnabled || this.isPageDisappearing) {
+    if (!this.autoListenVideoEnabled || this.isPageDisappearing || !AppForegroundState.isForeground ||
+      !this.playerDestinationShown) {
       return
     }
     this.cancelAutoListenVideoRestoreTimer()
@@ -1440,11 +1556,12 @@ export struct VideoPlayer {
 
   private async restoreAutoListenVideo(session: number): Promise<void> {
     if (session !== this.autoListenVideoSession || !this.autoListenVideoEnabled ||
-      this.isPageDisappearing || this.autoListenVideoRestoreInFlightSession === session) {
+      this.isPageDisappearing || !AppForegroundState.isForeground || !this.playerDestinationShown ||
+      this.autoListenVideoRestoreInFlightSession === session) {
       return
     }
     const player = this.player
-    if (!(player instanceof AVPlayerController) || !player.isListenVideo) {
+    if (!(player instanceof AVPlayerController) && !(player instanceof MpvController) || !player.isListenVideo) {
       if (session === this.autoListenVideoSession) {
         this.autoListenVideoEnabled = false
       }
@@ -1458,7 +1575,7 @@ export struct VideoPlayer {
         this.autoListenVideoRestoreInFlightSession = 0
       }
       if (session === this.autoListenVideoSession) {
-        this.autoListenVideoEnabled = false
+        this.autoListenVideoEnabled = player.isListenVideo
       }
     }
   }
@@ -1496,6 +1613,7 @@ export struct VideoPlayer {
     const mediaCallback = (_mon: IMonitor): void => {
       if (version === this.playerMonitorVersion && this.player === p &&
         !this.isPageDisappearing && !this.playbackSession.isDisposed) {
+        this.playbackSession.syncMedia(p)
         this.danmaku.setMedia(this.danmakuMediaKey())
       }
     }
@@ -1507,6 +1625,7 @@ export struct VideoPlayer {
       this.danmakuMediaMonitorCallback = mediaCallback
       UIUtils.addMonitor(p, 'nowPlaying', mediaCallback)
       this.danmaku.setMedia(this.danmakuMediaKey())
+      this.playbackSession.syncMedia(p)
     } catch (error) {
       this.playerMonitorVersion++
       salmonLogger.addLog(TAG, `register subtitleSelected monitor error: ${error}`, true)
@@ -1538,7 +1657,7 @@ export struct VideoPlayer {
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   private startPlayerAfterDestinationShown(): void {
     if (!this.playerDestinationShown || !this.playerReadyToStart || this.isPlayerConfigured ||
-      this.isPageDisappearing || this.playbackSession.isDisposed) {
+      !AppForegroundState.isForeground || this.isPageDisappearing || this.playbackSession.isDisposed) {
       return
     }
     if (PlaybackExitCoordinator.isExiting) {
@@ -1577,13 +1696,33 @@ export struct VideoPlayer {
   }
 
   private beginPlayerExit(): void {
+    this.stopAppForegroundObservation()
     this.controlsIdle.stop()
     this.controlTouches.clear()
     if (this.playerExitToken !== undefined) return
     this.playerExitToken = PlaybackExitCoordinator.beginExit()
-    this.exitPlayTime = this.player.playTime
+    this.exitProgressSave = this.savePlaybackProgress().catch((error: Error) => {
+      salmonLogger.addLog(TAG, `保存退出播放进度失败: ${error.message}`, true)
+    })
     this.isPageDisappearing = true
     this.playbackSession.beginClosing()
+    this.rangeEditorDialog.close()
+    this.player.initialPlaying = false
+    this.player.pause()
+    this.player.onWillDisappearCleanup()
+  }
+
+  private async savePlaybackProgress(): Promise<void> {
+    const player = this.player
+    if (player instanceof AVPlayerController) {
+      await player.savePlaybackProgress()
+    } else {
+      if (player instanceof MpvController && ![MpvPlayerState.PLAYING, MpvPlayerState.PAUSED,
+        MpvPlayerState.COMPLETED].includes(player.playerState) &&
+        !(player.playerState === MpvPlayerState.BUFFERING && player.playbackPositionMs > 0)) return
+      MediaLibraryService.saveVideoPlayTimeIfNeed(player.playbackPositionMs, player.nowPlaying,
+        player.skipHistory, PathUtils.appContext!)
+    }
   }
 
   private bindEngineSwitchHandler(player: PlayerControllerInterface): void {
@@ -1598,6 +1737,10 @@ export struct VideoPlayer {
 
   private async switchPlayerEngine(targetEngine: string, reason: string,
     resumePlayback?: boolean): Promise<void> {
+    if (targetEngine === PlayerEngine.AV_PLAYER && BluRayDirectory.isEntry(this.player.nowPlaying?.uri ?? '')) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.bluray_mpv_required').id))
+      return
+    }
     const currentEngine = this.player.isMpvPlayer() ? PlayerEngine.MPV_PLAYER : PlayerEngine.AV_PLAYER
     if (currentEngine === targetEngine || this.isPageDisappearing) {
       return
@@ -1627,6 +1770,7 @@ export struct VideoPlayer {
       this.playerType = targetEngine
       this.player = nextPlayer
       this.gestures = new PlayerGestureController(nextPlayer)
+      this.playbackSession.bindPlayer(nextPlayer)
       this.bindEngineSwitchHandler(nextPlayer)
       this.unregisterPlayerMonitors(oldPlayer)
 
@@ -1675,14 +1819,55 @@ export struct VideoPlayer {
     return this.player.getWindowClass() ?? this.windowClass
   }
 
-  private exitVideo(timeOut: number) {
-    salmonLogger.addLog(TAG, "开始设置退出视频定时器", false)
-    this.exitVideoTime = setTimeout(async () => {
-      salmonLogger.addLog(TAG, "退出视频定时器触发" + timeOut, false)
-      await this.player.exitPlayback(timeOut)
+  private exitVideo(timeOut: number): void {
+    if (timeOut > 0) {
+      this.playbackSession.sleepTimer.start(timeOut)
+      return
+    }
+    if (this.isPageDisappearing || this.playbackSession.isClosing) { return }
+    // 先同步封锁恢复与引擎回调，再等待持久化；到期与 EOF 只能退出一次。
+    const session = this.playbackSession
+    const routeIndex = this.pathStack.size() - 1
+    const routeParam = this.pathStack.getParamByIndex(routeIndex) as PlayerParams | undefined
+    this.beginPlayerExit()
+    void this.finishPlayerExit(session, routeIndex, routeParam)
+  }
+
+  private async finishPlayerExit(session: PlaybackSessionController, routeIndex: number,
+    routeParam: PlayerParams | undefined): Promise<void> {
+    try {
+      await this.exitProgressSave
+      await Preferences.flushPending(PathUtils.appContext!)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `退出前保存播放记录失败: ${error}`, true)
+    }
+    try {
+      await session.dispose(() => this.player)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `退出前停止播放器失败: ${error}`, true)
+    }
+    if (this.playbackSession === session && this.pathStack.size() - 1 === routeIndex &&
+      this.pathStack.getAllPathName()[routeIndex] === NavigationAddress.VIDEO_PLAYER &&
+      this.pathStack.getParamByIndex(routeIndex) === routeParam) {
       this.pathStack.pop()
-    }, timeOut)
-    salmonLogger.addLog(TAG, `退出视频定时器设置完成，超时时间：${timeOut}`, false)
+    }
+  }
+
+  private saveAbPoint(point: 'A' | 'B' | 'clear'): void {
+    try {
+      if (!this.playbackSession.saveAbPoint(PathUtils.appContext!, point)) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.ab_loop_invalid_range').id))
+        return
+      }
+      const loop = this.playbackSession.abLoop
+      ToolsUtil.showToast(point === 'clear' ?
+        ToolsUtil.getStringResource($r('app.string.cancel_ab_time_success').id) :
+        ToolsUtil.getStringResourceArgs(point === 'A' ? $r('app.string.set_point_a_time').id :
+          $r('app.string.set_point_b_time').id, TimeUtil.convertMSToHHMMSS(point === 'A' ? loop.pointA : loop.pointB)))
+    } catch (error) {
+      salmonLogger.addLog(TAG, `保存 AB 点位失败: ${error}`, true)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.ab_loop_save_failed').id))
+    }
   }
 
   private readPlayerParams(): PlayerParams | undefined {
@@ -1691,6 +1876,11 @@ export struct VideoPlayer {
   }
 
   private resumePlaybackAfterSubtitleOffsetIfNeeded(): void {
+    if (this.isPageDisappearing || this.playbackSession.isClosing ||
+      this.playbackSession.sleepTimer.checkDeadline()) {
+      this.subtitleOffsetShouldResumePlayback = false
+      return
+    }
     if (!this.subtitleOffsetShouldResumePlayback) {
       return
     }
@@ -1713,4 +1903,43 @@ export struct VideoPlayer {
     this.player.subtitleController.setSubtitleOffset(this.subtitleOffsetPreviewBase)
     this.finishSubtitleOffsetSession()
   }
+  private currentRangeMediaKey(): string {
+    const media = this.player.nowPlaying
+    return media ? media.date + '|' + media.uri : ''
+  }
+
+  private openRangeEditor(mode: PlaybackRangeMode): void {
+    if (this.isPageDisappearing || this.playbackSession.isClosing) { return }
+    this.playbackSession.policy.refresh()
+    if (this.playbackSession.policy.sleepTimer.checkDeadline() || this.isPageDisappearing || this.playbackSession.isClosing) { return }
+    this.rangeMode = mode
+    this.rangeMediaKey = this.currentRangeMediaKey()
+    this.rangeDuration = this.playbackSession.policy.abLoop.durationMs
+    this.rangeEditorDialog.open()
+  }
+
+  private saveEditedRange(start: number, end: number): boolean {
+    if (this.isPageDisappearing || this.playbackSession.isClosing || this.rangeMediaKey !== this.currentRangeMediaKey()) { return false }
+    try {
+      return this.rangeMode === 'ab' ? this.playbackSession.policy.saveAbRange(PathUtils.appContext!, start, end) :
+        this.playbackSession.policy.saveOpeningEnding(PathUtils.appContext!, start, end)
+    } catch (error) {
+      salmonLogger.addLog('PlaybackRange', `保存区间失败: ${error}`, true)
+      return false
+    }
+  }
+
+  private saveOpeningEndingPoint(point: 'start' | 'end' | 'clear'): void {
+    try {
+      if (!this.playbackSession.policy.saveOpeningEndingPoint(PathUtils.appContext!, point)) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.range_invalid').id))
+        return
+      }
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.save_success').id))
+    } catch (error) {
+      salmonLogger.addLog('PlaybackRange', `保存片头片尾失败: ${error}`, true)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.range_save_failed').id))
+    }
+  }
+
 }

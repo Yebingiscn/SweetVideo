@@ -1,5 +1,8 @@
 // Type declarations for libmpvnative native module
 declare module 'libmpvnative.so' {
+  export function setBlurayNetworkRoot(handle: number | null, root: string): boolean;
+  export function smbOpenDisc(options: SmbOptions, path: string, token: string): Promise<string>;
+  import image from '@ohos.multimedia.image';
   export interface VideoTrack {
     id: number;
     title: string;
@@ -9,7 +12,15 @@ declare module 'libmpvnative.so' {
     fps: number;
     selected: boolean;
   }
+  export interface DiscTitle {
+    id: number;
+    title: string;
+    selected: boolean;
+  }
+  /** Read titles only for the loaded request; rejects obsolete requests. */
+  export function getDiscTitles(requestId: number): Promise<DiscTitle[]>;
   export function getVideoTracks(requestId: number): Promise<VideoTrack[]>;
+  /** id=0 disables video; positive IDs select an existing video track. */
   export function selectVideoTrack(requestId: number, id: number): Promise<VideoTrack[]>;
   /** Returns 0 for an open descriptor, otherwise errno; does not take ownership. */
   export const checkUsbFileDescriptor: (fd: number) => number;
@@ -94,6 +105,9 @@ declare module 'libmpvnative.so' {
   export interface NativePlayerResult {
     pcmSupported: number;
     tracks: NativePlayerTrack[];
+    positionMs?: number;
+    rate?: number;
+    playing?: number;
   }
   export const avPlayerCreate: (callback: (event: NativePlayerEvent) => void) => NativePlayerHandle;
   export const avPlayerCommand: (id: number, operation: string,
@@ -362,6 +376,11 @@ declare module 'libmpvnative.so' {
 
   export interface FFmpegThumbnailFrame {
     data: ArrayBuffer;
+    /** HDR frames are returned directly as a DMA PixelMap, without an 8-bit copy. */
+    pixelMap?: image.PixelMap;
+    timeUs: number;
+    hdrPreserved: boolean;
+    hdrFallbackReason: string;
     width: number;
     height: number;
     stride: number;
@@ -383,14 +402,15 @@ declare module 'libmpvnative.so' {
   /**
    * 创建可复用的缩略图会话。source 可以是本地 fd 或网络 URL；本地 fd 会在 native 内复制。
    */
-  export const createThumbnailExtractor: (source: number | string, offset?: number, length?: number) => number;
+  export const createThumbnailExtractor: (source: number | string, offset?: number, length?: number,
+    httpHeaders?: string) => number;
 
   /** 只解析容器和轨道信息，不打开解码器或解码视频帧。 */
   export const getMediaInfo: (extractorId: number) => Promise<FFmpegMediaInfo>;
 
   export const extractThumbnailFrame: (extractorId: number, timeUs: number,
     maxWidth: number, maxHeight: number, preferEmbeddedCover?: boolean,
-    keyframeCover?: boolean) => Promise<FFmpegThumbnailFrame>;
+    keyframeCover?: boolean, preserveHdr?: boolean, originalSize?: boolean) => Promise<FFmpegThumbnailFrame>;
 
   export const releaseThumbnailExtractor: (extractorId: number) => boolean;
 }

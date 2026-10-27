@@ -1,5 +1,12 @@
 import { SubtitleTrack } from '../../interfaces/AudioTrackInterface';
 
+export interface MpvDiscTitle {
+  id: number;
+  title: string;
+  selected: boolean;
+  requestId: number;
+}
+
 export interface MpvPlayerOptions {
   videoUrl: string;
 }

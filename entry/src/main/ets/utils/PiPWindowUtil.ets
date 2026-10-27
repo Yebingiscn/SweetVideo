@@ -36,16 +36,21 @@ export default class PiPWindowUtil {
   static pipController?: PiPWindow.PiPController | undefined = undefined
   static playerController ?: PiPPlayerController | undefined = undefined
   static pipOpenState: boolean = false
+  static pipStarting: boolean = false
   static isRestoring: boolean = false
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static async startPip(): Promise<void> {
     if (PiPWindowUtil.pipController) {
-      await PiPWindowUtil.pipController.startPiP().then(() => {
+      PiPWindowUtil.pipStarting = true
+      try {
+        await PiPWindowUtil.pipController.startPiP()
         PiPWindowUtil.pipOpenState = true
-      }).catch(() => {
+      } catch (_) {
         salmonLogger.addLog(TAG, 'startPiP failed', true)
-      })
+      } finally {
+        PiPWindowUtil.pipStarting = false
+      }
     }
   }
 
@@ -123,6 +128,7 @@ export default class PiPWindowUtil {
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static async destroyPipController(): Promise<void> {
+    PiPWindowUtil.pipStarting = false
     if (!PiPWindowUtil.pipController) {
       return
     }
@@ -173,8 +179,10 @@ export default class PiPWindowUtil {
   static onStateChange(state: PiPWindow.PiPState, _reason: string) {
     switch (state) {
       case PiPWindow.PiPState.ABOUT_TO_START:
+        PiPWindowUtil.pipStarting = true
         break
       case PiPWindow.PiPState.STARTED:
+        PiPWindowUtil.pipStarting = false
         const controller = PiPWindowUtil.playerController
         let status: PiPWindow.PiPControlStatus =
           controller?.playing ? PiPWindow.PiPControlStatus.PLAY : PiPWindow.PiPControlStatus.PAUSE
@@ -185,6 +193,7 @@ export default class PiPWindowUtil {
         PiPWindowUtil.pipOpenState = false
         break
       case PiPWindow.PiPState.STOPPED:
+        PiPWindowUtil.pipStarting = false
         PiPWindowUtil.pipOpenState = false
         if (!PiPWindowUtil.isRestoring) {
           PiPWindowUtil.playerController?.pause()
@@ -192,10 +201,12 @@ export default class PiPWindowUtil {
         PiPWindowUtil.isRestoring = false
         break
       case PiPWindow.PiPState.ABOUT_TO_RESTORE:
+        PiPWindowUtil.pipStarting = false
         PiPWindowUtil.pipOpenState = false
         PiPWindowUtil.isRestoring = true
         break
       case PiPWindow.PiPState.ERROR:
+        PiPWindowUtil.pipStarting = false
         break
       default:
         break

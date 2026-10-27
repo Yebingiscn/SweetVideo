@@ -7,6 +7,7 @@ export interface AudioCoverBuilderParams {
 export function AudioCoverBuilder(params: AudioCoverBuilderParams) {
   if (params.coverUri) {
     Image(params.coverUri)
+      .dynamicRangeMode(DynamicRangeMode.CONSTRAINT)
       .width('100%')
       .height('100%')
       .objectFit(ImageFit.Contain)

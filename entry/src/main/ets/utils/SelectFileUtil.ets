@@ -1,3 +1,4 @@
+import BluRayDirectory from './BluRayDirectory'
 import { common, Context } from '@kit.AbilityKit'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { fileIo as fs, fileUri, picker } from '@kit.CoreFileKit'
@@ -25,6 +26,7 @@ import MediaImportBatch from './MediaImportBatch'
 import lazy ImageStorage from './ImageStorage'
 import { MediaBatchProgress, MediaBatchResult } from '../interfaces/MediaBatchInterface'
 import PrivacyFolderUtil from './PrivacyFolderUtil'
+import LocalSubtitleImport, { PreparedLocalSubtitle } from './LocalSubtitleImport'
 
 const TAG = 'SelectFileUtil'
 
@@ -84,7 +86,16 @@ export default class SelectFileUtil {
     const documentViewPicker = new picker.DocumentViewPicker(PathUtils.appContext!)
     try {
       const documentSelectResult: string[] = await documentViewPicker.select(documentSelectOptions)
-      return documentSelectResult.length > 0 ? documentSelectResult : []
+      const results: string[] = []
+      for (const selected of documentSelectResult) {
+        if (BluRayDirectory.isEntry(selected)) {
+          const disc = await SelectFileUtil.authorizeBluRay(selected)
+          if (disc) results.push(disc)
+        } else {
+          results.push(selected)
+        }
+      }
+      return results
     } catch (error) {
       salmonLogger.addLog(TAG, "Error selecting files: " + error, true)
       return []
@@ -116,6 +127,19 @@ export default class SelectFileUtil {
     } catch (error) {
       salmonLogger.addLog(TAG, `从文件夹导入失败: ${error}`, true)
       return []
+    }
+  }
+
+  private static async authorizeBluRay(uri: string): Promise<string | undefined> {
+    try {
+      const disc = BluRayDirectory.inspect(uri)
+      if (!disc) throw new Error('Invalid Blu-ray entry')
+      await PermissionUtil.persistPermission(disc.rootUri)
+      return disc.indexUri
+    } catch (_) {
+      // Selecting index.bdmv alone may grant no access to sibling playlist/stream files.
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.bluray_access_error').id))
+      return undefined
     }
   }
 
@@ -247,7 +271,8 @@ export default class SelectFileUtil {
   static async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadata[], uri: string,
     sandbox_video: string, sandbox_path: string, date: string, fileName: string, fileSize: number,
     pixelMap: image.PixelMap | undefined,
-    probe?: FFmpegMediaProbe, privateFolderDate?: string): Promise<VideoMetadata> {
+    probe?: FFmpegMediaProbe, privateFolderDate?: string,
+    externalSubtitleFormat: string = ''): Promise<VideoMetadata> {
     let sourceFile: fs.File | null = null
     let targetFile: fs.File | null = null
     let coverTransferred = false
@@ -264,6 +289,7 @@ export default class SelectFileUtil {
       const videoInfo =
         await VideoInfoUtil.setVideoInfoOptimized(date, targetPath, fileName, sandbox_video, sandbox_path, fileSize,
           pixelMap, probe)
+      videoInfo.external_subtitle_format = externalSubtitleFormat
       if (privateFolderDate) {
         // 调用方持有 global_data 锁；目标在选文件期间被删除时，安全回退到隐私根目录。
         const folders = Preferences.getPrivacyFolders(context)
@@ -320,9 +346,22 @@ export default class SelectFileUtil {
     video_meta_data: VideoMetadata[], file_folder?: FileFolder,
     privateMode: boolean = PrivacySpaceUtil.getPrivacyMode() === true,
     allowDuplicateTitle: boolean = false, importRootUri?: string,
-    importRootFolderName?: string, importBatch?: MediaImportBatch): Promise<boolean> {
+    importRootFolderName?: string, importBatch?: MediaImportBatch,
+    subtitleImport?: LocalSubtitleImport): Promise<boolean> {
     let unusedPixelMap: image.PixelMap | undefined
+    const subtitles = subtitleImport ?? new LocalSubtitleImport()
+    let preparedSubtitle: PreparedLocalSubtitle | undefined = undefined
+    let subtitleRetained = false
     try {
+      const disc = BluRayDirectory.isEntry(uri) ? BluRayDirectory.inspect(uri) : undefined
+      if (disc && privateMode) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.bluray_private_unsupported').id))
+        return false
+      }
+      if (disc) {
+        uri = disc.indexUri
+        await PermissionUtil.persistPermission(disc.rootUri)
+      }
       const fileInfoResult = await extractVideoFileInfoInTaskPool(uri)
       if (!fileInfoResult.success) {
         salmonLogger.addLog(TAG, '读取视频文件信息失败: ' + fileInfoResult.error, true)
@@ -332,7 +371,7 @@ export default class SelectFileUtil {
       // 文件存在且不是目录后再持久化；失败不能伪造成功缓存。
       await PermissionUtil.persistPermission(uri)
       const fileSize = fileInfoResult.fileSize
-      const fileName = fileInfoResult.fileName
+      const fileName = disc ? disc.title : fileInfoResult.fileName
       if (!(privateMode && allowDuplicateTitle)) {
         if (FileFolderUtil.existsVideoInFolders(context, uri, fileName, privateMode)) return true
         if (importBatch?.hasUri(uri)) {
@@ -341,18 +380,20 @@ export default class SelectFileUtil {
         }
       }
       // 同一 FFmpeg 会话先读取文字元数据，再解一张封面。
-      const mediaResult = await FFmpegThumbnailUtil.probeAndExtractCover(uri)
-      const mediaProbe = mediaResult.probe
-      if (!mediaProbe) {
+      const mediaResult = disc ? undefined : await FFmpegThumbnailUtil.probeAndExtractCover(uri)
+      const mediaProbe = mediaResult?.probe
+      if (!disc && !mediaProbe) {
         // 媒体探测失败不能阻止用户导入；基础条目仍使用文件名和安全尺寸创建。
         salmonLogger.addLog(TAG,
-          `FFmpeg 元数据提取失败，按文件信息导入 ${fileName}: ${mediaResult.thumbnail.error}`, true)
+          `FFmpeg 元数据提取失败，按文件信息导入 ${fileName}: ${mediaResult?.thumbnail.error}`, true)
       }
-      const pixelMap = mediaResult.thumbnail.success ? mediaResult.thumbnail.pixelMap : undefined
+      const pixelMap = mediaResult?.thumbnail.success ? mediaResult.thumbnail.pixelMap : undefined
       unusedPixelMap = pixelMap
-      if (mediaProbe && !mediaResult.thumbnail.success && mediaResult.thumbnail.error) {
+      if (mediaResult && mediaProbe && !mediaResult.thumbnail.success && mediaResult.thumbnail.error) {
         salmonLogger.addLog(TAG, 'FFmpeg 封面提取失败: ' + mediaResult.thumbnail.error, true)
       }
+
+      if (!disc) preparedSubtitle = await subtitles.prepare(uri, fileName)
 
       const fileQueue = ConcurrencyManagerUtil.getFileQueue(uri)
       let importHandled = false
@@ -376,7 +417,8 @@ export default class SelectFileUtil {
           if (!isDuplicate) {
             if (!privateMode && !file_folder) {
               const folderPathParts = FileFolderUtil.extractFolderPathFromUri(
-                uri, fileName, importRootUri, importRootFolderName)
+                disc ? `${disc.rootUri}/index.bdmv` : uri, fileName,
+                importRootUri?.replace(/\/BDMV$/i, ''), importRootFolderName === 'BDMV' ? disc?.title : importRootFolderName)
               if (folderPathParts && folderPathParts.length > 0) {
                 const folderLock = ConcurrencyManagerUtil.getLock(`folder_${folderPathParts.join('/')}`)
                 await folderLock.acquire()
@@ -391,9 +433,11 @@ export default class SelectFileUtil {
               // 持锁后读取最新隐私列表，避免异步接收覆盖期间新导入的条目。
               const privateVideos = Preferences.getVideoMetaDataEncryption(context)
               unusedPixelMap = undefined
+              const date = systemDateTime.getTime(true).toString()
+              const subtitleFormat = subtitles.attach(preparedSubtitle, date)
               const imported = await SelectFileUtil.copyFileToPrivacySpace(context, privateVideos, uri, sandbox_video,
-                sandbox_path, systemDateTime.getTime(true).toString(), fileName, fileSize, pixelMap, mediaProbe,
-                file_folder?.date)
+                sandbox_path, date, fileName, fileSize, pixelMap, mediaProbe,
+                file_folder?.date, subtitleFormat)
               if (video_meta_data !== privateVideos) {
                 video_meta_data.push(imported)
               }
@@ -403,6 +447,13 @@ export default class SelectFileUtil {
                 date, uri, fileName, sandbox_video, fileSize, mediaProbe)
               // 接收模式已固定，不能受此刻前台是否打开隐私空间影响。
               videoInfo.uri = uri
+              videoInfo.external_subtitle_format = subtitles.attach(preparedSubtitle, date)
+              if (disc) {
+                videoInfo.title = disc.title
+                videoInfo.format = 'BDMV'
+                videoInfo.has_video_track = true
+                videoInfo.video_size = ''
+              }
               if (importBatch) {
                 const targetDate = file_folder?.date ?? Preferences.getFileFolder(context)[0]?.date
                 if (!targetDate) throw new Error('Import target folder is unavailable')
@@ -415,13 +466,14 @@ export default class SelectFileUtil {
                 folders[0].video_list.push(videoInfo)
                 Preferences.saveFileFolder(context, folders)
               }
-              shouldSaveCover = true
+              shouldSaveCover = !disc
               coverUri = uri
               coverSandboxPath = sandbox_path
               coverDate = date
               coverDurationMs = mediaProbe?.durationMs || 0
               coverPixelMap = pixelMap
             }
+            subtitleRetained = subtitles.retain(preparedSubtitle)
             importHandled = true
           } else {
             importHandled = true
@@ -441,6 +493,8 @@ export default class SelectFileUtil {
       salmonLogger.addLog(TAG, '导入视频发生错误, 原因是：' + error, true)
       return false
     } finally {
+      if (!subtitleRetained) await subtitles.discard(preparedSubtitle)
+      if (!subtitleImport) await subtitles.finish(context, privateMode)
       await ImageStorage.releaseImageSafely(unusedPixelMap, '未使用的导入封面')
     }
   }
@@ -456,7 +510,8 @@ export default class SelectFileUtil {
     ].map(ext => ext.toLowerCase()))
     const isMediaFile = (filePath: string): boolean => {
       const ext = VideoInfoUtil.getExtension(filePath)
-      return ext !== '' && MEDIA_EXTENSIONS.has(ext)
+      // Valid discs are collected before traversal; never import loose control files.
+      return ext !== 'bdmv' && ext !== '' && MEDIA_EXTENSIONS.has(ext)
     }
 
     const joinDirectoryPath = (directory: string, entry: string): string => {
@@ -474,6 +529,12 @@ export default class SelectFileUtil {
     const scanDirectory = async (directory: DirectoryScanTarget): Promise<DirectoryScanResult> => {
       const result: DirectoryScanResult = { files: [], directories: [] }
       try {
+        const disc = BluRayDirectory.inspect(directory.importUri)
+        if (disc) {
+          await PermissionUtil.persistPermission(disc.rootUri)
+          result.files.push(disc.indexUri)
+          return result
+        }
         const entries: string[] = await fs.listFile(directory.fileSystemPath)
         for (let i = 0; i < entries.length; i += ENTRY_BATCH_SIZE) {
           const batch = entries.slice(i, i + ENTRY_BATCH_SIZE)

@@ -119,8 +119,9 @@ export default class ImageFileUtil {
                 width: Math.max(1, Math.round(info.size.width * scale)),
                 height: Math.max(1, Math.round(info.size.height * scale))
               },
-              desiredPixelFormat: image.PixelMapFormat.RGBA_8888
-            }, image.AllocatorType.AUTO)
+              desiredPixelFormat: info.isHdr ? image.PixelMapFormat.RGBA_1010102 : image.PixelMapFormat.RGBA_8888,
+              desiredDynamicRange: image.DecodingDynamicRange.AUTO
+            }, info.isHdr ? image.AllocatorType.DMA : image.AllocatorType.AUTO)
             const savedPath = await ImageStorage.savePixelMapToFile(PathUtils.coverPath, temporaryName, pixelMap,
               { deleteOnFail: true })
             useEncodedCover = savedPath.length > 0

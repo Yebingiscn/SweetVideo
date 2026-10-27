@@ -1,3 +1,4 @@
+import BluRayDirectory from './BluRayDirectory'
 import { HiCar } from './HiCarUtil'
 import lazy { FolderNameSortItem, sortFolderNamesInTaskPool } from './TaskpoolUtil'
 import lazy MediaSortUtil from './MediaSortUtil'
@@ -173,30 +174,38 @@ export default class ToolsUtil {
 
   static sortBy(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined,
     sortType: SortField | '', ascending?: boolean, pinyinSort?: boolean): VideoMetadata[] {
+    const privateMode = !file_folder && PrivacySpaceUtil.getPrivacyMode()
+    const latestFolder = privateMode ? undefined : file_folder
+      ? Preferences.getFileFolder(context).find(folder => folder.date === file_folder.date)
+      : Preferences.getFileFolder(context).find(folder => folder.name === '首页')
+    const latestVideos = privateMode ? Preferences.getVideoMetaDataEncryption(context) : latestFolder?.video_list
+    if (!latestVideos) return []
+    // 调用方列表只提供 ID 顺序；播放中缓存会替换对象，旧元数据不能再写回数据库。
+    const source = ToolsUtil.reorderLatestVideos(list, latestVideos)
     let sorted_list: VideoMetadata[]
     switch (sortType) {
       case SortField.NAME:
-        sorted_list = MediaSortUtil.sortByNameProcess(list, ascending, pinyinSort)
+        sorted_list = MediaSortUtil.sortByNameProcess(source, ascending, pinyinSort)
         break
       case SortField.DATETIME:
-        sorted_list = MediaSortUtil.sortByDatetimeProcess(list, ascending)
+        sorted_list = MediaSortUtil.sortByDatetimeProcess(source, ascending)
         break
       case SortField.TIME:
-        sorted_list = MediaSortUtil.sortByTimeProcess(list, ascending)
+        sorted_list = MediaSortUtil.sortByTimeProcess(source, ascending)
         break
       case SortField.RECENT_PLAY:
-        sorted_list = MediaSortUtil.sortByRecentPlayProcess(list, ascending)
+        sorted_list = MediaSortUtil.sortByRecentPlayProcess(source, ascending)
         break
       default:
-        sorted_list = MediaSortUtil.sortByNameProcess(list, ascending)
+        sorted_list = MediaSortUtil.sortByNameProcess(source, ascending)
     }
-    const isSameOrder = list.length === sorted_list.length &&
-      list.every((item, i) => item.date === sorted_list[i].date)
+    const isSameOrder = latestVideos.length === sorted_list.length &&
+      latestVideos.every((item, i) => item.date === sorted_list[i].date)
     if (isSameOrder) {
       return sorted_list
     }
-    if (file_folder) {
-      FileFolderUtil.updateFileFolder(context, file_folder, sorted_list)
+    if (latestFolder) {
+      FileFolderUtil.updateFileFolder(context, latestFolder, sorted_list)
     } else {
       if (PrivacySpaceUtil.getPrivacyMode()) {
         Preferences.saveVideoMetaDataEncryption(context, sorted_list)
@@ -205,6 +214,31 @@ export default class ToolsUtil {
       }
     }
     return sorted_list
+  }
+
+  private static reorderLatestVideos(order: VideoMetadata[], latest: VideoMetadata[]): VideoMetadata[] {
+    const byDate = new Map<string, VideoMetadata[]>()
+    latest.forEach(video => {
+      const group = byDate.get(video.date)
+      if (group) group.push(video)
+      else byDate.set(video.date, [video])
+    })
+    const result: VideoMetadata[] = []
+    const included = new Set<string>()
+    order.forEach(video => {
+      const current = byDate.get(video.date)
+      if (current && !included.has(video.date)) {
+        result.push(...current)
+        included.add(video.date)
+      }
+    })
+    latest.forEach(video => {
+      if (!included.has(video.date)) {
+        result.push(...byDate.get(video.date)!)
+        included.add(video.date)
+      }
+    })
+    return result
   }
 
   // 保存密码
@@ -222,7 +256,7 @@ export default class ToolsUtil {
     const latestItem = findResult[0] ?? item
     const folder_date = findResult[2]
     const playerType = VideoOperateUtil.resolvePlayerType(latestItem, reverse)
-    if (!HiCar.enabled && Setting.shortVideoMode && !reverse) {
+    if (!HiCar.enabled && Setting.shortVideoMode && !reverse && !BluRayDirectory.isEntry(latestItem.uri)) {
       const latestList = list.map(video => video.date === latestItem.date ? latestItem : video)
       const initialIndex = Math.max(0, latestList.findIndex(video => video.date === latestItem.date))
       const shortVideoParams = new ShortVideoParams(latestList, initialIndex, skipHistory)
@@ -239,6 +273,10 @@ export default class ToolsUtil {
     skipHistory: boolean = false) {
     const findResult = Preferences.findVideoByDate(PathUtils.appContext!, item.date)
     const latestItem = findResult[0] ?? item
+    if (BluRayDirectory.isEntry(latestItem.uri)) {
+      await ToolsUtil.routerWhere(pathStack, latestItem, list, true, skipHistory)
+      return
+    }
     const latestList = list.map(video => video.date === latestItem.date ? latestItem : video)
     const initialIndex = Math.max(0, latestList.findIndex(video => video.date === latestItem.date))
     WindowUtil.setBarColor('#FFFFFF')

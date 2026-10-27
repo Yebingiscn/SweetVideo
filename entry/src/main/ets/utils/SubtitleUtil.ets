@@ -88,6 +88,16 @@ export default class SubtitleUtil {
     return undefined
   }
 
+  // Share the bounded read, charset conversion and atomic save for manual/automatic import.
+  static async importSubtitleFile(uri: string, target: string,
+    cancelled: () => boolean = (): boolean => false): Promise<void> {
+    const bytes = await LocalSidecarFile.read(uri, 32 * 1024 * 1024, cancelled)
+    const encoding = TextEncodingUtil.detectBufferEncoding(bytes.buffer as ArrayBuffer) || 'utf-8'
+    const text = util.TextDecoder.create(encoding).decodeToString(bytes)
+    const utf8 = new util.TextEncoder().encodeInto(text)
+    await LocalSidecarFile.save(target, utf8, cancelled)
+  }
+
   // 获取外挂字幕
   static async selectExternalSubtitles(sandbox_subtitle: string, date: string,
     cancelled: () => boolean = (): boolean => false): Promise<string> {
@@ -105,11 +115,7 @@ export default class SubtitleUtil {
         ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.select_subtitle_file').id))
         return ''
       }
-      const bytes = await LocalSidecarFile.read(uris[0], 32 * 1024 * 1024, cancelled)
-      const encoding = TextEncodingUtil.detectBufferEncoding(bytes.buffer as ArrayBuffer) || 'utf-8'
-      const text = util.TextDecoder.create(encoding).decodeToString(bytes)
-      const utf8 = new util.TextEncoder().encodeInto(text)
-      await LocalSidecarFile.save(`${sandbox_subtitle}${date}`, utf8, cancelled)
+      await SubtitleUtil.importSubtitleFile(uris[0], `${sandbox_subtitle}${date}`, cancelled)
       if (cancelled()) {
         return ''
       }

@@ -4275,6 +4275,88 @@
     {
       "name": "privacy_folder_load_failed",
       "value": "Could not read the private folders. All videos remain available; folder changes are temporarily disabled."
-    }
+    },
+    {
+      "name": "ab_loop_invalid_range",
+      "value": "Set a valid A–B range first: 0 ≤ A < B ≤ duration."
+    },
+    {
+      "name": "ab_loop_save_failed",
+      "value": "Could not save the A–B points. Please try again."
+    },
+    {
+      "name": "ab_loop_seek_failed",
+      "value": "The player did not complete the A–B seek. Playback is paused and A–B loop is off."
+    },
+    {
+      "name": "timer_custom_minutes",
+      "value": "Custom timer (minutes)"
+    },
+    {
+      "name": "timer_minutes_range",
+      "value": "Enter a whole number from 1 to 1440 minutes"
+    },
+    {
+      "name": "edit_ab_range",
+      "value": "Edit A–B range"
+    },
+    {
+      "name": "edit_oped_range",
+      "value": "Edit intro/outro points"
+    },
+    {
+      "name": "playback_range_start",
+      "value": "Intro ends at"
+    },
+    {
+      "name": "playback_range_end",
+      "value": "Outro starts at"
+    },
+    {
+      "name": "playback_range_use_current",
+      "value": "Use current position"
+    },
+    {
+      "name": "range_invalid",
+      "value": "Invalid range. Check the points and media duration."
+    },
+    {
+      "name": "range_save_failed",
+      "value": "Could not save this range. Please retry or reopen the editor if playback has changed."
+    },
+    {
+      "name": "playback_range_oped_hint",
+      "value": "0 means no per-video point; global intro/outro settings still apply."
+    },
+    {
+      "name": "playback_intro_marker",
+      "value": "Intro"
+    },
+    {
+      "name": "playback_outro_marker",
+      "value": "Outro"
+    },
+    {"name":"play_bluray","value":"Play Blu-ray disc"},
+    {"name":"bluray_access_error","value":"The disc is incomplete or unreadable. Use Import from folder to select and authorize the disc root folder."},
+    {"name":"bluray_mpv_required","value":"Blu-ray folders require the MPV player"},
+    {"name":"bluray_private_unsupported","value":"Blu-ray folders cannot be copied to Private Space. Import them into the local library."},
+    {"name":"bluray_source_preserved","value":"The disc entry was removed. Manage its original folder in Files."},
+    {
+      "name": "bluray_titles",
+      "value": "Blu-ray titles"
+    },
+    {
+      "name": "bluray_title_number",
+      "value": "Title %d"
+    },
+    {
+      "name": "bluray_title_switch_failed",
+      "value": "Could not save the title selection. Please try again."
+    },
+    {"name":"network_bluray_prepare_failed","value":"Could not read the Blu-ray folder. Check the connection, access and BDMV files."},
+    {"name":"network_bluray_core_required","value":"This MPV core does not support network Blu-ray folders. Update the player core."},
+    {"name":"screenshot_processing","value":"Taking screenshot…"},
+    {"name":"screenshot_queued","value":"Screenshot queued"},
+    {"name":"screenshot_failed","value":"Screenshot failed. Please try again."}
   ]
 }

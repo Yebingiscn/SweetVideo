@@ -1,3 +1,5 @@
+import { PlaybackRangeDialog, PlaybackRangeMode, PlaybackRangeValues } from '../../component/PlayerComponent/PlaybackRangeDialog'
+import { playbackPolicyMarkers } from '../../component/PlayerComponent/PlaybackPolicyMarkers'
 import MediaLibraryService from '../../utils/MediaLibraryService'
 import { BaseGestureHandlingProposal, PageSwitchActionProposal, window } from '@kit.ArkUI'
 import { Available, BusinessError, deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
@@ -21,7 +23,10 @@ import {
   AnimatedPlaybackTimeBuilder,
   PlaybackProgressSliderBuilder
 } from '../../component/PlayerComponent/PlaybackProgressComponent'
-import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
+import { ButtonFancyModifier, DefaultDialogShadow } from '../../common/AttributeModifierConfig'
+import { PlaybackPolicyMenuComponent } from '../../component/PlayerComponent/PlaybackPolicyMenuComponent'
+import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
+import TimeUtil from '../../utils/TimeUtil'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { AUTO_HIDE_SHOW_CONTROL_TIME } from '../../common/Constants'
 import { MediaSmartGestureSession, SHORT_VIDEO_SMART_SWIPER_ID } from '../../utils/MediaSmartGestureUtil'
@@ -44,6 +49,7 @@ export struct ShortVideoPage {
     new MediaSmartGestureSession({
       canHandle: (): boolean => this.ready && !this.disposed && this.items.length > 0 &&
         !PiPWindowUtil.pipOpenState && !this.isSwiperAnimating && !this.isSpeedMenuOpen &&
+        !this.isPolicyMenuOpen && !this.isTimerDialogOpen && !this.isRangeDialogOpen &&
         !this.isProgressSeeking && !this.manager.onSwiping && !this.smartTapPending,
       onTap: (): void => {
         void this.togglePlaybackFromSmartGesture()
@@ -55,9 +61,50 @@ export struct ShortVideoPage {
   private swiperController: SwiperController = new SwiperController()
   private showControlTimer: number = 0
   private isSpeedMenuOpen: boolean = false
+  private isPolicyMenuOpen: boolean = false
+  private isTimerDialogOpen: boolean = false
+  private isRangeDialogOpen: boolean = false
   private isProgressSeeking: boolean = false
   private smartTapPending: boolean = false
   private pageParams: ShortVideoParams | undefined = undefined
+  private sleepTimerDialog: CustomDialogController = new CustomDialogController({
+    builder: NumberInputDialog({
+      title: ToolsUtil.getStringResource($r('app.string.timer_custom_minutes').id),
+      placeholderColor: ToolsUtil.getStringResource($r('app.string.timer_minutes_range').id),
+      confirm: (minutes: number): void => {
+        if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.timer_minutes_range').id))
+          return
+        }
+        if (this.disposed || this.manager.isClosing) { return }
+        this.manager.policy.sleepTimer.start(minutes * 60000)
+        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.timer_set_minutes').id, minutes))
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow,
+    onWillAppear: () => { this.isTimerDialogOpen = true; this.clearShowControlTimer() },
+    onDidDisappear: () => { this.isTimerDialogOpen = false; if (!this.disposed) { this.showControls() } }
+  })
+
+  private rangeMode: PlaybackRangeMode = 'ab'
+  private rangeMediaKey: string = ''
+  private rangeDuration: number = 0
+  private rangeEditorDialog: CustomDialogController = new CustomDialogController({
+    builder: PlaybackRangeDialog({
+      options: {
+        mode: this.rangeMode,
+        getDuration: (): number => this.rangeDuration,
+        getCurrentPosition: (): number => this.rangeMediaKey === this.currentRangeMediaKey() ?
+          (this.manager.currentPlayer?.playbackPositionMs ?? 0) : Number.NaN,
+        getRange: (): PlaybackRangeValues => this.rangeMode === 'ab' ?
+          { start: this.manager.policy.abLoop.pointA, end: this.manager.policy.abLoop.pointB } :
+          { start: this.manager.policy.openingEnding.startTime, end: this.manager.policy.openingEnding.endTime },
+        onSave: (start: number, end: number): boolean => this.saveEditedRange(start, end),
+        onClear: (): boolean => this.saveEditedRange(0, 0)
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow,
+    onWillAppear: () => { this.isRangeDialogOpen = true; this.clearShowControlTimer() },
+    onDidDisappear: () => { this.isRangeDialogOpen = false; if (!this.disposed) { this.showControls() } }
+  })
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   aboutToAppear(): void {
@@ -89,6 +136,31 @@ export struct ShortVideoPage {
     PlaybackSpeedListComponent({
       selectedSpeed: this.manager.selectedSpeed,
       onSpeedChange: (speed: number) => this.manager.selectSpeed(speed)
+    })
+  }
+
+  @Builder
+  PlaybackPolicyMenuBuilder() {
+    PlaybackPolicyMenuComponent({
+      sleepTimer: this.manager.policy.sleepTimer,
+      abLoop: this.manager.policy.abLoop,
+      openingEnding: this.manager.policy.openingEnding,
+      onEditRange: (mode: PlaybackRangeMode): void => this.openRangeEditor(mode),
+      onSetIntro: (): void => this.saveOpeningEndingPoint('start'),
+      onSetOutro: (): void => this.saveOpeningEndingPoint('end'),
+      onClearOpeningEnding: (): void => this.saveOpeningEndingPoint('clear'),
+      onStartTimer: (durationMs: number) => this.manager.policy.sleepTimer.start(durationMs),
+      onCancelTimer: () => this.manager.policy.sleepTimer.cancel(),
+      onEndCurrent: () => this.manager.policy.stopAfterCurrent(),
+      onCustomTimer: (): void => { this.sleepTimerDialog.open() },
+      onSetPointA: () => this.saveAbPoint('A'),
+      onSetPointB: () => this.saveAbPoint('B'),
+      onClearAbLoop: () => this.saveAbPoint('clear'),
+      onABCircleStatusClick: (): void => {
+        if (!this.manager.policy.toggleAbLoop()) {
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.ab_loop_invalid_range').id))
+        }
+      }
     })
   }
 
@@ -126,8 +198,8 @@ export struct ShortVideoPage {
         .bindMenu(this.PlaybackSpeedMenuBuilder, {
           placement: Placement.TopRight,
           showInSubWindow: false,
-          onAppear: () => this.isSpeedMenuOpen = true,
-          onDisappear: () => this.isSpeedMenuOpen = false
+          onAppear: () => { this.isSpeedMenuOpen = true; this.clearShowControlTimer() },
+          onDisappear: () => { this.isSpeedMenuOpen = false; if (!this.disposed) { this.showControls() } }
         })
 
         RepeatModeButtonComponent({
@@ -136,6 +208,21 @@ export struct ShortVideoPage {
           playTime: this.manager.currentTime,
           compact: true,
           onRepeatModeChange: (repeatMode) => this.manager.selectRepeatMode(repeatMode)
+        })
+
+        Button({ type: ButtonType.Circle, stateEffect: false }) {
+          SymbolGlyph($r('sys.symbol.gearshape'))
+            .fontSize(21)
+            .fontColor([Color.White])
+        }
+        .width(40)
+        .height(40)
+        .backgroundColor(Color.Transparent)
+        .bindMenu(this.PlaybackPolicyMenuBuilder, {
+          placement: Placement.TopRight,
+          showInSubWindow: false,
+          onAppear: () => { this.isPolicyMenuOpen = true; this.clearShowControlTimer() },
+          onDisappear: () => { this.isPolicyMenuOpen = false; if (!this.disposed) { this.showControls() } }
         })
 
         Button({ type: ButtonType.Circle, stateEffect: false }) {
@@ -164,6 +251,7 @@ export struct ShortVideoPage {
       PlaybackProgressSliderBuilder({
         playTime: this.manager.currentTime,
         totalTime: this.manager.duration,
+        markers: playbackPolicyMarkers(this.manager.policy),
         onSliderChange: (value: number) => this.manager.previewProgressSeek(value),
         onSliderTouch: (event: TouchEvent) => {
           if (event.type === TouchType.Down) {
@@ -304,6 +392,12 @@ export struct ShortVideoPage {
       this.items = params.metadataList
       this.currentIndex = Math.max(0, Math.min(params.initialIndex, Math.max(this.items.length - 1, 0)))
       this.skipHistory = params.skipHistory
+      this.manager.policy.sleepTimer.onExpired = (): void => this.closePage()
+      this.manager.policy.onAbLoopFailed = (): void => {
+        if (!this.disposed) {
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.ab_loop_seek_failed').id))
+        }
+      }
       this.manager.configure(this.items, this.skipHistory, (targetIndex: number) => {
         if (!this.disposed && !this.switchingToMpv) {
           this.swiperController.changeIndex(this.manager.getSwiperIndex(targetIndex), true)
@@ -325,7 +419,8 @@ export struct ShortVideoPage {
       }
     })
     .onShown(async () => {
-      if (this.disposed || this.switchingToMpv) {
+      if (this.disposed || this.switchingToMpv || this.manager.isClosing ||
+        this.manager.policy.sleepTimer.checkDeadline()) {
         return
       }
       if (deviceInfo.apiAvailable('26.0.0')) {
@@ -339,6 +434,7 @@ export struct ShortVideoPage {
       }
     })
     .onWillDisappear(() => {
+      this.manager.beginClosing()
       if (deviceInfo.apiAvailable('26.0.0')) {
         this.smartGestures.hide()
       }
@@ -392,10 +488,12 @@ export struct ShortVideoPage {
   }
 
   private showControls(): void {
+    if (this.disposed || this.manager.isClosing) { return }
     this.clearShowControlTimer()
     this.updateShowControl(true)
     this.showControlTimer = setTimeout(() => {
       this.showControlTimer = 0
+      if (this.isPolicyMenuOpen || this.isTimerDialogOpen || this.isRangeDialogOpen || this.isSpeedMenuOpen) { return }
       this.updateShowControl(false)
     }, AUTO_HIDE_SHOW_CONTROL_TIME)
   }
@@ -456,6 +554,8 @@ export struct ShortVideoPage {
   private dispose(): Promise<void> {
     if (!this.disposeTask) {
       this.disposed = true
+      this.manager.beginClosing()
+      this.rangeEditorDialog.close()
       this.clearShowControlTimer()
       this.disposeTask = this.releasePage()
     }
@@ -489,7 +589,76 @@ export struct ShortVideoPage {
   }
 
   private closePage(): void {
-    MediaLibraryService.saveLastPlayVideoIndex(this.items, this.items[this.currentIndex]?.date)
-    this.pathStack.pop()
+    if (this.disposed || this.switchingToMpv) { return }
+    try {
+      MediaLibraryService.saveLastPlayVideoIndex(this.items, this.items[this.currentIndex]?.date)
+    } catch (error) {
+      salmonLogger.addLog('ShortVideoPage', `保存播放索引失败: ${error}`, true)
+    }
+    const routeIndex = this.pathStack.size() - 1
+    const params = this.readShortVideoParams()
+    void this.dispose().catch((error: Error) => {
+      salmonLogger.addLog('ShortVideoPage', `退出短视频失败: ${error.message}`, true)
+    }).then((): void => {
+      if (this.pathStack.size() - 1 === routeIndex &&
+        this.pathStack.getAllPathName()[routeIndex] === NavigationAddress.SHORT_VIDEO &&
+        this.readShortVideoParams() === params) { this.pathStack.pop() }
+    })
   }
+
+  private saveAbPoint(point: 'A' | 'B' | 'clear'): void {
+    try {
+      if (!this.manager.policy.saveAbPoint(PathUtils.appContext!, point)) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.ab_loop_invalid_range').id))
+        return
+      }
+      const loop = this.manager.policy.abLoop
+      ToolsUtil.showToast(point === 'clear' ?
+        ToolsUtil.getStringResource($r('app.string.cancel_ab_time_success').id) :
+        ToolsUtil.getStringResourceArgs(point === 'A' ? $r('app.string.set_point_a_time').id :
+          $r('app.string.set_point_b_time').id, TimeUtil.convertMSToHHMMSS(point === 'A' ? loop.pointA : loop.pointB)))
+    } catch (error) {
+      salmonLogger.addLog('ShortVideoPage', `保存 AB 点位失败: ${error}`, true)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.ab_loop_save_failed').id))
+    }
+  }
+  private currentRangeMediaKey(): string {
+    const media = this.manager.nowPlaying
+    return media ? media.date + '|' + media.uri : ''
+  }
+
+  private openRangeEditor(mode: PlaybackRangeMode): void {
+    if (this.disposed || this.manager.isClosing) { return }
+    this.manager.policy.refresh()
+    if (this.manager.policy.sleepTimer.checkDeadline() || this.disposed || this.manager.isClosing) { return }
+    this.rangeMode = mode
+    this.rangeMediaKey = this.currentRangeMediaKey()
+    this.rangeDuration = this.manager.policy.abLoop.durationMs
+    this.rangeEditorDialog.open()
+  }
+
+  private saveEditedRange(start: number, end: number): boolean {
+    if (this.disposed || this.manager.isClosing || this.rangeMediaKey !== this.currentRangeMediaKey()) { return false }
+    try {
+      return this.rangeMode === 'ab' ? this.manager.policy.saveAbRange(PathUtils.appContext!, start, end) :
+        this.manager.policy.saveOpeningEnding(PathUtils.appContext!, start, end)
+    } catch (error) {
+      salmonLogger.addLog('PlaybackRange', `保存区间失败: ${error}`, true)
+      return false
+    }
+  }
+
+  private saveOpeningEndingPoint(point: 'start' | 'end' | 'clear'): void {
+    try {
+      if (!this.manager.policy.saveOpeningEndingPoint(PathUtils.appContext!, point)) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.range_invalid').id))
+        return
+      }
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.save_success').id))
+    } catch (error) {
+      salmonLogger.addLog('PlaybackRange', `保存片头片尾失败: ${error}`, true)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.range_save_failed').id))
+    }
+  }
+
 }

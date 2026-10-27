@@ -12,6 +12,7 @@ class SettingUtil {
   public backgroundColorMode: BackgroundColorMode = BackgroundColorMode.AUTO
   public enableBackgroundDarkImage: boolean = false
   public allowBackgroundPlay: boolean = true
+  public autoListenVideo: boolean = true
   public allowConcurrentPlay: boolean = false
   public autoActivePip: boolean = false
   public autoResumeOnReturn: boolean = false

@@ -15,6 +15,8 @@ export interface VideoMetadata {
   time: number
   /** 上次保存的播放进度，单位为毫秒。 */
   last_play: number
+  /** BDMV title index; absent preserves automatic main-title selection. */
+  bluray_title_id?: number
   /** 最近一次实际播放的时间戳，单位为毫秒。 */
   last_played_at?: number
   format: string
@@ -55,6 +57,7 @@ export interface VideoMetadata {
 
 // 保存数据
 export interface SaveOptions {
+  blurayTitleId?: number
   externalSubtitleFormat?: string
   playTime?: number
   size?: number[]

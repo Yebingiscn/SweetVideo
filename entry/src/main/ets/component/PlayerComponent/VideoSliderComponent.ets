@@ -2,12 +2,14 @@ import type { PlayerControllerInterface } from '../../controller/PlayerControlle
 import { VIDEO_HDR_TYPE } from '../../common/enum/HDR_TYPE'
 import { GradientTagBuilder, SolidColorTagBuilder } from '../common/MediaTagBuilder'
 import ToolsUtil from '../../utils/ToolsUtil'
-import { AnimatedPlaybackTimeBuilder, PlaybackProgressSliderBuilder } from './PlaybackProgressComponent'
+import { AnimatedPlaybackTimeBuilder, PlaybackProgressSliderBuilder, PlaybackProgressMarker } from './PlaybackProgressComponent'
 import { HiCar } from '../../utils/HiCarUtil'
+import { playbackChapterMarkers } from './PlaybackRangeMarkers'
 
 @ComponentV2
 export struct VideoSliderComponent {
   @Require @Param player: PlayerControllerInterface
+  @Param markers: PlaybackProgressMarker[] = []
 
   private get networkStatusText(): string {
     const cache = this.player.networkCacheDuration.toFixed(1)
@@ -31,6 +33,7 @@ export struct VideoSliderComponent {
         Row() {
           PlaybackProgressSliderBuilder({
           playTime: this.player.playTime, totalTime: this.player.nowPlaying?.time || 0, height: 56,
+          markers: this.markers.concat(playbackChapterMarkers(this.player.chapterList)),
           onSliderChange: (value: number, mode?: SliderChangeMode) => this.onSliderChange(value, mode),
           onSliderTouch: (event: TouchEvent) => this.onSliderTouch(event)
           })
@@ -140,6 +143,7 @@ export struct VideoSliderComponent {
         playTime: this.player.playTime,
         totalTime: this.player.nowPlaying?.time || 0,
         onSliderChange: (value: number, mode?: SliderChangeMode) => this.onSliderChange(value, mode),
+        markers: this.markers.concat(playbackChapterMarkers(this.player.chapterList)),
         onSliderTouch: (event: TouchEvent) => this.onSliderTouch(event)
       })
     }

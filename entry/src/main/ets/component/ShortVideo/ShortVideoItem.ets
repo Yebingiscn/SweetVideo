@@ -80,6 +80,7 @@ export struct ShortVideoItem {
   build() {
     Stack({ alignContent: Alignment.Center }) {
       Image(PathUtils.coverUri(this.item.date))
+        .dynamicRangeMode(DynamicRangeMode.CONSTRAINT)
         .width(this.videoAreaWidth())
         .height(this.videoAreaHeight())
         .objectFit(ImageFit.Contain)

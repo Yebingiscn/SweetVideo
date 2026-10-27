@@ -16,6 +16,7 @@ import Preferences from '../database/Preferences'
 import { VideoFormData } from '../forms/VideoFormData'
 import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
 import VideoOperateUtil from './VideoOperateUtil'
+import PermissionUtil from './PermissionUtil'
 
 const TAG = 'WantProcessUtil'
 
@@ -29,6 +30,7 @@ export default class WantProcess {
   private static continueSkipHistory: boolean = false
   private static navigation: NavPathStack | undefined = undefined
   private static cardNavigationReady: boolean = false
+  private static cardRequestVersion: number = 0
 
   private static cardPlaybackHandler: ((video: VideoMetadata) => boolean) | undefined = undefined
 
@@ -43,6 +45,7 @@ export default class WantProcess {
   }
 
   static resetCardNavigation(): void {
+    WantProcess.cardRequestVersion++
     WantProcess.cardPlaybackHandler = undefined
     WantProcess.navigation = undefined
     WantProcess.cardNavigationReady = false
@@ -69,6 +72,7 @@ export default class WantProcess {
   }
 
   public static set want(value: Want | undefined) {
+    WantProcess.cardRequestVersion++
     WantProcess.receiveWant = value
   }
 
@@ -202,6 +206,7 @@ export default class WantProcess {
   }
 
   private static async openCard(pathStack: NavPathStack): Promise<void> {
+    const requestVersion = WantProcess.cardRequestVersion
     const action = WantProcess.receiveWant?.parameters?.videoFormAction
     const mediaId = WantProcess.receiveWant?.parameters?.videoFormMediaId
     WantProcess.clearWantState()
@@ -226,9 +231,26 @@ export default class WantProcess {
     }
     try {
       if (video.uri.startsWith('file://') || video.uri.startsWith('/')) {
+        // A desktop card grants no new file access. Restore the app's existing
+        // persisted grant before preflight, just like the normal player does.
+        const activated = await PermissionUtil.activatePermission(video.uri)
+        if (requestVersion !== WantProcess.cardRequestVersion) { return }
+        if (!activated) { throw new Error('File permission activation failed') }
+        // activatePermission may use its readable cache. Still check the file
+        // itself so moved/deleted files do not pass preflight on a stale cache.
         const file = await fileIo.open(video.uri, fileIo.OpenMode.READ_ONLY)
         await fileIo.close(file)
       }
+    } catch (error) {
+      if (requestVersion !== WantProcess.cardRequestVersion) { return }
+      const code = (error as BusinessError)?.code ?? 'unknown'
+      salmonLogger.addLog(TAG, `卡片文件访问失败，code=${code}`, true)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.file_access_denied').id))
+      pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null)
+      return
+    }
+    if (requestVersion !== WantProcess.cardRequestVersion) { return }
+    try {
       const paths = pathStack.getAllPathName()
       if (paths[paths.length - 1] === NavigationAddress.VIDEO_PLAYER &&
         WantProcess.cardPlaybackHandler?.(video)) {
@@ -238,9 +260,10 @@ export default class WantProcess {
         VideoOperateUtil.resolvePlayerType(video, false))
       params.resumeFromCard = true
       pathStack.pushPathByName(NavigationAddress.VIDEO_PLAYER, params)
-    } catch (_) {
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.file_access_denied').id))
-      pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null)
+    } catch (error) {
+      const code = (error as BusinessError)?.code ?? 'unknown'
+      salmonLogger.addLog(TAG, `卡片播放跳转失败，code=${code}`, true)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
     }
   }
 

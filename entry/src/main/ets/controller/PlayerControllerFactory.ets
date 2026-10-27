@@ -11,6 +11,7 @@ import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { MpvAudioTrack, MpvChapter, MpvSubtitleTrack } from './MpvController/MpvTypes'
 import { PlayerEngine } from '../common/NavigationCommon'
 import { PlayerVideoTracks } from './PlayerVideoTracks'
+import { PlaybackPolicyCallbacks, PlaybackPolicyHost } from './PlaybackPolicyInterface'
 
 export type PlayerEngineSwitchHandler =
   (targetEngine: string, reason: string, resumePlayback?: boolean) => Promise<void>
@@ -32,11 +33,14 @@ export interface AudioControllerInterface {
   selectAudioTrack(trackId: number): void
   selectAudioTrackByIndex(index: number): void
   getAudioTrackCount(): number
-  setLoudnessGain(loudnessGain: number): void
+  setLoudnessGain(loudnessGain: number, persist?: boolean): void
   setAudioChannelMode(mode: number): void
 }
 
-export interface PlayerControllerInterface extends FramePreviewTarget {
+export interface PlayerControllerInterface extends FramePreviewTarget, PlaybackPolicyHost {
+  nowPlaying: VideoMetadata | undefined
+  playbackPolicy: PlaybackPolicyCallbacks | undefined
+  setABLoop(pointAMs?: number, pointBMs?: number): boolean
   readonly videoTracks: PlayerVideoTracks
   readonly audioController: AudioControllerInterface
   readonly subtitleController: SubtitleControllerInterface
@@ -78,7 +82,6 @@ export interface PlayerControllerInterface extends FramePreviewTarget {
   translateY: number
   angle: number
   audioTrackSelected: number
-  abCircleStatus: boolean
   subtitleSelected: SubtitleMode
   subtitleTrackSelected: number
   secondarySubtitleTrackSelected: number
@@ -141,6 +144,8 @@ export interface PlayerControllerInterface extends FramePreviewTarget {
     windowClass?: Promise<window.Window | undefined>): void
 
   updatePlaybackSpeed(speed: number): void
+
+  getRequestedPlaybackSpeed?(): number
 
   playAdjacentVideo(repeatMode: SweetRepeatMode,
     direction: 'previous' | 'next'): VideoMetadata | undefined
