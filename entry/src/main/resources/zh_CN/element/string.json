@@ -915,6 +915,10 @@
       "value": "长按快进倍速"
     },
     {
+      "name": "long_press_speed_hint",
+      "value": "上滑锁定 · 下滑恢复原倍速"
+    },
+    {
       "name": "horizontal_seek_sensitivity",
       "value": "横向滑动调节进度灵敏度"
     },
@@ -3183,6 +3187,10 @@
       "value": "没有上一首"
     },
     {
+      "name": "no_next_item",
+      "value": "没有下一项"
+    },
+    {
       "name": "set_audio_output_mode_failed",
       "value": "设置音频输出模式失败"
     },
@@ -4355,6 +4363,8 @@
     {"name":"network_bluray_core_required","value":"当前 MPV 内核尚不支持网络原盘，请更新播放器内核"},
     {"name":"screenshot_processing","value":"正在截图…"},
     {"name":"screenshot_queued","value":"截图已加入队列"},
-    {"name":"screenshot_failed","value":"截图失败，请重试"}
+    {"name":"screenshot_failed","value":"截图失败，请重试"},
+    {"name": "stream_headers_hint", "value": "请求头（可选，每行一个，例如 Referer: https://example.com）"},
+    {"name": "stream_headers_invalid", "value": "请求头格式不正确或内容过长，请使用每行 名称: 值"}
   ]
 }

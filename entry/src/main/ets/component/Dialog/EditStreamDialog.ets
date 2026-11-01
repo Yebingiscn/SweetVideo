@@ -1,3 +1,4 @@
+import StreamHeaders from '../../utils/StreamHeaders'
 import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
 import { DialogButtonBar } from './DialogButtonBar'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
@@ -11,8 +12,9 @@ export struct EditStreamDialog {
   controller?: CustomDialogController
   @State streamName: string = ''
   @State streamUrl: string = ''
+  @State headersText: string = ''
   @State saving: boolean = false
-  onConfirm?: (name: string, url: string) => void
+  onConfirm?: (name: string, url: string, headers: Record<string, string>) => void
   private originalUri: string = ''
   private displayedUri: string = ''
 
@@ -23,6 +25,7 @@ export struct EditStreamDialog {
       this.originalUri = stream.uri ?? ''
       this.displayedUri = FtpUtil.displayUri(SmbUtil.displayUri(this.originalUri))
       this.streamUrl = this.displayedUri
+      this.headersText = StreamHeaders.format(stream.network_custom_headers)
     }
   }
 
@@ -50,6 +53,12 @@ export struct EditStreamDialog {
           .height(96)
           .onChange((input: string) => this.streamUrl = input)
 
+
+        TextArea({ placeholder: $r('app.string.stream_headers_hint'), text: this.headersText })
+          .height(96)
+          .borderRadius(16)
+          .onChange((value: string) => { this.headersText = value })
+
         DialogButtonBar(
           async () => {
             if (this.saving) {
@@ -63,9 +72,11 @@ export struct EditStreamDialog {
             }
             this.saving = true
             try {
-              const value = this.streamUrl.trim()
+              const address = StreamHeaders.address(this.streamUrl)
+              const headers = StreamHeaders.merge(StreamHeaders.parseText(this.headersText), address.headers)
+              const value = address.url
               const url = value === this.displayedUri ? this.originalUri : await FtpUtil.prepareUri(await SmbUtil.prepareUri(value))
-              this.onConfirm?.(this.streamName.trim(), url)
+              this.onConfirm?.(this.streamName.trim(), url, headers)
               this.controller?.close()
             } catch (error) {
               ToolsUtil.showToast(error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.invalid_smb_address').id))

@@ -90,7 +90,7 @@ export class MpvPlayerEngineAdapter implements PlayerEngineAdapter {
       const safeName = name.replace(/[\r\n:,]/g, '').trim()
       const safeValue = headers[name].replace(/[\r\n]/g, '').trim()
       if (safeName && safeValue) {
-        fields.push(`${safeName}: ${safeValue}`)
+        fields.push(`${safeName}: ${safeValue}`.replace(/,/g, '\\,'))
       }
     })
     return fields.length > 0 ? fields.join(',') : undefined

@@ -1,3 +1,4 @@
+import StreamHeaders from './StreamHeaders'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { salmonLogger } from 'salmonlogger'
 import TextEncodingUtil from './TextEncodingUtil'
@@ -9,6 +10,7 @@ const MAX_STRM_SIZE = 64 * 1024
 export interface StrmImportResult {
   name: string
   url: string
+  headers?: Record<string, string>
 }
 
 /** Reads Kodi-style .strm shortcuts that contain one directly playable network URL. */
@@ -30,10 +32,17 @@ export default class StrmUtil {
       if (!content) {
         throw new Error(ToolsUtil.getStringResource($r('app.string.strm_read_failed').id))
       }
-      return {
-        name: StrmUtil.getDisplayName(uri),
-        url: StrmUtil.parseUrl(content)
+      const address = StreamHeaders.address(StrmUtil.parseUrl(content))
+      let headers: Record<string, string> = {}
+      for (const line of content.replace(/\r/g, '').split('\n')) {
+        if (!line.trim() || line.trim().startsWith('#')) {
+          headers = StreamHeaders.merge(headers, StreamHeaders.directive(line.trim()))
+        } else {
+          break
+        }
       }
+      return { name: StrmUtil.getDisplayName(uri), url: address.url,
+        headers: StreamHeaders.merge(headers, address.headers) }
     } catch (error) {
       const message = StrmUtil.errorMessage(error)
       salmonLogger.addLog(TAG, `读取 .strm 文件失败: ${message}`, true)

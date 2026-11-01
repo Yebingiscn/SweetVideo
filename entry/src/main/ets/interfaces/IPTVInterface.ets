@@ -9,6 +9,7 @@ export interface IPTVProgram {
 export interface IPTVLine {
   url: string
   userAgent?: string
+  headers?: Record<string, string>
 }
 
 export interface IPTVChannel {
@@ -21,6 +22,7 @@ export interface IPTVChannel {
   tvgName?: string
   channelNumber?: string
   userAgent?: string
+  headers?: Record<string, string>
   lines?: IPTVLine[]
   selectedLineIndex?: number
   currentProgram?: IPTVProgram
@@ -33,6 +35,7 @@ export interface IPTVSource {
   sourceType: IPTVSourceType
   location: string
   userAgent?: string
+  headers?: Record<string, string>
   epgUrl?: string
   channels: IPTVChannel[]
   channelCount: number
@@ -67,4 +70,5 @@ export interface IPTVTestResult {
 export interface IPTVUrlOptions {
   url: string
   userAgent: string
+  headers: Record<string, string>
 }

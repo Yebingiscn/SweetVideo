@@ -392,10 +392,10 @@ export default class FFmpegThumbnailUtil {
     }
   }
 
-  static async extractNetworkCover(url: string, maxEdge: number = 480): Promise<FFmpegThumbnailResult> {
+  static async extractNetworkCover(url: string, maxEdge: number = 480, headers?: Record<string, string>): Promise<FFmpegThumbnailResult> {
     let extractorId: number | undefined
     try {
-      extractorId = FFmpegThumbnailUtil.createNetworkExtractor(url)
+      extractorId = FFmpegThumbnailUtil.createNetworkExtractor(url, headers)
       const randomCover = Setting.randomCover
       const durationMs = randomCover ? (await FFmpegThumbnailUtil.getMediaInfo(extractorId)).durationMs : 0
       return await FFmpegThumbnailUtil.extractFrame(extractorId,

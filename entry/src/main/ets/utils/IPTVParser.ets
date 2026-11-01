@@ -1,3 +1,4 @@
+import StreamHeaders from './StreamHeaders'
 import { salmonLogger } from 'salmonlogger'
 import {
   IPTVChannel,
@@ -34,6 +35,7 @@ export default class IPTVParser {
     let pendingTvgName = ''
     let pendingNumber = ''
     let currentTxtGroup = ''
+    let pendingHeaders: Record<string, string> = {}
 
     for (let index = 0; index < lines.length; index++) {
       const line = lines[index].trim()
@@ -41,6 +43,7 @@ export default class IPTVParser {
         continue
       }
       if (line.startsWith('#EXTINF')) {
+        pendingHeaders = {}
         const comma = line.indexOf(',')
         pendingName = comma >= 0 ? line.substring(comma + 1).trim() : ''
         pendingGroup = IPTVParser.readAttribute(line, 'group-title')
@@ -55,6 +58,7 @@ export default class IPTVParser {
         continue
       }
       if (line.startsWith('#')) {
+        pendingHeaders = StreamHeaders.merge(pendingHeaders, StreamHeaders.directive(line))
         continue
       }
 
@@ -72,6 +76,10 @@ export default class IPTVParser {
       }
       const urlInfo = IPTVParser.extractUrlOptions(url)
       url = urlInfo.url
+      const defaults = StreamHeaders.merge(source.userAgent ? { 'user-agent': source.userAgent } : {}, source.headers)
+      const headers = StreamHeaders.merge(StreamHeaders.merge(defaults, pendingHeaders), urlInfo.headers)
+      pendingHeaders = {}
+      const identity = StreamHeaders.identity(url, headers)
       if (!IPTVParser.isSupportedChannelUrl(url)) {
         invalidCount++
         pendingName = ''
@@ -82,7 +90,7 @@ export default class IPTVParser {
         pendingNumber = ''
         continue
       }
-      if (seenUrls.has(url)) {
+      if (seenUrls.has(identity)) {
         pendingName = ''
         pendingGroup = ''
         pendingLogo = ''
@@ -91,19 +99,20 @@ export default class IPTVParser {
         pendingNumber = ''
         continue
       }
-      seenUrls.add(url)
+      seenUrls.add(identity)
       const finalName = name || pendingTvgName || `${source.name} ${channels.length + 1}`
       const groupName = pendingGroup || currentTxtGroup || defaultGroupName()
       const channelKey = IPTVParser.channelIdentity(finalName, pendingTvgId, url)
       const iptvLine: IPTVLine = {
         url: url,
-        userAgent: urlInfo.userAgent || source.userAgent || undefined
+        userAgent: headers['user-agent'] || undefined,
+        headers: headers
       }
       const existingIndex = channelIndexes.get(channelKey)
       if (existingIndex !== undefined) {
         const existing = channels[existingIndex]
         const lines = IPTVParser.channelLines(existing)
-        if (!lines.some(item => item.url === iptvLine.url)) {
+        if (!lines.some(item => StreamHeaders.identity(item.url, item.headers) === identity)) {
           lines.push(iptvLine)
           existing.lines = lines
         }
@@ -126,6 +135,7 @@ export default class IPTVParser {
         tvgName: pendingTvgName || undefined,
         channelNumber: pendingNumber || undefined,
         userAgent: iptvLine.userAgent,
+        headers: StreamHeaders.merge(iptvLine.headers),
         lines: [iptvLine],
         selectedLineIndex: 0
       })
@@ -157,11 +167,12 @@ export default class IPTVParser {
       const uniqueLines: IPTVLine[] = []
       for (const line of lines) {
         const normalizedUrl = line.url.trim()
-        if (!normalizedUrl || seenUrls.has(normalizedUrl)) {
+        const identity = StreamHeaders.identity(normalizedUrl, line.headers)
+        if (!normalizedUrl || seenUrls.has(identity)) {
           continue
         }
-        seenUrls.add(normalizedUrl)
-        uniqueLines.push({ url: normalizedUrl, userAgent: line.userAgent })
+        seenUrls.add(identity)
+        uniqueLines.push({ url: normalizedUrl, userAgent: line.userAgent, headers: StreamHeaders.merge(line.userAgent ? { 'user-agent': line.userAgent } : {}, line.headers) })
       }
       if (uniqueLines.length === 0) {
         continue
@@ -173,12 +184,14 @@ export default class IPTVParser {
         existing.lines = [...IPTVParser.channelLines(existing), ...uniqueLines]
         continue
       }
-      const selectedUrl = IPTVParser.selectedLine(channel).url
-      let selectedLineIndex = uniqueLines.findIndex(line => line.url === selectedUrl)
+      const selected = IPTVParser.selectedLine(channel)
+      const selectedIdentity = StreamHeaders.identity(selected.url, selected.headers)
+      let selectedLineIndex = uniqueLines.findIndex(line => StreamHeaders.identity(line.url, line.headers) === selectedIdentity)
       selectedLineIndex = selectedLineIndex >= 0 ? selectedLineIndex : 0
       const selectedLine = uniqueLines[selectedLineIndex]
       channel.url = selectedLine.url
       channel.userAgent = selectedLine.userAgent
+      channel.headers = StreamHeaders.merge(selectedLine.headers)
       channel.lines = uniqueLines
       channel.selectedLineIndex = selectedLineIndex
       if (seenIds.has(channel.id)) {
@@ -197,11 +210,11 @@ export default class IPTVParser {
   static channelLines(channel: IPTVChannel): IPTVLine[] {
     if (channel.lines && channel.lines.length > 0) {
       return channel.lines.map((line: IPTVLine): IPTVLine => {
-        const copiedLine: IPTVLine = { url: line.url, userAgent: line.userAgent }
+        const copiedLine: IPTVLine = { url: line.url, userAgent: line.userAgent, headers: StreamHeaders.merge(line.userAgent ? { 'user-agent': line.userAgent } : {}, line.headers) }
         return copiedLine
       })
     }
-    const primaryLine: IPTVLine = { url: channel.url, userAgent: channel.userAgent }
+    const primaryLine: IPTVLine = { url: channel.url, userAgent: channel.userAgent, headers: StreamHeaders.merge(channel.userAgent ? { 'user-agent': channel.userAgent } : {}, channel.headers) }
     return [primaryLine]
   }
 
@@ -218,6 +231,7 @@ export default class IPTVParser {
     channel.selectedLineIndex = selectedIndex
     channel.url = lines[selectedIndex].url
     channel.userAgent = lines[selectedIndex].userAgent
+    channel.headers = StreamHeaders.merge(lines[selectedIndex].headers)
   }
 
   static restoreSelectedLines(oldChannels: IPTVChannel[], newChannels: IPTVChannel[]): void {
@@ -228,8 +242,11 @@ export default class IPTVParser {
       if (!oldChannel) {
         continue
       }
-      const selectedUrl = IPTVParser.selectedLine(oldChannel).url
-      const lineIndex = IPTVParser.channelLines(channel).findIndex(line => line.url === selectedUrl)
+      const selected = IPTVParser.selectedLine(oldChannel)
+      const lines = IPTVParser.channelLines(channel)
+      const identity = StreamHeaders.identity(selected.url, selected.headers)
+      let lineIndex = lines.findIndex(line => StreamHeaders.identity(line.url, line.headers) === identity)
+      if (lineIndex < 0) lineIndex = lines.findIndex(line => line.url === selected.url)
       if (lineIndex >= 0) {
         IPTVParser.selectLine(channel, lineIndex)
       }
@@ -353,21 +370,8 @@ export default class IPTVParser {
   }
 
   private static extractUrlOptions(value: string): IPTVUrlOptions {
-    const parts = value.split('|')
-    let userAgent = ''
-    for (let index = 1; index < parts.length; index++) {
-      const item = parts[index]
-      const separator = item.indexOf('=')
-      if (separator < 0) {
-        continue
-      }
-      const key = item.substring(0, separator).trim().toLowerCase()
-      if (key === 'user-agent' || key === 'user_agent' || key === 'ua') {
-        userAgent = ToolsUtil.safeDecodeURIComponent(item.substring(separator + 1).trim())
-      }
-    }
-    const result: IPTVUrlOptions = { url: parts[0].trim(), userAgent: userAgent }
-    return result
+    const parsed = StreamHeaders.address(value)
+    return { url: parsed.url, userAgent: parsed.headers['user-agent'] ?? '', headers: parsed.headers }
   }
 
   private static isSupportedChannelUrl(url: string): boolean {

@@ -49,7 +49,7 @@ export struct StreamPage {
   })
   editStreamDialogController: CustomDialogController = new CustomDialogController({
     builder: EditStreamDialog({
-      onConfirm: (newName: string, newUrl: string) => {
+      onConfirm: (newName: string, newUrl: string, headers: Record<string, string>) => {
         const stream = DataSyncUtil.editingVideo
         if (!stream) {
           return
@@ -59,6 +59,7 @@ export struct StreamPage {
         if (target) {
           target.title = newName
           target.uri = newUrl
+          target.network_custom_headers = headers
           Preferences.saveNetworkStreams(PathUtils.appContext!, streams)
           this.allStreams = [...streams]
           this.applySearch()
@@ -77,6 +78,8 @@ export struct StreamPage {
   @Provider('videoListController') streamVideoListController: VideoListController = new VideoListController()
   @Local delMultipleList: VideoMetadata[] = []
   @Local multipleChooseState: Visibility = Visibility.None
+  private sortVersion: number = 0
+  private pageActive: boolean = false
   private pendingDeleteStream: VideoMetadata | null = null
   deleteConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
@@ -97,7 +100,13 @@ export struct StreamPage {
     this.streamVideoListController.multipleChooseState = this.multipleChooseState
   }
 
+  aboutToDisappear(): void {
+    this.pageActive = false
+    this.sortVersion++
+  }
+
   aboutToAppear(): void {
+    this.pageActive = true
     this.allStreams = Preferences.getNetworkStreams(PathUtils.appContext!)
     this.networkStreams = this.allStreams
     const savedField = Preferences.getSortField(PathUtils.appContext!)
@@ -161,28 +170,28 @@ export struct StreamPage {
           field: SortField.RECENT_PLAY,
           icon: $r('sys.symbol.play_round_triangle_fill'),
           textResource: $r('app.string.sort_by_recent_play'),
-          onAction: (): void => this.handleSort(SortField.RECENT_PLAY, false)
+          onAction: (): void => { void this.handleSort(SortField.RECENT_PLAY, false) }
         },
         {
           field: SortField.DATETIME,
           icon: $r('sys.symbol.calendar'),
           textResource: $r('app.string.sort_by_datetime'),
-          onAction: (): void => this.handleSort(SortField.DATETIME, false)
+          onAction: (): void => { void this.handleSort(SortField.DATETIME, false) }
         },
         {
           field: SortField.TIME,
           icon: $r('sys.symbol.clock'),
           textResource: $r('app.string.sort_by_time'),
-          onAction: (): void => this.handleSort(SortField.TIME, false)
+          onAction: (): void => { void this.handleSort(SortField.TIME, false) }
         },
         {
           field: SortField.NAME,
           icon: $r('sys.symbol.textformat'),
           textResource: $r('app.string.sort_by_name'),
-          onAction: (): void => this.handleSort(SortField.NAME, true)
+          onAction: (): void => { void this.handleSort(SortField.NAME, true) }
         }
       ],
-      onPinyinSortChange: (value: boolean): void => this.handlePinyinSortChange(value)
+      onPinyinSortChange: (value: boolean): void => { void this.handlePinyinSortChange(value) }
     })
   }
 
@@ -477,7 +486,9 @@ export struct StreamPage {
       mode: HideMode.SCROLL_UP
     })
     .hideBackButton(false)
+    .onHidden(() => { this.pageActive = false; this.sortVersion++ })
     .onShown(() => {
+      this.pageActive = true
       this.allStreams = Preferences.getNetworkStreams(PathUtils.appContext!)
       this.applySearch()
       if (DataSyncUtil.lastPlayVideoIndex >= 0) {
@@ -517,7 +528,8 @@ export struct StreamPage {
       : this.allStreams
   }
 
-  private handleSort(field: SortField, defaultAsc: boolean) {
+  private async handleSort(field: SortField, defaultAsc: boolean): Promise<void> {
+    const version = ++this.sortVersion
     if (this.currentSortField === field) {
       this.currentSortAsc = !this.currentSortAsc
     } else {
@@ -528,7 +540,10 @@ export struct StreamPage {
     Preferences.saveSortAsc(PathUtils.appContext!, this.currentSortAsc)
     switch (field) {
       case SortField.NAME:
-        this.allStreams = MediaSortUtil.sortByNameProcess(this.allStreams, this.currentSortAsc, this.pinyinSort)
+        const source = this.allStreams
+        const sorted = await MediaSortUtil.sortByNameProcess(source, this.currentSortAsc, this.pinyinSort)
+        if (!this.pageActive || version !== this.sortVersion || source !== this.allStreams) return
+        this.allStreams = sorted
         break
       case SortField.DATETIME:
         this.allStreams = MediaSortUtil.sortByDatetimeProcess(this.allStreams, this.currentSortAsc)
@@ -543,11 +558,15 @@ export struct StreamPage {
     this.applySearch()
   }
 
-  private handlePinyinSortChange(value: boolean) {
+  private async handlePinyinSortChange(value: boolean): Promise<void> {
+    const version = ++this.sortVersion
     this.pinyinSort = value
     Preferences.savePinyinSort(PathUtils.appContext!, this.pinyinSort)
     if (this.currentSortField === SortField.NAME) {
-      this.allStreams = MediaSortUtil.sortByNameProcess(this.allStreams, this.currentSortAsc, this.pinyinSort)
+      const source = this.allStreams
+      const sorted = await MediaSortUtil.sortByNameProcess(source, this.currentSortAsc, this.pinyinSort)
+      if (!this.pageActive || version !== this.sortVersion || source !== this.allStreams) return
+      this.allStreams = sorted
       this.applySearch()
     }
   }

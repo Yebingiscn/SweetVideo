@@ -16,7 +16,7 @@
       "nativeLib": {
         "filter": {
           "excludes": [
-            "**/x86_64/*.so"
+            "**/x86_64/**"
           ]
         }
       },

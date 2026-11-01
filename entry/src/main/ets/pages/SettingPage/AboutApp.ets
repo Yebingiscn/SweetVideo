@@ -2,17 +2,14 @@ import WantProcessUtil from '../../utils/WantProcessUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { DefaultDialogShadow, ImageFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
-import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
+import { DocMarkdown } from '../../component/common/DocMarkdown'
 import ToolsUtil from '../../utils/ToolsUtil'
-import { salmonLogger } from 'salmonlogger'
 import { LiqD } from '../../component/common/LiqD'
 import { PrivacyPolicyComponent } from '../../component/VideoItemComponent/PrivacyPolicyComponent'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
-
-const TAG = 'AboutApp'
 
 // 链接项数据结构
 interface LinkItem {
@@ -27,7 +24,6 @@ export struct AboutApp {
   @Local version_code: string = ''
   @Local isPresent: boolean = false
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
-  controller: MarkdownController = new MarkdownController()
   private QQ_GROUP_LINK: string = 'https://qm.qq.com/q/ejj8jbUDBu'
   private AI_FA_DIAN_LINK: string = 'https://www.ifdian.net/a/SweetVideo'
   private GITHUB_HOME_LINK: string = "https://github.com/Yebingiscn/SweetVideo"
@@ -54,19 +50,6 @@ export struct AboutApp {
   })
   private listScroller: Scroller = new Scroller()
 
-  aboutToAppear(): void {
-    this.controller.setTitleColor($r("app.color.text_color"))
-    this.controller.setTextColor($r("app.color.text_color"))
-    this.controller.setTableTitleBackgroundColor($r('app.color.start_window_background_blur'))
-    this.controller.setQuoteBackgroundColor($r('app.color.start_window_background_blur'))
-    this.controller.setTableBackgroundColor($r('app.color.start_window_background_blur'))
-    this.controller.setTableInterleaveBackgroundColor($r('app.color.start_window_background_blur'))
-    this.controller.setTableTitleTextColor($r("app.color.text_color"))
-    this.controller.setTableInterleaveTextColor($r("app.color.text_color"))
-    this.controller.setTableNormalTextColor($r("app.color.text_color"))
-    this.controller.setTableBorderRadius(16)
-    this.controller.setLazyRender(true)
-  }
 
   // 链接按钮构建器
   @Builder
@@ -135,20 +118,7 @@ export struct AboutApp {
 
           // Markdown 说明区域
           Column() {
-            Markdown({
-              controller: this.controller,
-              mode: "rawfile",
-              context: PathUtils.appContext!,
-              rawfilePath: "README.md",
-              callback: {
-                complete: () => {
-                  salmonLogger.addLog(TAG, "Markdown component load success.")
-                },
-                fail: (code: number, message: string) => {
-                  salmonLogger.addLog(TAG, `Markdown load error. code: ${code}, message: ${message}`, true)
-                }
-              }
-            })
+            DocMarkdown({ rawfilePath: 'README.md' })
           }
           .width('100%')
           .padding(15)

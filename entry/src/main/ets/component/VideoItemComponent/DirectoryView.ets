@@ -48,6 +48,7 @@ export struct DirectoryView {
   private directoryNavigationTimer: number | undefined = undefined
   private directoryHeroTimer: number | undefined = undefined
   private directoryAlive: boolean = false
+  private directorySortVersion: number = 0
   private directoryKeyboardTimer: number = 0
   @Event menuOptions: (item: VideoMetadata, response: ResponseType) => ContextMenuOptions = () => ({})
   @Event onSearchValueChange: (v: string) => void = () => {
@@ -66,6 +67,7 @@ export struct DirectoryView {
   aboutToDisappear(): void {
     clearTimeout(this.directoryKeyboardTimer)
     this.directoryAlive = false
+    this.directorySortVersion++
     if (this.directoryRestoreTimer !== undefined) {
       clearTimeout(this.directoryRestoreTimer)
     }
@@ -700,7 +702,7 @@ export struct DirectoryView {
     }, 32)
   }
 
-  private navigateDirectory(date: string | null): void {
+  private async navigateDirectory(date: string | null): Promise<void> {
     const controller = this.videoListController
     if (!controller.directoryMode || controller.directoryTransitioning ||
       controller.multipleChooseState === Visibility.Visible ||
@@ -739,6 +741,7 @@ export struct DirectoryView {
           sourceInfo, returning ? 13 : 12, this.directoryIndex.childFolders(sharedFolder.date).length,
           returning ? 2 : folderTitleMaxLines)
     }
+    const sortVersion = ++this.directorySortVersion
     controller.directoryTransitioning = true
     this.onScrollDirectionChange(false)
     // 先提交新目录，不给虚拟列表的复用节点叠加退场或布局动画；仅过渡层执行共享动画。
@@ -746,8 +749,13 @@ export struct DirectoryView {
     this.onSearchValueChange('')
     if (target) {
       const context = PathUtils.appContext!
-      const videos = this.directoryIndex.sortedVideos(target, Preferences.getSortField(context),
+      const directoryIndex = this.directoryIndex
+      const videos = await directoryIndex.sortedVideos(target, Preferences.getSortField(context),
         Preferences.getSortAsc(context), Preferences.getPinyinSort(context))
+      if (!this.directoryAlive || !controller.directoryMode || sortVersion !== this.directorySortVersion || directoryIndex !== this.directoryIndex) {
+        if (sortVersion === this.directorySortVersion) controller.directoryTransitioning = false
+        return
+      }
       controller.selectDirectoryFolder(target, videos)
       this.onDirectoryFolderChange(target.date)
     }

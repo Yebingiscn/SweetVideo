@@ -31,7 +31,16 @@ export struct HuaweiDrivePage {
   private listScroller: Scroller = new Scroller()
   private webController: webview.WebviewController = new webview.WebviewController()
 
+  private directoryVersion: number = 0
+  private pageActive: boolean = false
+
+  aboutToDisappear(): void {
+    this.pageActive = false
+    this.directoryVersion++
+  }
+
   aboutToAppear(): void {
+    this.pageActive = true
     void this.initialize()
   }
 
@@ -145,6 +154,12 @@ export struct HuaweiDrivePage {
       mode: HideMode.SCROLL_UP
     })
     .hideBackButton(false)
+    .onHidden(() => { this.pageActive = false; this.directoryVersion++; this.loading = false })
+    .onShown(() => {
+      const wasActive = this.pageActive
+      this.pageActive = true
+      if (!wasActive) void this.loadCurrentFolder()
+    })
     .onBackPressed(() => {
       if (this.folderPath.length > 1 && !this.loading) {
         this.folderPath = this.folderPath.slice(0, -1)
@@ -463,6 +478,8 @@ export struct HuaweiDrivePage {
   }
 
   private async logout(): Promise<void> {
+    this.directoryVersion++
+    this.loading = false
     await HuaweiDriveUtil.logout()
     this.files = []
     this.about = undefined
@@ -474,6 +491,7 @@ export struct HuaweiDrivePage {
     if (!HuaweiDriveUtil.isAuthorized()) {
       return
     }
+    const version = ++this.directoryVersion
     this.loading = true
     this.errorMessage = ''
     try {
@@ -482,13 +500,15 @@ export struct HuaweiDrivePage {
         HuaweiDriveUtil.listFiles(currentFolder.id),
         this.about ? Promise.resolve(this.about) : HuaweiDriveUtil.getAbout()
       ])
+      if (!this.pageActive || version !== this.directoryVersion || !HuaweiDriveUtil.isAuthorized() ||
+        currentFolder.id !== this.folderPath[this.folderPath.length - 1].id) return
       this.files = result[0].filter((file: HuaweiDriveFile) =>
       HuaweiDriveUtil.isFolder(file) || HuaweiDriveUtil.isPlayable(file))
       this.about = result[1]
     } catch (error) {
-      this.errorMessage = this.errorText(error)
+      if (this.pageActive && version === this.directoryVersion) this.errorMessage = this.errorText(error)
     } finally {
-      this.loading = false
+      if (version === this.directoryVersion) this.loading = false
     }
   }
 

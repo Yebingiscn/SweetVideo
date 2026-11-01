@@ -1,3 +1,4 @@
+import { DirectorySortItem, sortDirectoryIndices } from './DirectorySortUtil'
 import preferences from '@ohos.data.preferences'
 import asset from '@ohos.security.asset'
 import { util } from '@kit.ArkTS'
@@ -160,13 +161,16 @@ export default class FtpUtil {
       request.check()
       let entries: FtpEntry[]
       try {
-        entries = await ftpList(options, FtpUtil.path(server, folder), token)
+        const listTask: Promise<FtpEntry[]> = ftpList(options, FtpUtil.path(server, folder), token)
+        entries = await listTask
       } catch (error) {
         throw FtpUtil.error(error as FtpNativeError)
       }
       request.check()
-      return entries.sort((a: FtpEntry, b: FtpEntry) => a.directory !== b.directory ? (a.directory ? -1 : 1) :
-        a.name.localeCompare(b.name))
+      const indices = await sortDirectoryIndices(entries.map((entry, index) =>
+        new DirectorySortItem(entry.name, entry.directory, index)))
+      request.check()
+      return indices.map(index => entries[index])
     } finally {
       request.done(token);
       if (!owner) {
@@ -258,7 +262,8 @@ export default class FtpUtil {
       request.check()
       let url: string
       try {
-        url = await ftpOpen(options, FtpUtil.path(server, FtpAddress.decode(reference[2])), token)
+        const openTask: Promise<string> = ftpOpen(options, FtpUtil.path(server, FtpAddress.decode(reference[2])), token)
+        url = await openTask
       } catch (error) {
         throw FtpUtil.error(error as FtpNativeError)
       }

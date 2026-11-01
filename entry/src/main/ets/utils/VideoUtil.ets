@@ -15,6 +15,27 @@ export interface SwitchFolderResult {
 }
 
 export default class VideoUtils {
+  private static requests: WeakMap<VideoListController, number> = new WeakMap()
+
+  private static sortVisible(controller: VideoListController, folder: FileFolder, searchValue: string = ''): void {
+    const version = (VideoUtils.requests.get(controller) ?? 0) + 1
+    VideoUtils.requests.set(controller, version)
+    const field = Preferences.getSortField(PathUtils.appContext!) as SortField
+    if (!field) return
+    const source = controller.videoDataSource
+    const revision = source.revision
+    void ToolsUtil.sortBy(PathUtils.appContext!, folder.video_list, folder, field,
+      Preferences.getSortAsc(PathUtils.appContext!), Preferences.getPinyinSort(PathUtils.appContext!)).then(videos => {
+      if (VideoUtils.requests.get(controller) !== version || controller.folder?.date !== folder.date ||
+        controller.videoDataSource !== source || source.revision !== revision) return
+      const latest = Preferences.getFileFolder(PathUtils.appContext!).find(item => item.date === folder.date)
+      if (!latest) return
+      const filtered = searchValue.trim() ? MediaLibraryService.getItemFromSearch(videos, searchValue) : videos
+      controller.videoDataSource.updateData(filtered)
+      controller.updateData(controller.videoDataSource, latest)
+    }).catch(() => {})
+  }
+
   static refresh(videoListController: VideoListController, fileFolderDataSource: FileFolderDataSource,
     folder?: FileFolder): FileFolder[] {
     const folders: FileFolder[] = Preferences.getFileFolder(PathUtils.appContext!)
@@ -31,13 +52,9 @@ export default class VideoUtils {
     }
     if (videoListController) {
       let videos: VideoMetadata[] = currentFolder.video_list || []
-      const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
-      if (sortField) {
-        const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
-        videos = ToolsUtil.sortBy(PathUtils.appContext!, videos, currentFolder, sortField, sortAsc)
-      }
       videoListController.videoDataSource.updateData(videos)
       videoListController.updateData(videoListController.videoDataSource, currentFolder!)
+      VideoUtils.sortVisible(videoListController, currentFolder)
     }
     return folders
   }
@@ -63,12 +80,6 @@ export default class VideoUtils {
       return undefined
     }
     // sortBy 会持久化顺序，必须始终传入完整列表；搜索仅影响显示。
-    const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
-    if (sortField) {
-      const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
-      currentFolder.video_list =
-        ToolsUtil.sortBy(PathUtils.appContext!, currentFolder.video_list, currentFolder, sortField, sortAsc)
-    }
     const filteredVideos = searchValue.trim()
       ? MediaLibraryService.getItemFromSearch(currentFolder.video_list, searchValue)
       : currentFolder.video_list
@@ -76,6 +87,7 @@ export default class VideoUtils {
       videoListController.videoDataSource.updateData(filteredVideos)
       videoListController.updateData(videoListController.videoDataSource, currentFolder)
     })
+    VideoUtils.sortVisible(videoListController, currentFolder, searchValue)
     return { refreshedFolders, currentFolder }
   }
 }

@@ -2,7 +2,7 @@ import { AVCastPickerState, avSession, avSession as avSessionManager } from '@ki
 import { image } from '@kit.ImageKit'
 import { AvSessionState } from '../interfaces/AvSessionStateInterface'
 import { BusinessError, systemDateTime } from '@kit.BasicServicesKit'
-import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
+import { SweetRepeatMode, normalizeRepeatMode } from '../common/enum/SweetRepeatMode'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { salmonLogger } from 'salmonlogger'
 import { Setting } from './ObservedUtil'
@@ -56,13 +56,13 @@ export default class AVSessionUtil {
   private static metadataKey: string = ''
   private static coverAssetKey: string = ''
   private static coverRequestVersion: number = 0
+  private static currentRepeatMode: SweetRepeatMode = SweetRepeatMode.LIST
   static playbackSpeed: number = 1
   static repeatModeMapping: Map<SweetRepeatMode, avSession.LoopMode> = new Map([
     [SweetRepeatMode.LIST, avSession.LoopMode.LOOP_MODE_LIST],
     [SweetRepeatMode.SINGLE, avSession.LoopMode.LOOP_MODE_SINGLE],
     [SweetRepeatMode.RANDOM, avSession.LoopMode.LOOP_MODE_SHUFFLE],
     [SweetRepeatMode.SEQUENCE, avSession.LoopMode.LOOP_MODE_SEQUENCE],
-    [SweetRepeatMode.ONCE, avSession.LoopMode.LOOP_MODE_CUSTOM],
   ])
 
   static getRepeatModeFromAvSession(loopMode: avSession.LoopMode): SweetRepeatMode {
@@ -434,6 +434,7 @@ export default class AVSessionUtil {
   }
 
   static updateSession(avSessionState: AvSessionState, repeatMode?: SweetRepeatMode) {
+    if (repeatMode !== undefined) AVSessionUtil.currentRepeatMode = normalizeRepeatMode(repeatMode)
     let playbackState: avSessionManager.AVPlaybackState = {
       state: avSessionState.playing ? avSessionManager.PlaybackState.PLAYBACK_STATE_PLAY :
         avSessionManager.PlaybackState.PLAYBACK_STATE_PAUSE,
@@ -442,9 +443,8 @@ export default class AVSessionUtil {
         elapsedTime: avSessionState.duration,
         updateTime: systemDateTime.getTime(false),
       },
-      loopMode: repeatMode !== undefined
-        ? AVSessionUtil.repeatModeMapping.get(repeatMode)
-        : avSession.LoopMode.LOOP_MODE_CUSTOM,
+      loopMode: AVSessionUtil.repeatModeMapping.get(AVSessionUtil.currentRepeatMode) ??
+        avSession.LoopMode.LOOP_MODE_LIST,
     }
     AVSessionUtil.avSession?.setAVPlaybackState(playbackState)?.catch(() => {
       salmonLogger.addLog(TAG, 'updateSession error', true)

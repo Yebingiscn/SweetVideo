@@ -110,12 +110,6 @@ export struct SideBarContentComponent {
         const targetFolder = currentFolderDate
           ? latestFolders.find(f => f.date === currentFolderDate) ?? latestFolders[0]
           : latestFolders[0]
-        const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
-        if (sortField) {
-          const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
-          targetFolder.video_list =
-            ToolsUtil.sortBy(PathUtils.appContext!, targetFolder.video_list, targetFolder, sortField, sortAsc)
-        }
         const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
         this.fileFolderListChange(updatedFolders)
       },

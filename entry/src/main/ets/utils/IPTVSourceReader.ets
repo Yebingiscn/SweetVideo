@@ -1,3 +1,4 @@
+import StreamHeaders from './StreamHeaders'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { http } from '@kit.NetworkKit'
 import { util } from '@kit.ArkTS'
@@ -10,16 +11,13 @@ import TextEncodingUtil from './TextEncodingUtil'
 
 const TAG = 'IPTVSourceReader'
 export default class IPTVSourceReader {
-  static async requestText(url: string, userAgent: string | undefined, maxSize: number): Promise<string> {
+  static async requestText(url: string, userAgent: string | undefined, maxSize: number, customHeaders?: Record<string, string>): Promise<string> {
     if (!/^https?:\/\//i.test(url.trim())) {
       throw new Error(ToolsUtil.getStringResource($r('app.string.iptv_source_type_unsupported').id))
     }
+    const headers = StreamHeaders.merge(userAgent?.trim() ? { 'user-agent': userAgent.trim() } : {}, customHeaders)
     return new Promise((resolve, reject) => {
       const request = http.createHttp()
-      const headers: Record<string, string> = {}
-      if (userAgent?.trim()) {
-        headers['User-Agent'] = userAgent.trim()
-      }
       request.request(url.trim(), {
         method: http.RequestMethod.GET,
         header: headers,

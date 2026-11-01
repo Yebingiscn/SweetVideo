@@ -8,13 +8,13 @@ import { media } from '@kit.MediaKit'
 import { NativeAVPlayer } from '../controller/engine/NativeAVPlayer'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
-import { common } from '@kit.AbilityKit'
+import { common, ConfigurationConstant } from '@kit.AbilityKit'
 import { PathUtils } from './PathUtils'
 import ToolsUtil from './ToolsUtil'
 import { PlayerEngine } from '../common/NavigationCommon'
 import { Setting } from './ObservedUtil'
 import { fileIo } from '@kit.CoreFileKit'
-import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
+import { SweetRepeatMode, normalizeRepeatMode } from '../common/enum/SweetRepeatMode'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
 import { MpvDecodingMethod, MpvGpuApi } from '../controller/MpvController/MpvTypes'
@@ -37,6 +37,7 @@ import SubtitleLanguageUtil from './SubtitleLanguageUtil'
 import { VIDEO_HDR_TYPE } from '../common/enum/HDR_TYPE'
 import MediaLibraryService from './MediaLibraryService'
 import lazy FFmpegThumbnailUtil from './FFmpegThumbnailUtil'
+import { SurfaceScreenshotCandidate, SurfaceScreenshotCapture, SurfaceScreenshotRequest } from './SurfaceScreenshotCapture'
 
 const TAG = 'VideoOperateUtil'
 
@@ -45,8 +46,8 @@ export default class VideoOperateUtil {
   public static maxVolume: number = 0
   public static minVolume: number = 0
   public static windowStage: window.WindowStage | undefined = undefined
+  public static backgroundSettingsInitialized: boolean = false
   private static mainWin: window.Window | undefined = undefined
-  private static captureInProgress: boolean = false
   private static captureRequestSequence: number = 0
   private static activeCaptureRequestId: number = 0
   private static captureQueue: Promise<void> = Promise.resolve()
@@ -148,8 +149,8 @@ export default class VideoOperateUtil {
 
   // 启动时初始化已保存的设置项
   static initSetting(context: common.UIAbilityContext) {
+    VideoOperateUtil.backgroundSettingsInitialized = false
     PermissionUtil.reqPermissionsFromUser(PermissionUtil.permissions, context)
-    Setting.backgroundImageSrc = ImageFileUtil.getImageUri()
     const settingDefaults: Record<string, preferences.ValueType> = {
       'backgroundDropBlur': 0,
       'backgroundColorMode': BackgroundColorMode.AUTO,
@@ -219,9 +220,6 @@ export default class VideoOperateUtil {
       valueMap[key] = values[i]
     })
     Setting.backgroundDropBlur = valueMap['backgroundDropBlur'] as number
-    if (Setting.backgroundDropBlur > 0 && Setting.backgroundImageSrc.length > 0) {
-      Setting.backgroundBlurImageSrc = ImageFileUtil.getExistingBlurImageUri()
-    }
     Setting.backgroundColorMode = valueMap['backgroundColorMode'] as BackgroundColorMode
     Setting.allowBackgroundPlay = valueMap['allowBackgroundPlay'] as boolean
     Setting.autoListenVideo = valueMap['autoListenVideo'] as boolean
@@ -283,6 +281,28 @@ export default class VideoOperateUtil {
     Setting.maxListLine = valueMap['maxListLine'] as number
     Setting.listItemBackgroundBlur = valueMap['listItemBackgroundBlur'] as boolean
     Setting.seekSensitivity = valueMap['seekSensitivity'] as number
+    VideoOperateUtil.syncBackgroundColorMode(context)
+    VideoOperateUtil.backgroundSettingsInitialized = true
+    void ImageFileUtil.refreshBackground().catch((error: Error) => {
+      salmonLogger.addLog(TAG, `初始化壁纸失败: ${error.message}`, true)
+    })
+  }
+
+  static syncBackgroundColorMode(context: Context, colorMode?: number): boolean {
+    let effectiveMode = colorMode
+    if (effectiveMode === undefined) {
+      try {
+        effectiveMode = context.resourceManager.getConfigurationSync().colorMode
+      } catch (error) {
+        salmonLogger.addLog(TAG, `读取应用颜色模式失败: ${error}`, true)
+        return false
+      }
+    }
+    if (effectiveMode !== ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT &&
+      effectiveMode !== ConfigurationConstant.ColorMode.COLOR_MODE_DARK) return false
+    if (AppStorage.get('currentColorMode') === effectiveMode) return false
+    AppStorage.setOrCreate('currentColorMode', effectiveMode)
+    return true
   }
 
   // 封装获取屏幕亮度的方法
@@ -341,7 +361,9 @@ export default class VideoOperateUtil {
     }
     let scale: number | undefined
     if (text.startsWith('自定义比例:')) {
-      scale = parseInt(text.split(':')[1]) / 100
+      const percent = Number(text.slice('自定义比例:'.length))
+      if (!Number.isFinite(percent) || percent < 50 || percent > 150) return null
+      scale = percent / 100
     } else {
       scale = SCALE_FACTORS.get(text)
     }
@@ -432,8 +454,11 @@ export default class VideoOperateUtil {
 
   static saveCaptureScreenToAlbum(uri: string, positionMs: number,
     isCurrent: () => boolean = () => true,
-    requestId: number = VideoOperateUtil.nextCaptureRequestId()): Promise<void> {
+    requestId: number = VideoOperateUtil.nextCaptureRequestId(),
+    surfaceRequest?: SurfaceScreenshotRequest): Promise<void> {
     const requestedAt = Date.now()
+    // Freeze the click-time image now, not after an earlier save dialog closes.
+    const surfaceCandidate = surfaceRequest ? SurfaceScreenshotCapture.prepare(surfaceRequest) : undefined
     const ahead = VideoOperateUtil.captureQueueDepth++
     salmonLogger.addLog(TAG, `[Screenshot#${requestId}] request: positionMs=${positionMs}, ` +
       `network=${ToolsUtil.isNetworkUrl(uri)}, queuedAhead=${ahead}`, false)
@@ -441,33 +466,33 @@ export default class VideoOperateUtil {
       salmonLogger.addLog(TAG, `[Screenshot#${requestId}] queued: activeRequest=${VideoOperateUtil.activeCaptureRequestId}`, false)
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.screenshot_queued').id))
     }
-    // Capture the URI and position at click time. Keep both decoding and the
-    // system save dialog serial; a later click must not overwrite or drop a job.
+    // Keep fallback decoding and the system save dialog serial. A bounded
+    // pre-captured Surface image can wait here without holding decoder buffers.
     const task = VideoOperateUtil.captureQueue.then(async (): Promise<void> => {
       try {
         if (!isCurrent()) {
           salmonLogger.addLog(TAG, `[Screenshot#${requestId}] ignored: reason=stale_before_start`, false)
           return
         }
-        VideoOperateUtil.captureInProgress = true
         VideoOperateUtil.activeCaptureRequestId = requestId
         salmonLogger.addLog(TAG, `[Screenshot#${requestId}] dequeued: waitMs=${Date.now() - requestedAt}, ` +
           `positionMs=${positionMs}`, false)
         ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.screenshot_processing').id))
-        await VideoOperateUtil.performCaptureScreenToAlbum(uri, positionMs, isCurrent, requestId)
+        await VideoOperateUtil.performCaptureScreenToAlbum(uri, positionMs, isCurrent, requestId,
+          surfaceCandidate, surfaceRequest?.hdrType ?? 0)
       } catch (error) {
         const err = error as BusinessError
         salmonLogger.addLog(TAG, `[Screenshot#${requestId}] queue task failed: ` +
           `code=${Number.isFinite(err?.code) ? err.code : 0}`, true)
         if (isCurrent()) ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.screenshot_failed').id))
       } finally {
+        await surfaceCandidate?.dispose()
         VideoOperateUtil.captureQueueDepth--
         try {
           if (VideoOperateUtil.captureQueueDepth === 0) {
             await FFmpegThumbnailUtil.releaseScreenshotSession()
           }
         } finally {
-          VideoOperateUtil.captureInProgress = false
           VideoOperateUtil.activeCaptureRequestId = 0
         }
       }
@@ -478,7 +503,8 @@ export default class VideoOperateUtil {
   }
 
   private static async performCaptureScreenToAlbum(uri: string, positionMs: number,
-    isCurrent: () => boolean, requestId: number): Promise<void> {
+    isCurrent: () => boolean, requestId: number,
+    surfaceCandidate?: SurfaceScreenshotCandidate, surfaceHdrType: number = 0): Promise<void> {
     const startedAt = Date.now()
     let stage = 'extract'
     let stageStartedAt = startedAt
@@ -499,67 +525,107 @@ export default class VideoOperateUtil {
     let sourceFile: fileIo.File | undefined = undefined
     let targetFile: fileIo.File | undefined = undefined
     let tempPath: string = ''
+    let extension: string = ''
     try {
-      beginStage('extract')
-      const frame = await FFmpegThumbnailUtil.extractScreenshot(uri, positionMs, requestId)
-      endStage()
-      pixelMap = frame.pixelMap
-      if (!isCurrent()) {
-        outcome = 'stale_after_extract'
-        salmonLogger.addLog(TAG, `[Screenshot#${requestId}] ignored: reason=${outcome}`, false)
-        return
-      }
-      if (!frame.success || !pixelMap) {
-        salmonLogger.addLog(TAG, `[Screenshot#${requestId}] extraction failed: ` +
-          `success=${frame.success}, hasPixelMap=${pixelMap !== undefined}`, true)
-        throw new Error(frame.error ?? 'FFmpeg screenshot extraction failed')
-      }
-      beginStage('inspect_frame')
-      const captureInfo = pixelMap.getImageInfoSync()
-      const isHdr = captureInfo.isHdr
-      salmonLogger.addLog(TAG, `[Screenshot#${requestId}] capture: source=ffmpeg, requestedMs=${positionMs}, ` +
-        `frameMs=${Math.round(frame.frameTimeUs / 1000)}, sourceHdrType=${frame.hdrType}, ` +
-        `isHdr=${isHdr}, pixelFormat=${captureInfo.pixelFormat}, ` +
-        `size=${captureInfo.size.width}x${captureInfo.size.height}`, false)
-      endStage()
-      const extension = isHdr ? 'jpg' : 'png'
-      const packOpts: image.PackingOption = {
-        format: isHdr ? 'image/jpeg' : 'image/png',
-        quality: 100,
-        desiredDynamicRange: isHdr ? image.PackingDynamicRange.AUTO : image.PackingDynamicRange.SDR
-      }
-      beginStage('encode')
-      packer = image.createImagePacker()
-      tempPath = PathUtils.tempPath + `/screenshot_${requestId}_${Date.now()}.${extension}`
-      tempFile = fileIo.openSync(tempPath,
-        fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.TRUNC)
-      await packer.packToFile(pixelMap, tempFile.fd, packOpts)
-      endStage()
-      beginStage('release_encoded_resources')
-      ImageStorage.closeFileSafely(tempFile, '截图临时文件')
-      tempFile = undefined
-      await ImageStorage.releaseImageSafely(packer, '截图编码器')
-      packer = undefined
-      await ImageStorage.releaseImageSafely(pixelMap, '截图像素图')
-      pixelMap = undefined
-      endStage()
+      // A Surface image can be valid yet unsupported by the encoder. Retry the
+      // complete preparation once with FFmpeg before opening any save dialog.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        let usingSurface = false
+        try {
+          beginStage('extract')
+          if (attempt === 0) pixelMap = await surfaceCandidate?.take()
+          usingSurface = pixelMap !== undefined
+          let frameMs: number | undefined = undefined
+          let sourceHdrType = surfaceHdrType
+          if (!pixelMap) {
+            const frame = await FFmpegThumbnailUtil.extractScreenshot(uri, positionMs, requestId)
+            pixelMap = frame.pixelMap
+            frameMs = Math.round(frame.frameTimeUs / 1000)
+            sourceHdrType = frame.hdrType
+            if (!frame.success || !pixelMap) {
+              salmonLogger.addLog(TAG, `[Screenshot#${requestId}] extraction failed: ` +
+                `success=${frame.success}, hasPixelMap=${pixelMap !== undefined}`, true)
+              throw new Error('FFmpeg screenshot extraction failed')
+            }
+          }
+          endStage()
+          if (!isCurrent()) {
+            outcome = 'stale_after_extract'
+            salmonLogger.addLog(TAG, `[Screenshot#${requestId}] ignored: reason=${outcome}`, false)
+            return
+          }
+          beginStage('inspect_frame')
+          const captureInfo = pixelMap.getImageInfoSync()
+          const isHdr = captureInfo.isHdr
+          salmonLogger.addLog(TAG, `[Screenshot#${requestId}] capture: source=${usingSurface ? 'surface' : 'ffmpeg'}, ` +
+            `requestedMs=${positionMs}, frameMs=${frameMs ?? 'unknown'}, sourceHdrType=${sourceHdrType}, ` +
+            `isHdr=${isHdr}, pixelFormat=${captureInfo.pixelFormat}, ` +
+            `size=${captureInfo.size.width}x${captureInfo.size.height}`, false)
+          endStage()
+          extension = isHdr ? 'jpg' : 'png'
+          const packOpts: image.PackingOption = {
+            format: isHdr ? 'image/jpeg' : 'image/png',
+            quality: 100,
+            desiredDynamicRange: isHdr ? image.PackingDynamicRange.AUTO : image.PackingDynamicRange.SDR
+          }
+          beginStage('encode')
+          packer = image.createImagePacker()
+          tempPath = PathUtils.tempPath + `/screenshot_${requestId}_${Date.now()}.${extension}`
+          tempFile = fileIo.openSync(tempPath,
+            fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.TRUNC)
+          await packer.packToFile(pixelMap, tempFile.fd, packOpts)
+          endStage()
+          beginStage('release_encoded_resources')
+          ImageStorage.closeFileSafely(tempFile, '截图临时文件')
+          tempFile = undefined
+          await ImageStorage.releaseImageSafely(packer, '截图编码器')
+          packer = undefined
+          await ImageStorage.releaseImageSafely(pixelMap, '截图像素图')
+          pixelMap = undefined
+          await surfaceCandidate?.dispose()
+          endStage()
 
-      // 回读文件头确认编码结果，不能把请求 AUTO 当成 HDR 已保留。
-      beginStage('verify_encoded')
-      try {
-        encodedSource = image.createImageSource(tempPath)
-        const encodedInfo = encodedSource.getImageInfoSync()
-        salmonLogger.addLog(TAG, `[Screenshot#${requestId}] encoded: sourceHdr=${isHdr}, isHdr=${encodedInfo.isHdr}, ` +
-          `format=${encodedInfo.mimeType}`, isHdr && !encodedInfo.isHdr)
-      } catch (error) {
-        const err = error as BusinessError
-        salmonLogger.addLog(TAG, `[Screenshot#${requestId}] encoded info failed: ` +
-          `code=${Number.isFinite(err?.code) ? err.code : 0}`, true)
-      } finally {
-        await ImageStorage.releaseImageSafely(encodedSource, '截图编码结果')
-        encodedSource = undefined
+          // 回读文件头确认编码结果，不能把请求 AUTO 当成 HDR 已保留。
+          beginStage('verify_encoded')
+          let encodedHdrVerified = false
+          try {
+            encodedSource = image.createImageSource(tempPath)
+            const encodedInfo = encodedSource.getImageInfoSync()
+            encodedHdrVerified = encodedInfo.isHdr
+            salmonLogger.addLog(TAG, `[Screenshot#${requestId}] encoded: sourceHdr=${isHdr}, isHdr=${encodedInfo.isHdr}, ` +
+              `format=${encodedInfo.mimeType}`, isHdr && !encodedInfo.isHdr)
+          } catch (error) {
+            const err = error as BusinessError
+            salmonLogger.addLog(TAG, `[Screenshot#${requestId}] encoded info failed: ` +
+              `code=${Number.isFinite(err?.code) ? err.code : 0}`, true)
+          } finally {
+            await ImageStorage.releaseImageSafely(encodedSource, '截图编码结果')
+            encodedSource = undefined
+          }
+          endStage()
+          if (usingSurface && isHdr && !encodedHdrVerified) {
+            throw new Error('Surface HDR encoding verification failed')
+          }
+          break
+        } catch (error) {
+          const err = error as BusinessError
+          salmonLogger.addLog(TAG, `[Screenshot#${requestId}] preparation failed: source=${usingSurface ? 'surface' : 'ffmpeg'}, ` +
+            `stage=${stage}, code=${Number.isFinite(err?.code) ? err.code : 0}`, true)
+          if (!usingSurface || !isCurrent() || attempt !== 0) throw new Error('Screenshot preparation failed')
+          salmonLogger.addLog(TAG, `[Screenshot#${requestId}] surface fallback: reason=prepare_failed, stage=${stage}`, false)
+          ImageStorage.closeFileSafely(tempFile, '截图临时文件')
+          tempFile = undefined
+          await ImageStorage.releaseImageSafely(packer, '截图编码器')
+          packer = undefined
+          await ImageStorage.releaseImageSafely(pixelMap, '截图像素图')
+          pixelMap = undefined
+          await ImageStorage.releaseImageSafely(encodedSource, '截图编码结果')
+          encodedSource = undefined
+          await surfaceCandidate?.dispose()
+          VideoOperateUtil.removeScreenshotTempFile(tempPath, requestId)
+          tempPath = ''
+        }
       }
-      endStage()
 
       if (!isCurrent()) {
         outcome = 'stale_before_dialog'
@@ -604,25 +670,30 @@ export default class VideoOperateUtil {
       ImageStorage.closeFileSafely(tempFile, '截图临时文件')
       await ImageStorage.releaseImageSafely(packer, '截图编码器')
       await ImageStorage.releaseImageSafely(pixelMap, '截图像素图')
-      if (tempPath) {
-        try {
-          if (fileIo.accessSync(tempPath)) {
-            fileIo.unlinkSync(tempPath)
-          }
-        } catch (error) {
-          const err = error as BusinessError
-          salmonLogger.addLog(TAG, `[Screenshot#${requestId}] temp cleanup failed: ` +
-            `code=${Number.isFinite(err?.code) ? err.code : 0}`, true)
-        }
-      }
+      await ImageStorage.releaseImageSafely(encodedSource, '截图编码结果')
+      VideoOperateUtil.removeScreenshotTempFile(tempPath, requestId)
       endStage()
       salmonLogger.addLog(TAG, `[Screenshot#${requestId}] finished: outcome=${outcome}, ` +
         `totalElapsedMs=${Date.now() - startedAt}`, false)
     }
   }
 
+  private static removeScreenshotTempFile(tempPath: string, requestId: number): void {
+    if (tempPath) {
+      try {
+        if (fileIo.accessSync(tempPath)) {
+          fileIo.unlinkSync(tempPath)
+        }
+      } catch (error) {
+        const err = error as BusinessError
+        salmonLogger.addLog(TAG, `[Screenshot#${requestId}] temp cleanup failed: ` +
+          `code=${Number.isFinite(err?.code) ? err.code : 0}`, true)
+      }
+    }
+  }
+
   static getRepeatMode(repeatMode: SweetRepeatMode): SweetRepeatMode {
-    switch (repeatMode) {
+    switch (normalizeRepeatMode(repeatMode)) {
       case SweetRepeatMode.LIST:
         return SweetRepeatMode.SINGLE
       case SweetRepeatMode.SINGLE:
@@ -637,7 +708,7 @@ export default class VideoOperateUtil {
   }
 
   static resolvePlayerType(metadata: VideoMetadata, reverse: boolean = false) {
-    if (BluRayDirectory.isEntry(metadata.uri)) {
+    if (BluRayDirectory.isEntry(metadata.uri) || VideoInfoUtil.isMxf(metadata)) {
       return PlayerEngine.MPV_PLAYER
     }
     const defaultPlayer = Preferences.getDefaultPlayerEngine(PathUtils.appContext!)
@@ -665,8 +736,9 @@ export default class VideoOperateUtil {
   }
 
   static getManualNavigationRepeatMode(repeatMode: SweetRepeatMode): SweetRepeatMode {
-    // 单曲循环只影响自动播完；用户主动切换时仍按列表循环处理。
-    return repeatMode === SweetRepeatMode.SINGLE ? SweetRepeatMode.LIST : repeatMode
+    // 单曲循环只影响自动播完；手动切集也不能被旧 ONCE 状态拦住。
+    const effectiveMode = normalizeRepeatMode(repeatMode)
+    return effectiveMode === SweetRepeatMode.SINGLE ? SweetRepeatMode.LIST : effectiveMode
   }
 
   static computeAdjacentVideo(
@@ -675,14 +747,13 @@ export default class VideoOperateUtil {
     repeatMode: SweetRepeatMode,
     direction: 'previous' | 'next'
   ): VideoMetadata | undefined {
+    const effectiveMode = normalizeRepeatMode(repeatMode)
     const total = videoMetaDataList.length
     const currentId = nowPlaying?.date || ''
     const currentIndex = currentId ? videoMetaDataList.findIndex(v => v.date === currentId) : -1
-    const modeName = repeatMode === SweetRepeatMode.LIST ? 'list' :
-      repeatMode === SweetRepeatMode.SEQUENCE ? 'sequence' :
-        repeatMode === SweetRepeatMode.SINGLE ? 'single' :
-          repeatMode === SweetRepeatMode.RANDOM ? 'random' :
-            repeatMode === SweetRepeatMode.ONCE ? 'once' : 'unknown'
+    const modeName = effectiveMode === SweetRepeatMode.SEQUENCE ? 'sequence' :
+      effectiveMode === SweetRepeatMode.SINGLE ? 'single' :
+        effectiveMode === SweetRepeatMode.RANDOM ? 'random' : 'list'
     let nextItem: VideoMetadata | undefined = undefined
     let wrapped = false
     let reason = total === 0 ? 'empty-list' : 'unsupported-mode'
@@ -691,16 +762,13 @@ export default class VideoOperateUtil {
       // but make that recovery visible instead of silently looking like EOF wrap.
       const anchorIndex = currentIndex >= 0 ? currentIndex : 0
       const item = videoMetaDataList[anchorIndex]
-      switch (repeatMode) {
+      switch (effectiveMode) {
         case SweetRepeatMode.RANDOM:
           const availableVideos = videoMetaDataList.filter(v => v.date !== item.date)
           nextItem = availableVideos.length > 0
             ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
             : item
           reason = 'random'
-          break
-        case SweetRepeatMode.ONCE:
-          reason = 'play-once'
           break
         case SweetRepeatMode.SEQUENCE:
           nextItem = MediaLibraryService.getAdjacentItem(videoMetaDataList, item.date, direction, false)
@@ -716,7 +784,7 @@ export default class VideoOperateUtil {
           reason = wrapped ? (direction === 'next' ? 'wrap-to-start' : 'wrap-to-end') : 'adjacent'
           break
       }
-      if (currentIndex < 0 && repeatMode !== SweetRepeatMode.ONCE && modeName !== 'unknown') {
+      if (currentIndex < 0) {
         reason = 'current-not-found'
       }
     }

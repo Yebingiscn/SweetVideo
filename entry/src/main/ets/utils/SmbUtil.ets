@@ -1,3 +1,4 @@
+import { DirectorySortItem, sortDirectoryIndices } from './DirectorySortUtil'
 import preferences from '@ohos.data.preferences'
 import asset from '@ohos.security.asset'
 import { util } from '@kit.ArkTS'
@@ -102,12 +103,9 @@ export default class SmbUtil {
       const playable = entries.filter((entry: SmbEntry) => !entry.directory && SmbUtil.playable(entry.name)).length
       salmonLogger.addLog(TAG, `[SMB] 列目录成功 server=${server.id} path=${path} entries=${entries.length} ` +
         `directories=${directories} playable=${playable} filtered=${entries.length - directories - playable}`)
-      return entries.sort((a: SmbEntry, b: SmbEntry) => {
-        if (a.directory !== b.directory) {
-          return a.directory ? -1 : 1
-        }
-        return a.name.localeCompare(b.name, 'zh-CN', { numeric: true })
-      })
+      const indices = await sortDirectoryIndices(entries.map((entry, index) =>
+        new DirectorySortItem(entry.name, entry.directory, index)))
+      return indices.map(index => entries[index])
     } catch (error) {
       salmonLogger.addLog(TAG, `[SMB] 列目录失败 path=${path}: ${error}`, true)
       SmbUtil.logDiagnostic(error as SmbNativeError)
@@ -242,7 +240,7 @@ export default class SmbUtil {
   }
 
   static playable(name: string): boolean {
-    return /\.(mp4|mkv|avi|mov|wmv|flv|ts|m2ts|mts|m4v|webm|mpg|mpeg|rm|rmvb|vob|mp3|flac|wav|aac|m4a|ogg|opus|ape|aiff|aif|wma|dff|dsf|wv|dts|ac3|eac3|av3a)$/i.test(
+    return /\.(mp4|mkv|avi|mov|wmv|flv|ts|m2ts|mxf|mts|m4v|webm|mpg|mpeg|rm|rmvb|vob|mp3|flac|wav|aac|m4a|ogg|opus|ape|aiff|aif|wma|dff|dsf|wv|dts|ac3|eac3|av3a)$/i.test(
       name)
   }
 

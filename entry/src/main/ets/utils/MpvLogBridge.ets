@@ -14,7 +14,7 @@ export class MpvLogBridge {
   //MPV DEBUG 日志开关
   private static started: boolean = false
   // Enabled for screenshot investigation; runtime Want parameters can still disable it.
-  private static diagnosticsEnabled: boolean = true
+  private static diagnosticsEnabled: boolean = false
 
   static applyDiagnosticsWant(want: Want): void {
     const enabled = want.parameters?.['mpvDiagnostics']

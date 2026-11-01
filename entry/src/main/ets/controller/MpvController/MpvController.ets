@@ -345,6 +345,10 @@ export class MpvController implements PlayerControllerInterface {
     if (nextItem) {
       salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "存在下一个视频，开始播放", false)
       await this.playChooseVideo(nextItem, pathStack)
+    } else if (overrideRepeatMode !== undefined) {
+      // Manual controls supply an override; automatic EOF/outro callers omit it.
+      salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, '手动切集已到列表末尾，保留播放页', false)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_next_item').id))
     } else {
       salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "无下一个视频，播放结束", false)
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.play_finished_auto_exit').id))
@@ -472,7 +476,7 @@ export class MpvController implements PlayerControllerInterface {
       // USB fallback can recreate the core; set disc options on the final instance.
       const playUrl = this.preparePlayUrl(url!)
       this.engineAdapter.load(playUrl, startPositionSeconds, initialSubtitleTrackId,
-        this.nowPlaying?.network_user_agent, this.smbPlayback.headers(this.nowPlaying?.network_http_headers))
+        this.nowPlaying?.network_user_agent, this.smbPlayback.headers(this.nowPlaying?.network_http_headers, this.nowPlaying?.network_custom_headers, this.nowPlaying?.network_user_agent))
     } catch (error) {
       if (requestGeneration !== this.playRequestGeneration) return
       this.handleLoadFailure(`loadfile 失败: ${error}`)
@@ -915,8 +919,8 @@ export class MpvController implements PlayerControllerInterface {
     if (this.windowClass) {
       this.landscapeVideo ? WindowUtil.enableLandscapeMultiWindow(this.windowClass) :
         WindowUtil.disableLandscapeMultiWindow(this.windowClass)
-      VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.playAreaWidth, this.playAreaHeight)
     }
+    VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.playAreaWidth, this.playAreaHeight)
     if (this.nowPlaying && VideoInfoUtil.hasVideoTrack(this.nowPlaying) &&
       this.nowPlaying.size[0] <= 1 && hasDecodedSize) {
       this.nowPlaying!.size[0] = VideoWidth
@@ -926,10 +930,6 @@ export class MpvController implements PlayerControllerInterface {
     this.applyScreenExtend()
     this.subtitleController.applySubtitleStyle()
     PiPWindowUtil.updateContentSize()
-  }
-
-  setKeepAspectStatus(keepAspect: boolean) {
-    mpvSetKeepAspect(this.mpvHandle, keepAspect)
   }
 
   setSessionListener(): void {
@@ -1225,20 +1225,22 @@ export class MpvController implements PlayerControllerInterface {
 
   onWillDisappearCleanup(): void {
     this.playRequestGeneration++
-    if (!this.engineAdapter.isMediaLoaded()) {
+    try {
+      // 统一走存活检查，避免旧句柄在内核销毁或重建期间再次直接暂停。
+      this.pause()
+    } catch (error) {
+      salmonLogger.addLog(TAG, `退出时暂停 MPV 失败: ${error}`, true)
+    } finally {
+      // 暂停失败也必须作废加载请求；后续生命周期重复清理不会再访问旧媒体。
+      this.engineAdapter.invalidateLoad()
+      clearTimeout(this.swipingVoiceTimer)
+      this.swipingVoiceTimer = 0
+      this.volumeGestureActive = false
+      this.onSwipingVoice = false
       this.smartRotationAllowed = false
       this.cancelSmartRotationTimer()
-    } else {
-      if (this.playing && this.mpvHandle) mpvPause(this.mpvHandle)
-      this.engineAdapter.invalidateLoad()
+      this.userListener?.off('videoSizeReady')
     }
-    clearTimeout(this.swipingVoiceTimer)
-    this.swipingVoiceTimer = 0
-    this.volumeGestureActive = false
-    this.onSwipingVoice = false
-    this.smartRotationAllowed = false
-    this.cancelSmartRotationTimer()
-    this.userListener?.off('videoSizeReady')
   }
 
   async onWillDisappearRelease(_windowClass?: Promise<window.Window | undefined>): Promise<void> {
@@ -1253,14 +1255,6 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   offMetricsEvent(_callback?: (info: Array<media.AVMetricsEvent>) => void): void {
-  }
-
-  resetAspectRatio(): void {
-    this.setKeepAspectStatus(true)
-  }
-
-  stretchToFullScreen(): void {
-    this.setKeepAspectStatus(false)
   }
 
   async exitPlayback(_timeout: number): Promise<void> {
@@ -1617,6 +1611,12 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   private applyScreenExtend() {
+    if (this.mpvHandle) {
+      const stretch = this.selectedText === '拉伸全屏' ||
+        (this.selectedText !== undefined && VideoInfoUtil.ASPECT_RATIO_MAP.has(this.selectedText))
+      // 固定宽高比由 Surface 矩形决定，避免 MPV 再按片源比例留黑边。
+      mpvSetKeepAspect(this.mpvHandle, !stretch)
+    }
     const size = VideoOperateUtil.calcScreenExtendSize(this.selectedText, this.screenWidth, this.screenHeight)
     if (size) {
       this.playAreaWidth = size[0]
@@ -1990,7 +1990,7 @@ export class MpvController implements PlayerControllerInterface {
       this.audioController.applyAudioCoverMode()
       this.engineAdapter.load(this.preparePlayUrl(video.uri), position / 1000,
         this.getInitialSubtitleTrackId(), video.network_user_agent,
-        this.smbPlayback.headers(video.network_http_headers))
+        this.smbPlayback.headers(video.network_http_headers, video.network_custom_headers, video.network_user_agent))
       this.subtitleController.applySubtitleStyle()
     } catch (error) {
       if (generation === this.playRequestGeneration) this.handleLoadFailure(`USB 回退失败: ${error}`)
@@ -2296,7 +2296,7 @@ export class MpvController implements PlayerControllerInterface {
         }
         this.audioController.applyAudioCoverMode()
         this.engineAdapter.load(reloadUrl, reloadStartSeconds, this.getInitialSubtitleTrackId(),
-          savedVideo.network_user_agent, this.smbPlayback.headers(savedVideo.network_http_headers))
+          savedVideo.network_user_agent, this.smbPlayback.headers(savedVideo.network_http_headers, savedVideo.network_custom_headers, savedVideo.network_user_agent))
       } catch (error) {
         this.handleLoadFailure(`${modeName}重新加载失败: ${error}`)
         return

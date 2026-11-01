@@ -248,6 +248,10 @@ export default class VideoInfoUtil {
     return videoName.substring(videoName.lastIndexOf('.') + 1)
   }
 
+  static isMxf(metadata: VideoMetadata): boolean {
+    return metadata.format?.toLowerCase() === 'mxf' || /\.mxf(?:[?#]|$)/i.test(metadata.uri)
+  }
+
   public static getExtension(fileName: string): string {
     const index = fileName.lastIndexOf('.')
     return index >= 0 ? fileName.substring(index + 1).toLowerCase() : ''

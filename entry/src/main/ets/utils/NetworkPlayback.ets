@@ -1,10 +1,11 @@
+import StreamHeaders from './StreamHeaders'
 import BluRayDirectory from './BluRayDirectory'
 import { NetworkBluRay } from './NetworkBluRay'
 import SmbUtil, { SmbPlayback } from './SmbUtil'
 import WebDavUtil, { WebDavRequest, WebDavSource } from './WebDavUtil'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import ToolsUtil from './ToolsUtil.ets'
 import FtpUtil, { FtpPlayback } from './FtpUtil'
+import ToolsUtil from './ToolsUtil'
 
 /** Credentials belong to a player session, never to persisted media metadata. */
 export class NetworkPlayback {
@@ -73,10 +74,11 @@ export class NetworkPlayback {
     return this.disc
   }
 
-  headers(original?: Record<string, string>): Record<string, string> | undefined {
+  headers(original?: Record<string, string>, custom?: Record<string, string>, userAgent?: string): Record<string, string> | undefined {
     if (this.disc) return this.disc.headers
     if (FtpUtil.isFtp(this.source)) return undefined
-    return /^webdav:\/\//i.test(this.source) ? this.authorization : original
+    return /^webdav:\/\//i.test(this.source) ? this.authorization :
+      StreamHeaders.merge(StreamHeaders.merge(userAgent ? { 'user-agent': userAgent } : {}, custom), original)
   }
 
   close(): void {

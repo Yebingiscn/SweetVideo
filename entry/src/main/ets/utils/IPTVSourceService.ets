@@ -1,3 +1,4 @@
+import StreamHeaders from './StreamHeaders'
 import { salmonLogger } from 'salmonlogger'
 import {
   IPTVChannel,
@@ -71,7 +72,8 @@ export default class IPTVSourceService {
     if (!epgUrl || refreshed.channels.length === 0) {
       return refreshed
     }
-    const epg = await IPTVSourceReader.requestText(epgUrl, refreshed.userAgent, MAX_EPG_SIZE)
+    const epg = await IPTVSourceReader.requestText(epgUrl, refreshed.userAgent, MAX_EPG_SIZE,
+      StreamHeaders.sameOrigin(refreshed.location, epgUrl) ? refreshed.headers : undefined)
     refreshed.epgMatchedCount = IPTVParser.applyXmlTv(refreshed.channels, epg)
     refreshed.lastEpgRefreshTime = Date.now()
     return refreshed
@@ -79,7 +81,7 @@ export default class IPTVSourceService {
 
   static async loadAndParse(source: IPTVSource): Promise<IPTVParseResult> {
     const content = source.sourceType === 'url' ?
-      await IPTVSourceReader.requestText(source.location, source.userAgent, MAX_SOURCE_SIZE) :
+      await IPTVSourceReader.requestText(source.location, source.userAgent, MAX_SOURCE_SIZE, source.headers) :
       await IPTVSourceReader.readLocalText(source.location, MAX_SOURCE_SIZE)
     const isHlsManifest = /#EXT-X-(?:STREAM-INF|TARGETDURATION|MEDIA-SEQUENCE)/i.test(content) &&
       !/(?:tvg-id|tvg-name|group-title|#EXTGRP:)/i.test(content)
@@ -92,7 +94,8 @@ export default class IPTVSourceService {
     if (isHlsManifest) {
       const line: IPTVLine = {
         url: source.location,
-        userAgent: source.userAgent || undefined
+        userAgent: source.userAgent || undefined,
+        headers: StreamHeaders.merge(source.userAgent ? { 'user-agent': source.userAgent } : {}, source.headers)
       }
       result.channels.push({
         id: `${source.id}_0_${IPTVParser.hash(source.location)}`,
@@ -100,6 +103,7 @@ export default class IPTVSourceService {
         url: source.location,
         groupName: defaultGroupName(),
         userAgent: line.userAgent,
+        headers: StreamHeaders.merge(line.headers),
         lines: [line],
         selectedLineIndex: 0
       })
@@ -107,7 +111,8 @@ export default class IPTVSourceService {
     }
     if (source.epgUrl?.trim() && result.channels.length > 0) {
       try {
-        const epg = await IPTVSourceReader.requestText(source.epgUrl.trim(), source.userAgent, MAX_EPG_SIZE)
+        const epg = await IPTVSourceReader.requestText(source.epgUrl.trim(), source.userAgent, MAX_EPG_SIZE,
+          StreamHeaders.sameOrigin(source.location, source.epgUrl.trim()) ? source.headers : undefined)
         result.epgMatchedCount = IPTVParser.applyXmlTv(result.channels, epg)
         result.epgRefreshTime = Date.now()
       } catch (error) {
@@ -140,6 +145,7 @@ export default class IPTVSourceService {
       sourceType: source.sourceType,
       location: source.location,
       userAgent: source.userAgent,
+      headers: StreamHeaders.merge(source.headers),
       epgUrl: source.epgUrl,
       channels: source.channels.map(channel => IPTVSourceService.copyChannel(channel)),
       channelCount: source.channelCount,
@@ -165,6 +171,7 @@ export default class IPTVSourceService {
       tvgName: channel.tvgName,
       channelNumber: channel.channelNumber,
       userAgent: channel.userAgent,
+      headers: StreamHeaders.merge(channel.headers),
       lines: channel.lines ? channel.lines.map(line => IPTVSourceService.copyLine(line)) : undefined,
       selectedLineIndex: channel.selectedLineIndex,
       currentProgram: channel.currentProgram ? IPTVSourceService.copyProgram(channel.currentProgram) : undefined,
@@ -173,7 +180,7 @@ export default class IPTVSourceService {
   }
 
   private static copyLine(line: IPTVLine): IPTVLine {
-    return { url: line.url, userAgent: line.userAgent }
+    return { url: line.url, userAgent: line.userAgent, headers: StreamHeaders.merge(line.headers) }
   }
 
   private static copyProgram(program: IPTVProgram): IPTVProgram {

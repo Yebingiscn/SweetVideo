@@ -1,6 +1,7 @@
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../interfaces/FileFolderInterface'
-import { ItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface'
+import { FolderNameSortItem, sortFolderNamesInTaskPool } from './TaskpoolUtil'
+import { salmonLogger } from 'salmonlogger'
 import NameSortUtil from './NameSortUtil'
 
 interface CachedPinyinKey {
@@ -13,11 +14,11 @@ export default class MediaSortUtil {
   private static collator: Intl.Collator | undefined = undefined
   private static pinyinKeys: WeakMap<VideoMetadata | FileFolder, CachedPinyinKey> = new WeakMap()
 
-  static sortByNameProcess(list: VideoMetadata[], ascending: boolean = true, pinyinSort: boolean = true): VideoMetadata[] {
+  static async sortByNameProcess(list: VideoMetadata[], ascending: boolean = true, pinyinSort: boolean = true): Promise<VideoMetadata[]> {
     return MediaSortUtil.sortByName(list, item => item.title || '', ascending, pinyinSort)
   }
 
-  static sortFolderByNameProcess(list: FileFolder[], ascending: boolean = true, pinyinSort: boolean = true): FileFolder[] {
+  static async sortFolderByNameProcess(list: FileFolder[], ascending: boolean = true, pinyinSort: boolean = true): Promise<FileFolder[]> {
     return MediaSortUtil.sortByName(list, item => item.name || '', ascending, pinyinSort)
   }
 
@@ -102,24 +103,24 @@ export default class MediaSortUtil {
     return key
   }
 
-  private static sortByName<T extends VideoMetadata | FileFolder>(list: T[], nameExtractor: (item: T) => string, ascending: boolean = true,
-    pinyinSort: boolean = true): T[] {
-    if (list.length <= 1) {
-      return [...list]
-    }
-    const itemsWithPinyin: ItemWithPinyin<T>[] = list.map(item => {
-      const entry: ItemWithPinyin<T> = {
-        item: item,
-        pinyin: pinyinSort ? MediaSortUtil.getPinyinKey(item, nameExtractor(item)) : nameExtractor(item)
+  private static async sortByName<T extends VideoMetadata | FileFolder>(list: T[],
+    nameExtractor: (item: T) => string, ascending: boolean = true, pinyinSort: boolean = true): Promise<T[]> {
+    const snapshot = [...list]
+    if (snapshot.length <= 1) return snapshot
+    const names = snapshot.map(nameExtractor)
+    const items = snapshot.map((item, index) => new FolderNameSortItem(item.date, names[index], index))
+    try {
+      const indices = await sortFolderNamesInTaskPool(items, ascending, pinyinSort)
+      if (indices.length !== snapshot.length || new Set(indices).size !== snapshot.length ||
+        indices.some(index => !Number.isInteger(index) || index < 0 || index >= snapshot.length)) {
+        throw new Error('Invalid media sort result')
       }
-      return entry
-    })
-    const collator = MediaSortUtil.collator ?? (MediaSortUtil.collator = NameSortUtil.createCollator())
-    const sortedItems = itemsWithPinyin.sort((a, b) => {
-      const cmp = collator.compare(a.pinyin, b.pinyin)
-      return ascending ? cmp : -cmp
-    })
-    return sortedItems.map(entry => entry.item)
+      if (list.length !== snapshot.length || list.some((item, index) =>
+        item !== snapshot[index] || nameExtractor(item) !== names[index])) return [...list]
+      return indices.map(index => snapshot[index])
+    } catch (_) {
+      salmonLogger.addLog('MediaSort', '后台名称排序失败，保留原顺序', true)
+      return snapshot
+    }
   }
-
 }

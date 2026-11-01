@@ -1,3 +1,4 @@
+import StreamHeaders from '../../utils/StreamHeaders'
 import ImageStorage from '../../utils/ImageStorage'
 import { DialogButtonBar } from './DialogButtonBar'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
@@ -21,6 +22,7 @@ export struct AddNetworkStreamDialog {
   controller?: CustomDialogController = undefined
   @State streamName: string = ''
   @State streamUrl: string = ''
+  @State headersText: string = ''
   @State saving: boolean = false
   onStreamAdded?: () => void
 
@@ -53,6 +55,12 @@ export struct AddNetworkStreamDialog {
           .height(96)
           .onChange((input: string) => this.streamUrl = input)
 
+
+        TextArea({ placeholder: $r('app.string.stream_headers_hint'), text: this.headersText })
+          .height(96)
+          .borderRadius(16)
+          .onChange((value: string) => { this.headersText = value })
+
         Button($r('app.string.import_strm_file'))
           .fontColor($r('app.color.text_color'))
           .attributeModifier(new ButtonFancyModifier('100%', 40))
@@ -80,12 +88,15 @@ export struct AddNetworkStreamDialog {
     }
     this.saving = true
     try {
-      const url = await FtpUtil.prepareUri(await SmbUtil.prepareUri(this.streamUrl))
+      const address = StreamHeaders.address(this.streamUrl)
+      const headers = StreamHeaders.merge(StreamHeaders.parseText(this.headersText), address.headers)
+      const url = await FtpUtil.prepareUri(await SmbUtil.prepareUri(address.url))
       const name = this.streamName.trim() || ToolsUtil.fileNameFromUri(url)
       const date = `stream_${Date.now()}`
       const streams = Preferences.getNetworkStreams(PathUtils.appContext!)
       streams.push({
         uri: url,
+        network_custom_headers: headers,
         title: name,
         date: date,
         size: [0, 0],
@@ -107,7 +118,7 @@ export struct AddNetworkStreamDialog {
       this.streamUrl = ''
       this.onStreamAdded?.()
       this.controller?.close()
-      this.fetchThumbnailAndSave(url, date)
+      this.fetchThumbnailAndSave(url, date, headers)
     } catch (error) {
       ToolsUtil.showToast(error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.save_stream_failed').id))
     } finally {
@@ -131,6 +142,7 @@ export struct AddNetworkStreamDialog {
     try {
       const result = await StrmUtil.read(uris[0])
       this.streamUrl = result.url
+      this.headersText = StreamHeaders.format(result.headers)
       if (!this.streamName.trim()) {
         this.streamName = result.name
       }
@@ -141,10 +153,10 @@ export struct AddNetworkStreamDialog {
     }
   }
 
-  private async fetchThumbnailAndSave(url: string, date: string): Promise<void> {
+  private async fetchThumbnailAndSave(url: string, date: string, headers?: Record<string, string>): Promise<void> {
     const smb = new NetworkPlayback()
     try {
-      const result = await FFmpegThumbnailUtil.extractNetworkCover(await smb.resolve(url), 300)
+      const result = await FFmpegThumbnailUtil.extractNetworkCover(await smb.resolve(url), 300, smb.headers(undefined, headers))
       if (result.success && result.pixelMap) {
         await ImageStorage.savePixelMapToFile(PathUtils.coverPath, date, result.pixelMap,
           { releasePixelMap: true })

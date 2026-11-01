@@ -558,7 +558,8 @@ export struct IPTVChannelPage {
       external_subtitle_format: '',
       pointA: 0,
       pointB: 0,
-      network_user_agent: selectedLine.userAgent
+      network_user_agent: selectedLine.userAgent,
+      network_custom_headers: selectedLine.headers
     }
   }
 

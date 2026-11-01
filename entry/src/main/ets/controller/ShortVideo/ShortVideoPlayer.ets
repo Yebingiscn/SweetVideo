@@ -368,7 +368,7 @@ export class ShortVideoPlayer {
       }
       this.audioCoverUri = VideoInfoUtil.getCachedAudioCoverUri(this.item)
       if (ToolsUtil.isNetworkUrl(this.item.uri)) {
-        await player.setUrlSource(url, this.smbPlayback.headers(this.item.network_http_headers))
+        await player.setUrlSource(url, this.smbPlayback.headers(this.item.network_http_headers, this.item.network_custom_headers, this.item.network_user_agent))
       } else {
         const file = fileIo.openSync(this.item.uri, fileIo.OpenMode.READ_ONLY)
         try {

@@ -522,12 +522,10 @@ export struct SideBarFolderComponent {
     const currentFolder = Preferences.getFileFolder(PathUtils.appContext!).find(item => item.date === folder.date)
     if (!currentFolder) return
     let videos = currentFolder.video_list
-    const field = Preferences.getSortField(PathUtils.appContext!) as SortField
-    if (field) videos = ToolsUtil.sortBy(PathUtils.appContext!, videos, currentFolder, field,
-      Preferences.getSortAsc(PathUtils.appContext!))
     this.videoListController.videoDataSource.updateData(videos)
     this.videoListController.directoryOverview = false
     this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder)
+    VideoUtils.refresh(this.videoListController, this.fileFolderSource, currentFolder)
     this.scrollToFolderDateChange(folder.date)
     this.sideBarController.closeIfOverlay(true)
   }

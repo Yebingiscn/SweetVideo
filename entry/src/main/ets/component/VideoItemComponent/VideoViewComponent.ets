@@ -671,8 +671,6 @@ export struct VideoView {
     const latestFolder = currentFolderDate
       ? latestFolders.find(f => f.date === currentFolderDate) ?? latestFolders[0]
       : latestFolders[0]
-    latestFolder.video_list = ToolsUtil.sortBy(PathUtils.appContext!, latestFolder.video_list,
-      latestFolder, field, this.currentSortAsc, this.pinyinSort)
     VideoUtils.refresh(this.videoListController, this.fileFolderSource, latestFolder)
   }
 
@@ -685,8 +683,6 @@ export struct VideoView {
       const latestFolder = currentFolderDate
         ? latestFolders.find(f => f.date === currentFolderDate) ?? latestFolders[0]
         : latestFolders[0]
-      latestFolder.video_list = ToolsUtil.sortBy(PathUtils.appContext!, latestFolder.video_list,
-        latestFolder, SortField.NAME, this.currentSortAsc, this.pinyinSort)
       VideoUtils.refresh(this.videoListController, this.fileFolderSource, latestFolder)
     }
   }

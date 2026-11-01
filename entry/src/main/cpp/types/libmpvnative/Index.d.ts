@@ -374,6 +374,25 @@ declare module 'libmpvnative.so' {
     creationTimeData: ArrayBuffer;
   }
 
+  /** A frozen copy of the current video Surface, without a presentation timestamp. */
+  export interface SurfaceCaptureFrame {
+    success: boolean;
+    pixelMap?: image.PixelMap;
+    /** Fixed diagnostic category; a failed/expired capture must use the FFmpeg fallback. */
+    reason: string;
+    errorCode: number;
+    elapsedMs: number;
+    queueMs: number;
+    width: number;
+    height: number;
+    pixelFormat: number;
+    isHdr: boolean;
+  }
+
+  /** Optional Surface capability. The returned image must still pass caller/session checks. */
+  export function captureSurfaceFrame(surfaceId: string, expectedWidth: number, expectedHeight: number,
+    expectedHdr: boolean, requestId: number): Promise<SurfaceCaptureFrame>;
+
   export interface FFmpegThumbnailFrame {
     data: ArrayBuffer;
     /** HDR frames are returned directly as a DMA PixelMap, without an 8-bit copy. */

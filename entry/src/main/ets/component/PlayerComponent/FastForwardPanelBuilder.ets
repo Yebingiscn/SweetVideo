@@ -6,6 +6,7 @@ class FastForwardInfo {
   speed: number = 1
   location: number = 0
   speedLocked: boolean = false
+  showHints?: boolean = false
 }
 
 // 获取相邻倍速信息
@@ -21,6 +22,37 @@ function getNeighborSpeeds(currentSpeed: number): SpeedNeighborInterface {
 
 @Builder
 export function FastForwardPanelBuilder(fastForwardInfo: FastForwardInfo) {
+  Column({ space: 6 }) {
+    FastForwardSpeedRow(fastForwardInfo)
+    if (fastForwardInfo.showHints && !fastForwardInfo.speedLocked) {
+      Text($r('app.string.long_press_speed_hint'))
+        .fontColor($r('sys.color.white'))
+        .fontSize(12)
+        .opacity(0.8)
+        .textAlign(TextAlign.Center)
+        .maxLines(2)
+        .constraintSize({ maxWidth: 280 })
+    }
+  }
+  .padding({
+    left: 16,
+    right: 16,
+    top: 12,
+    bottom: 12
+  })
+  .borderRadius(16)
+  .attributeModifier(new LightMaterialModifier())
+  .offset({
+    x: 0,
+    y: -fastForwardInfo.location / 2.5
+  })
+  .zIndex(fastForwardInfo.showHints ? 101 : 0)
+  .hitTestBehavior(HitTestMode.None)
+  .animation({ duration: 300, curve: Curve.Friction })
+}
+
+@Builder
+function FastForwardSpeedRow(fastForwardInfo: FastForwardInfo) {
   Row({ space: 12 }) {
     // 左侧：上一个倍速（最小倍速时隐藏）
     if (fastForwardInfo.speed > VideoInfoUtil.videoSpeedListAll[0]) {
@@ -85,17 +117,4 @@ export function FastForwardPanelBuilder(fastForwardInfo: FastForwardInfo) {
     }
   }
   .alignItems(VerticalAlign.Center)
-  .padding({
-    left: 16,
-    right: 16,
-    top: 12,
-    bottom: 12
-  })
-  .borderRadius(16)
-  .attributeModifier(new LightMaterialModifier())
-  .offset({
-    x: 0,
-    y: -fastForwardInfo.location / 2.5
-  })
-  .animation({ duration: 300, curve: Curve.Friction })
 }

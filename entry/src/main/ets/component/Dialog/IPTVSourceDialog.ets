@@ -1,3 +1,4 @@
+import StreamHeaders from '../../utils/StreamHeaders'
 import { fileIo as fs, picker } from '@kit.CoreFileKit'
 import {
   CapsuleSegmentButtonV2,
@@ -23,6 +24,7 @@ export struct IPTVSourceDialog {
   @State location: string = ''
   @State fileName: string = ''
   @State userAgent: string = ''
+  @State headersText: string = ''
   @State epgUrl: string = ''
   @State testing: boolean = false
   @State saving: boolean = false
@@ -57,6 +59,7 @@ export struct IPTVSourceDialog {
       this.location = editing.location
       this.fileName = editing.sourceType === 'file' ? IPTVSourceDialog.fileDisplayName(editing.location) : ''
       this.userAgent = editing.userAgent ?? ''
+      this.headersText = StreamHeaders.format(editing.headers)
       this.epgUrl = editing.epgUrl ?? ''
     } else {
       this.sourceName = ''
@@ -64,6 +67,7 @@ export struct IPTVSourceDialog {
       this.location = ''
       this.fileName = ''
       this.userAgent = ''
+      this.headersText = ''
       this.epgUrl = ''
     }
     this.testMessage = ''
@@ -165,6 +169,12 @@ export struct IPTVSourceDialog {
           })
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
 
+
+        TextArea({ placeholder: $r('app.string.stream_headers_hint'), text: this.headersText })
+          .height(96)
+          .borderRadius(16)
+          .onChange((value: string) => { this.headersText = value; this.invalidatePreparedSource() })
+
         TextInput({ placeholder: $r('app.string.epg_url_optional'), text: this.epgUrl })
           .height(44)
           .borderRadius(16)
@@ -247,13 +257,24 @@ export struct IPTVSourceDialog {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.iptv_fill_required').id))
       return undefined
     }
+    let headers: Record<string, string>
+    let addressUrl = location
+    try {
+      const address = StreamHeaders.address(location)
+      addressUrl = address.url
+      headers = StreamHeaders.merge(StreamHeaders.parseText(this.headersText), address.headers)
+    } catch (_) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.stream_headers_invalid').id))
+      return undefined
+    }
     const editing = IPTVSourceService.editingSource
     const now = Date.now()
     return {
       id: editing?.id ?? `iptv_${now}`,
       name: name,
       sourceType: this.sourceType,
-      location: location,
+      location: addressUrl,
+      headers: headers,
       userAgent: this.userAgent.trim() || undefined,
       epgUrl: this.epgUrl.trim() || undefined,
       channels: editing?.channels ?? [],
@@ -335,6 +356,7 @@ export struct IPTVSourceDialog {
       source.sourceType,
       source.location,
       source.userAgent ?? '',
+      source.headers ?? {},
       source.epgUrl ?? ''
     ])
   }

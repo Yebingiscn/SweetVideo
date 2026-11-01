@@ -12,7 +12,6 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import { userData } from '../../component/common/UserLoginComponent'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics } from '@kit.ArkUI'
-import { ConfigurationConstant } from '@kit.AbilityKit'
 import { appInfoManager } from '@kit.AppGalleryKit'
 import { BusinessError, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { salmonLogger } from 'salmonlogger'
@@ -87,14 +86,8 @@ export struct PersonalizeSettingPage {
             itemEnabled: userData.isVip,
             onChange: async (checked: boolean) => {
               Setting.enableBackgroundDarkImage = checked
-              Setting.backgroundImageSrc = ''
-              setTimeout(async () => {
-                Setting.backgroundImageSrc = ImageFileUtil.getImageUri()
-                if (Setting.backgroundDropBlur > 0 && Setting.backgroundImageSrc.length > 0) {
-                  await ImageFileUtil.updateBlurBackground(Setting.backgroundDropBlur, true)
-                }
-              }, 100)
-              Preferences.saveEnableBackgroundDarkImage(PathUtils.appContext!, Setting.enableBackgroundDarkImage)
+              Preferences.saveEnableBackgroundDarkImage(PathUtils.appContext!, checked)
+              await ImageFileUtil.refreshBackground()
             }
           })
         }
@@ -120,10 +113,7 @@ export struct PersonalizeSettingPage {
             symbol: $r('sys.symbol.picture'),
             message: Setting.enableBackgroundDarkImage ? $r('app.string.custom_wallpaper_light') : $r('app.string.custom_wallpaper'),
             onPress: async () => {
-              const currentColorMode = AppStorage.get('currentColorMode') as number
-              await this.selectAndSetBackgroundImage('BackgroundImage',
-                () => !Setting.enableBackgroundDarkImage ||
-                  currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT)
+              await this.selectAndSetBackgroundImage('BackgroundImage')
             }
           })
         }
@@ -134,9 +124,7 @@ export struct PersonalizeSettingPage {
               symbol: $r('sys.symbol.picture'),
               message: $r('app.string.custom_wallpaper_dark'),
               onPress: async () => {
-                const currentColorMode = AppStorage.get('currentColorMode') as number
-                await this.selectAndSetBackgroundImage('BackgroundDarkImage',
-                  () => currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK)
+                await this.selectAndSetBackgroundImage('BackgroundDarkImage')
               }
             })
           }
@@ -148,14 +136,7 @@ export struct PersonalizeSettingPage {
               symbol: $r('sys.symbol.picture_damage'),
               message: Setting.enableBackgroundDarkImage ? $r('app.string.delete_wallpaper_light') : $r('app.string.delete_wallpaper'),
               onPress: async () => {
-                await ImageFileUtil.deletePhoto('BackgroundImage')
-                Setting.backgroundImageSrc = ''
-                Setting.backgroundBlurImageSrc = ''
-                Setting.backgroundDropBlur = 0
-                Setting.listItemBackgroundBlur = false
-                ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_success').id))
-                Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)
-                Preferences.saveListItemBackgroundBlur(PathUtils.appContext!, false)
+                await this.deleteBackgroundImage('BackgroundImage')
               }
             })
           }
@@ -166,17 +147,7 @@ export struct PersonalizeSettingPage {
                 symbol: $r('sys.symbol.picture_damage'),
                 message: $r('app.string.delete_wallpaper_dark'),
                 onPress: async () => {
-                  await ImageFileUtil.deletePhoto('BackgroundDarkImage')
-                  const currentColorMode = AppStorage.get('currentColorMode') as number
-                  if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
-                    Setting.backgroundImageSrc = ''
-                    Setting.backgroundBlurImageSrc = ''
-                    Setting.backgroundDropBlur = 0
-                    Setting.listItemBackgroundBlur = false
-                    Preferences.saveListItemBackgroundBlur(PathUtils.appContext!, false)
-                  }
-                  ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_success').id))
-                  Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)
+                  await this.deleteBackgroundImage('BackgroundDarkImage')
                 }
               })
             }
@@ -191,12 +162,12 @@ export struct PersonalizeSettingPage {
               textSliderMode: false,
               selected: Setting.backgroundDropBlur,
               onChange: (value: number) => {
-                Setting.backgroundDropBlur = value
+                this.setBackgroundBlurRadius(value)
               },
               onChangeComplete: async (value: number) => {
-                Setting.backgroundDropBlur = value
+                this.setBackgroundBlurRadius(value)
                 Preferences.saveBackgroundDropBlur(PathUtils.appContext!, Setting.backgroundDropBlur)
-                await ImageFileUtil.updateBlurBackground(value, true)
+                await ImageFileUtil.refreshBackground(true)
               }
             })
           }
@@ -457,7 +428,14 @@ export struct PersonalizeSettingPage {
     }
   }
 
-  private async selectAndSetBackgroundImage(imageName: string, shouldApply: () => boolean) {
+  private setBackgroundBlurRadius(value: number): void {
+    if (value === Setting.backgroundDropBlur) return
+    ImageFileUtil.invalidateBackgroundCache('BackgroundImage')
+    ImageFileUtil.invalidateBackgroundCache('BackgroundDarkImage')
+    Setting.backgroundDropBlur = value
+  }
+
+  private async selectAndSetBackgroundImage(imageName: 'BackgroundImage' | 'BackgroundDarkImage'): Promise<void> {
     const imageUris = await SelectFileUtil.selectPhoto()
     if (imageUris.length === 0) {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_photo_selected').id))
@@ -467,15 +445,19 @@ export struct PersonalizeSettingPage {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.background_image_save_failed').id))
       return
     }
-    Setting.backgroundImageSrc = ''
-    setTimeout(async () => {
-      if (shouldApply()) {
-        Setting.backgroundImageSrc = ImageFileUtil.getImageUri()
-        if (Setting.backgroundDropBlur > 0) {
-          await ImageFileUtil.updateBlurBackground(Setting.backgroundDropBlur, true)
-        }
-        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_success').id))
-      }
-    }, 100)
+    ImageFileUtil.invalidateBackgroundCache(imageName, true)
+    await ImageFileUtil.refreshBackground()
+    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_success').id))
+  }
+
+  private async deleteBackgroundImage(imageName: 'BackgroundImage' | 'BackgroundDarkImage'): Promise<void> {
+    await ImageFileUtil.deletePhoto(imageName)
+    await ImageFileUtil.refreshBackground()
+    if (Setting.backgroundImageSrc.length > 0) return
+    Setting.backgroundBlurImageSrc = ''
+    Setting.backgroundDropBlur = 0
+    Setting.listItemBackgroundBlur = false
+    Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)
+    Preferences.saveListItemBackgroundBlur(PathUtils.appContext!, false)
   }
 }

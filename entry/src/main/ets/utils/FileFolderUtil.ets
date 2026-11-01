@@ -197,7 +197,6 @@ export default class FileFolderUtil {
     const pinyinSort = Preferences.getPinyinSort(context)
     switch (sortField) {
       case SortField.NAME:
-        targetFolder.video_list = MediaSortUtil.sortByNameProcess(targetFolder.video_list, sortAsc, pinyinSort)
         break
       case SortField.DATETIME:
         targetFolder.video_list = MediaSortUtil.sortByDatetimeProcess(targetFolder.video_list, sortAsc)
@@ -209,8 +208,11 @@ export default class FileFolderUtil {
         targetFolder.video_list = MediaSortUtil.sortByRecentPlayProcess(targetFolder.video_list, sortAsc)
         break
     }
-    // 保存并返回
+    // Commit membership before awaiting any worker, so concurrent changes cannot resurrect moved files.
     Preferences.saveFileFolder(context, folders)
+    if (sortField === SortField.NAME) {
+      void ToolsUtil.sortBy(context, targetFolder.video_list, targetFolder, sortField, sortAsc, pinyinSort).catch(() => {})
+    }
     return folders
   }
 

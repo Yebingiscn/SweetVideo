@@ -15,6 +15,13 @@ export default class ImageFileUtil {
   // 手动封面兼顾卡片和长按预览，保持比例并且不放大小图。
   private static readonly PICKED_COVER_MAX_EDGE: number = 960
   private static coverSaveSequence: number = 0
+  private static backgroundRefreshVersion: number = 0
+  private static blurRequestVersion: number = 0
+  private static blurTaskKey: string = ''
+  private static blurTask: Promise<string> | undefined = undefined
+  private static backgroundVersions: Map<string, number> = new Map()
+  private static invalidBlurImages: Set<string> = new Set()
+  private static imagesToReload: Set<string> = new Set()
 
   static async deletePhoto(imageName: 'BackgroundImage' | 'BackgroundDarkImage' | 'avatar'): Promise<void> {
     try {
@@ -37,8 +44,18 @@ export default class ImageFileUtil {
     } catch (err) {
       salmonLogger.addLog(TAG, "access failed with error message: " + err.message + ", error code: " + err.code, true)
     }
+    if (imageName !== 'avatar') {
+      ImageFileUtil.invalidateBackgroundCache(imageName, true)
+    }
+  }
+
+  static invalidateBackgroundCache(imageName: 'BackgroundImage' | 'BackgroundDarkImage',
+    imageChanged: boolean = false): void {
+    ImageFileUtil.backgroundVersions.set(imageName, (ImageFileUtil.backgroundVersions.get(imageName) ?? 0) + 1)
+    ImageFileUtil.invalidBlurImages.add(imageName)
+    if (imageChanged) ImageFileUtil.imagesToReload.add(imageName)
     try {
-      const blurPath = PathUtils.photoPath! + imageName + '_blur'
+      const blurPath = PathUtils.photoPath + imageName + '_blur'
       if (fs.accessSync(blurPath)) {
         fs.unlinkSync(blurPath)
       }
@@ -51,34 +68,76 @@ export default class ImageFileUtil {
     return ImageStorage.getExistingImageUri(PathUtils.photoPath + ImageFileUtil.getCurrentBackgroundImageName())
   }
 
-  static getExistingBlurImageUri(): string {
+  static async refreshBackground(forceRegenerate: boolean = false): Promise<string> {
+    const refreshVersion = ++ImageFileUtil.backgroundRefreshVersion
     const imageName = ImageFileUtil.getCurrentBackgroundImageName()
-    return ImageStorage.getExistingImageUri(PathUtils.photoPath + imageName + '_blur')
+    const imageUri = ImageFileUtil.getImageUri()
+    if (ImageFileUtil.imagesToReload.has(imageName)) {
+      ImageFileUtil.imagesToReload.delete(imageName)
+      if (imageUri && Setting.backgroundImageSrc === imageUri) {
+        // Reload changed bytes at the same URI only when replacing the visible image.
+        Setting.backgroundImageSrc = ''
+        Setting.backgroundBlurImageSrc = ''
+        await new Promise<void>((resolve) => setTimeout(resolve, 100))
+        if (refreshVersion !== ImageFileUtil.backgroundRefreshVersion ||
+          imageName !== ImageFileUtil.getCurrentBackgroundImageName()) return ''
+      }
+    }
+    Setting.backgroundImageSrc = imageUri
+    return ImageFileUtil.updateBlurBackground(imageUri ? Setting.backgroundDropBlur : 0, forceRegenerate)
   }
 
   static async updateBlurBackground(blurRadius: number, forceRegenerate: boolean = false): Promise<string> {
-    if (blurRadius <= 0) {
+    const imageName = ImageFileUtil.getCurrentBackgroundImageName()
+    if (forceRegenerate) ImageFileUtil.invalidateBackgroundCache(imageName)
+    const sourceVersion = ImageFileUtil.backgroundVersions.get(imageName) ?? 0
+    const taskKey = `${imageName}:${sourceVersion}:${blurRadius}`
+    if (!forceRegenerate && ImageFileUtil.blurTask && ImageFileUtil.blurTaskKey === taskKey) {
+      return ImageFileUtil.blurTask
+    }
+    const requestVersion = ++ImageFileUtil.blurRequestVersion
+    ImageFileUtil.blurTask = undefined
+    ImageFileUtil.blurTaskKey = taskKey
+    if (!Number.isFinite(blurRadius) || blurRadius <= 0 || !ImageFileUtil.getImageUri()) {
       Setting.backgroundBlurImageSrc = ''
       return ''
     }
-    const imageName = ImageFileUtil.getCurrentBackgroundImageName()
     const blurFileName = imageName + '_blur'
     const blurPath = PathUtils.photoPath + blurFileName
-    if (!forceRegenerate) {
+    if (!forceRegenerate && !ImageFileUtil.invalidBlurImages.has(imageName)) {
       const blurUri = ImageStorage.getExistingImageUri(blurPath)
       if (blurUri) {
-        Setting.backgroundBlurImageSrc = ''
         Setting.backgroundBlurImageSrc = blurUri
         return blurUri
       }
     }
     Setting.backgroundBlurImageSrc = ''
-    const blurUri = await ImageFileUtil.generateBlurredBackground(imageName, blurRadius)
-    Setting.backgroundBlurImageSrc = blurUri
-    return blurUri
+    const task = ImageFileUtil.generateBlurredBackground(imageName, blurRadius, requestVersion, sourceVersion)
+      .then((blurUri: string): string => {
+        if (!ImageFileUtil.isBlurRequestCurrent(imageName, blurRadius, requestVersion, sourceVersion)) return ''
+        Setting.backgroundBlurImageSrc = blurUri
+        return blurUri
+      })
+    ImageFileUtil.blurTask = task
+    try {
+      return await task
+    } finally {
+      if (requestVersion === ImageFileUtil.blurRequestVersion) {
+        ImageFileUtil.blurTask = undefined
+        ImageFileUtil.blurTaskKey = ''
+      }
+    }
   }
 
-  static getCurrentBackgroundImageName(): string {
+  private static isBlurRequestCurrent(imageName: string, blurRadius: number, requestVersion: number,
+    sourceVersion: number): boolean {
+    return requestVersion === ImageFileUtil.blurRequestVersion &&
+      sourceVersion === (ImageFileUtil.backgroundVersions.get(imageName) ?? 0) &&
+      imageName === ImageFileUtil.getCurrentBackgroundImageName() &&
+      blurRadius === Setting.backgroundDropBlur
+  }
+
+  static getCurrentBackgroundImageName(): 'BackgroundImage' | 'BackgroundDarkImage' {
     try {
       const currentColorMode = AppStorage.get('currentColorMode') as number
       if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK && Setting.enableBackgroundDarkImage &&
@@ -159,12 +218,12 @@ export default class ImageFileUtil {
     }
   }
 
-  static async generateBlurredBackground(imageName: string, blurRadius: number): Promise<string> {
-    if (blurRadius <= 0) {
-      return ''
-    }
+  private static async generateBlurredBackground(imageName: string, blurRadius: number, requestVersion: number,
+    sourceVersion: number): Promise<string> {
     const sourcePath = PathUtils.photoPath + imageName
     const blurFileName = imageName + '_blur'
+    const temporaryName = `${blurFileName}.${Date.now()}-${requestVersion}.pending`
+    const temporaryPath = PathUtils.photoPath + temporaryName
     let sourceFile: fs.File | undefined = undefined
     let imageSource: image.ImageSource | undefined = undefined
     let pixelMap: image.PixelMap | undefined = undefined
@@ -173,15 +232,22 @@ export default class ImageFileUtil {
       sourceFile = fs.openSync(sourcePath, fs.OpenMode.READ_ONLY)
       imageSource = image.createImageSource(sourceFile.fd)
       pixelMap = await imageSource.createPixelMap()
+      if (!ImageFileUtil.isBlurRequestCurrent(imageName, blurRadius, requestVersion, sourceVersion)) return ''
       const effect = effectKit.createEffect(pixelMap)
       blurredPixelMap = await effect.blur(blurRadius).getEffectPixelMap()
-      if (!blurredPixelMap) {
+      if (!blurredPixelMap ||
+        !ImageFileUtil.isBlurRequestCurrent(imageName, blurRadius, requestVersion, sourceVersion)) {
         return ''
       }
-      const savedPath = await ImageStorage.savePixelMapToFile(PathUtils.photoPath!, blurFileName, blurredPixelMap, {
+      const savedPath = await ImageStorage.savePixelMapToFile(PathUtils.photoPath!, temporaryName, blurredPixelMap, {
         deleteOnFail: true, format: 'image/jpeg'
       })
-      return savedPath ? PathUtils.pathToUri(savedPath) : ''
+      if (!savedPath ||
+        !ImageFileUtil.isBlurRequestCurrent(imageName, blurRadius, requestVersion, sourceVersion)) return ''
+      const blurPath = PathUtils.photoPath + blurFileName
+      fs.renameSync(savedPath, blurPath)
+      ImageFileUtil.invalidBlurImages.delete(imageName)
+      return PathUtils.pathToUri(blurPath)
     } catch (error) {
       salmonLogger.addLog(TAG, `Failed to generate blurred background: ${error}`, true)
       return ''
@@ -192,6 +258,11 @@ export default class ImageFileUtil {
       }
       await ImageStorage.releaseImageSafely(imageSource, '背景图片源')
       ImageStorage.closeFileSafely(sourceFile, '背景源文件')
+      try {
+        if (fs.accessSync(temporaryPath)) fs.unlinkSync(temporaryPath)
+      } catch (error) {
+        salmonLogger.addLog(TAG, `Failed to remove blur temporary file: ${error}`, true)
+      }
     }
   }
 }

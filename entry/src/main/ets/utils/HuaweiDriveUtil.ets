@@ -1,3 +1,4 @@
+import { DirectorySortItem, sortDirectoryIndices } from './DirectorySortUtil'
 import HuaweiDriveConfig from '../common/HuaweiDriveConfig'
 import {
   HuaweiDriveAbout,
@@ -8,7 +9,7 @@ import {
 import HuaweiDriveSessionStore from './HuaweiDriveSessionStore'
 import VideoInfoUtil from './VideoInfoUtil'
 import { http } from '@kit.NetworkKit'
-import ToolsUtil from './ToolsUtil.ets'
+import ToolsUtil from './ToolsUtil'
 
 export class HuaweiDriveError extends Error {
   statusCode: number = 0
@@ -90,14 +91,9 @@ export default class HuaweiDriveUtil {
       }
       cursor = page.nextCursor ?? ''
     } while (cursor)
-    return files.sort((left: HuaweiDriveFile, right: HuaweiDriveFile) => {
-      const leftFolder = HuaweiDriveUtil.isFolder(left)
-      const rightFolder = HuaweiDriveUtil.isFolder(right)
-      if (leftFolder !== rightFolder) {
-        return leftFolder ? -1 : 1
-      }
-      return left.fileName.localeCompare(right.fileName)
-    })
+    const indices = await sortDirectoryIndices(files.map((file, index) =>
+    new DirectorySortItem(file.fileName, HuaweiDriveUtil.isFolder(file), index)))
+    return indices.map(index => files[index])
   }
 
   static isFolder(file: HuaweiDriveFile): boolean {
@@ -112,7 +108,7 @@ export default class HuaweiDriveUtil {
       return true
     }
     const extension = VideoInfoUtil.getExtension(file.fileName)
-    return ['mp4', 'mkv', 'avi', 'mov', 'webm', 'flv', 'ts', 'm2ts', 'mpg', 'mpeg', 'wmv', 'm4v',
+    return ['mp4', 'mkv', 'avi', 'mov', 'webm', 'flv', 'ts', 'm2ts', 'mxf', 'mpg', 'mpeg', 'wmv', 'm4v',
       'mp3', 'flac', 'aac', 'm4a', 'wav', 'ogg', 'opus'].includes(extension)
   }
 
@@ -146,7 +142,8 @@ export default class HuaweiDriveUtil {
       throw new HuaweiDriveError(ToolsUtil.getStringResource($r('app.string.huawei_drive_authorize_first').id), 401)
     }
     if (HuaweiDriveUtil.refreshPromise) {
-      await HuaweiDriveUtil.refreshPromise
+      const pendingRefresh: Promise<void> = HuaweiDriveUtil.refreshPromise
+      await pendingRefresh
       return
     }
     const task = HuaweiDriveUtil.refreshAccessToken(refreshToken)
@@ -196,7 +193,7 @@ export default class HuaweiDriveUtil {
   private static async requestToken(form: Record<string, string>): Promise<HuaweiDriveTokenResponse> {
     const request = http.createHttp()
     const body = Object.keys(form).map((key: string) =>
-      `${encodeURIComponent(key)}=${encodeURIComponent(form[key])}`).join('&')
+    `${encodeURIComponent(key)}=${encodeURIComponent(form[key])}`).join('&')
     try {
       const response = await request.request(HuaweiDriveConfig.TOKEN_URL, {
         method: http.RequestMethod.POST,
@@ -211,7 +208,9 @@ export default class HuaweiDriveUtil {
         readTimeout: 30_000
       })
       if (response.responseCode < 200 || response.responseCode >= 300) {
-        throw new HuaweiDriveError(ToolsUtil.getStringResourceArgs($r('app.string.huawei_oauth_failed').id, response.responseCode), response.responseCode)
+        throw new HuaweiDriveError(
+          ToolsUtil.getStringResourceArgs($r('app.string.huawei_oauth_failed').id, response.responseCode),
+          response.responseCode)
       }
       return JSON.parse(response.result as string) as HuaweiDriveTokenResponse
     } finally {
@@ -242,10 +241,13 @@ export default class HuaweiDriveUtil {
       }
       if (response.responseCode === 401) {
         HuaweiDriveUtil.clearAuthorization()
-        throw new HuaweiDriveError(ToolsUtil.getStringResource($r('app.string.huawei_drive_authorization_expired').id), 401)
+        throw new HuaweiDriveError(ToolsUtil.getStringResource($r('app.string.huawei_drive_authorization_expired').id),
+          401)
       }
       if (response.responseCode < 200 || response.responseCode >= 300) {
-        throw new HuaweiDriveError(ToolsUtil.getStringResourceArgs($r('app.string.huawei_drive_request_failed').id, response.responseCode), response.responseCode)
+        throw new HuaweiDriveError(
+          ToolsUtil.getStringResourceArgs($r('app.string.huawei_drive_request_failed').id, response.responseCode),
+          response.responseCode)
       }
       return JSON.parse(response.result as string) as T
     } finally {
@@ -271,5 +273,4 @@ export default class HuaweiDriveUtil {
   private static escapeQueryValue(value: string): string {
     return value.replace(/'/g, "\\'")
   }
-
 }

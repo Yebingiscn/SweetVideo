@@ -81,8 +81,8 @@ export const OPTIONS: ImageAIOptions = {
 }
 
 export const SUPPORT_VIDEO_FORMAT: string[] =
-  ['视频|.mpv,.mkv,.mp4,.m4s,.mov,.rmvb,.wmv,.avi,.m4v,.iso,.bdmv,.webm,.flv,.ts,.vob,.m2ts,.pmp',
-    'mp4', 'm4s', 'flv', 'mkv', 'ts', 'vob', 'm2ts', 'mov', 'rmvb', 'wmv', 'avi', 'm4v', 'iso', 'bdmv', 'webm', 'pmp'
+  ['视频|.mpv,.mkv,.mp4,.m4s,.mov,.rmvb,.wmv,.avi,.m4v,.iso,.bdmv,.webm,.flv,.ts,.vob,.m2ts,.mxf,.pmp',
+    'mp4', 'm4s', 'flv', 'mkv', 'ts', 'vob', 'm2ts', 'mxf', 'mov', 'rmvb', 'wmv', 'avi', 'm4v', 'iso', 'bdmv', 'webm', 'pmp'
   ]
 
 export const SUPPORT_AUDIO_FORMAT: string[] =

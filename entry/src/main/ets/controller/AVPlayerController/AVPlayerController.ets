@@ -728,6 +728,10 @@ export class AVPlayerController implements PlayerControllerInterface {
     if (nextItem) {
       salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "存在下一个视频，开始播放", false)
       await this.playChooseVideo(nextItem, pathStack, windowClass, xComponentController)
+    } else if (overrideRepeatMode !== undefined) {
+      // Manual controls supply an override; automatic EOF/outro callers omit it.
+      salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, '手动切集已到列表末尾，保留播放页', false)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_next_item').id))
     } else {
       salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "无下一个视频，播放结束", false)
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.play_finished_auto_exit').id))
@@ -1505,15 +1509,17 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.videoSwitchVersion++
     this.listenVideoRequestVersion++
     this.cancelVideoRecovery()
-    if (this.playing) {
-      this.avPlayer?.pause().catch(() => {
-        salmonLogger.addLog(TAG, '退出时暂停视频失败', true)
-      })
+    try {
+      // 退出暂停也要取消待恢复播放、禁用自动画中画，并保留加载状态保护。
+      this.pause()
+    } catch (error) {
+      salmonLogger.addLog(TAG, `退出时暂停视频失败: ${error}`, true)
+    } finally {
+      clearTimeout(this.swipingVoiceTimer)
+      this.swipingVoiceTimer = 0
+      this.volumeGestureActive = false
+      this.onSwipingVoice = false
     }
-    clearTimeout(this.swipingVoiceTimer)
-    this.swipingVoiceTimer = 0
-    this.volumeGestureActive = false
-    this.onSwipingVoice = false
   }
 
   async onWillDisappearRelease(_windowClass?: Promise<window.Window | undefined>): Promise<void> {
@@ -1533,12 +1539,6 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   seekToChapter(_chapterIndex: number): void {
-  }
-
-  resetAspectRatio(): void {
-  }
-
-  stretchToFullScreen(): void {
   }
 
   async exitPlayback(timeout: number): Promise<void> {
@@ -1883,7 +1883,7 @@ export class AVPlayerController implements PlayerControllerInterface {
         }
         return
       }
-      const headers = this.smbPlayback.headers(this.nowPlaying?.network_http_headers)
+      const headers = this.smbPlayback.headers(this.nowPlaying?.network_http_headers, this.nowPlaying?.network_custom_headers, this.nowPlaying?.network_user_agent)
       await player.setUrlSource(uri, headers)
     } catch (e) {
       // Let loadAndPrepare handle failure; do not leave it waiting for a state that cannot arrive.

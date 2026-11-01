@@ -19,6 +19,7 @@ import { KeyboardShortcuts, ShortcutAction } from '../../utils/KeyboardShortcuts
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import { SurfaceScreenshotCapture, SurfaceScreenshotRequest } from '../../utils/SurfaceScreenshotCapture'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PathUtils } from '../../utils/PathUtils'
 import { PlayerSideBarComponent } from '../../component/PlayerComponent/PlayerSideBarComponent'
@@ -128,12 +129,9 @@ export struct VideoPlayer {
       placeholderColor: ToolsUtil.getStringResource($r('app.string.custom_ratio_range').id),
       confirm: (input: number): void => {
         if (input && input <= 150 && input >= 50) {
-          this.player.selectedText = `自定义比例:${input}`
-          Preferences.saveScreenExtend(PathUtils.appContext!, this.player.selectedText)
-          this.player.playAreaHeight = input / 100 * VideoInfoUtil.playAreaHeight
-          this.player.playAreaWidth = input / 100 * VideoInfoUtil.playAreaWidth
-          this.player.scaleFactor = 1
-
+          const mode = `自定义比例:${input}`
+          PlayerViewportState.applyAspectRatio(this.player, mode)
+          Preferences.saveScreenExtend(PathUtils.appContext!, mode)
         } else {
           ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.custom_ratio_invalid').id))
         }
@@ -413,7 +411,6 @@ export struct VideoPlayer {
         salmonLogger.addLog(TAG, `保存退出播放记录失败: ${error}`, true)
       }
       this.player.onDisappearCleanup()
-      this.gestures.reset()
       this.backgroundViewport.clear()
       this.unregisterPlayerMonitors(this.player)
       try {
@@ -490,8 +487,44 @@ export struct VideoPlayer {
       return
     }
     const date = metadata.date
-    void VideoOperateUtil.saveCaptureScreenToAlbum(metadata.uri, player.playbackPositionMs,
-      () => !this.isPageDisappearing && this.player === player && this.player.nowPlaying?.date === date, requestId)
+    const uri = metadata.uri
+    const positionMs = player.playbackPositionMs
+    const surfaceId = player.surfaceId
+    const isCurrent = (): boolean => !this.isPageDisappearing && !this.playbackSession.isClosing &&
+      this.player === player && player.nowPlaying?.date === date && player.nowPlaying?.uri === uri
+    let surfaceRequest: SurfaceScreenshotRequest | undefined = undefined
+    if (surfaceId && this.canCapturePlayerSurface(player, metadata)) {
+      const track = player.videoTracks.tracks.find((item) => item.selected)
+      const width = track?.width ?? metadata.size[0]
+      const height = track?.height ?? metadata.size[1]
+      const trackId = track?.id
+      const clickedAt = Date.now()
+      const playing = player.playing
+      const speed = player.speed
+      surfaceRequest = {
+        surfaceId: surfaceId, width: width, height: height,
+        hdrType: metadata.hdr_type, requestId: requestId,
+        isCurrent: () => isCurrent() && player.surfaceId === surfaceId,
+        // Surface has no frame PTS. Reject transitions/seeks that we can detect;
+        // never label this image with an invented timestamp.
+        isFrameCurrent: () => this.canCapturePlayerSurface(player, metadata) &&
+          player.playing === playing && player.speed === speed &&
+          player.videoTracks.tracks.find((item) => item.selected)?.id === trackId &&
+          Math.abs(player.playbackPositionMs - positionMs -
+            (playing ? (Date.now() - clickedAt) * speed : 0)) <= 200
+      }
+    }
+    void VideoOperateUtil.saveCaptureScreenToAlbum(uri, positionMs, isCurrent, requestId, surfaceRequest)
+  }
+
+  private canCapturePlayerSurface(player: PlayerControllerInterface, metadata: VideoMetadata): boolean {
+    return this.playerDestinationShown && !this.appBackgrounded && AppForegroundState.isForeground &&
+      this.isPlayerConfigured && !this.isPageDisappearing && !this.playbackSession.isClosing &&
+      !this.playbackSession.isSwitching && !PiPWindowUtil.pipOpenState && !PiPWindowUtil.pipStarting &&
+      !player.isListenVideo && !player.videoTracks.switching && !player.networkBuffering &&
+      !player.isSliderPlayTimeChange && !player.onSwiping && !player.isZoomed && !player.isGesturing &&
+      player.scaleFactor === 1 && player.translateX === 0 && player.translateY === 0 && player.angle === 0 &&
+      (!player.selectedText || player.selectedText === '原始比例') && VideoInfoUtil.hasVideoTrack(metadata)
   }
 
   private async executePlayerShortcut(action: ShortcutAction): Promise<void> {
@@ -547,9 +580,11 @@ export struct VideoPlayer {
         const requestedSpeed = this.player.getRequestedPlaybackSpeed?.() ?? this.player.speed
         const faster = speeds.find(speed => speed > requestedSpeed + 0.001)
         const slower = speeds.slice().reverse().find(speed => speed < requestedSpeed - 0.001)
+        this.gestures.unlockSpeed()
         this.player.updatePlaybackSpeed((action === ShortcutAction.SPEED_UP ? faster : slower) ?? requestedSpeed)
         break
       case ShortcutAction.SPEED_RESET:
+        this.gestures.unlockSpeed()
         this.player.updatePlaybackSpeed(1)
         break
       case ShortcutAction.SUBTITLE:
@@ -697,11 +732,12 @@ export struct VideoPlayer {
             })
           }
 
-          if (this.player.longPress) {
+          if (this.player.longPress || this.player.speedLocked) {
             FastForwardPanelBuilder({
               speed: this.player.speed,
               location: VideoInfoUtil.playAreaHeight,
               speedLocked: this.player.speedLocked,
+              showHints: true,
             })
           }
           if (this.player.onSwiping) {
@@ -762,9 +798,11 @@ export struct VideoPlayer {
             onPinchEnd: () => this.gestures.onPinchEnd(),
             onLongPressAction: () => this.gestures.onLongPressAction(),
             onLongPressEnd: () => this.gestures.onLongPressEnd(),
-            onLongPressPanStart: (tapX: number) => this.gestures.onLongPressPanStart(tapX),
-            onLongPressPanUpdate: (tapX: number) => this.gestures.onLongPressPanUpdate(tapX),
-            onLongPressVerticalPanUpdate: (offsetY: number) => this.gestures.onLongPressVerticalPanUpdate(offsetY),
+            onLongPressCancel: () => this.gestures.onLongPressCancel(),
+            onLongPressPanStart: (offsetX: number, offsetY: number) =>
+              this.gestures.onLongPressPanStart(offsetX, offsetY),
+            onLongPressPanUpdate: (offsetX: number, offsetY: number) =>
+              this.gestures.onLongPressPanUpdate(offsetX, offsetY),
             onPanMoveStart: (event: GestureEvent) => this.gestures.onPanMoveStart(event),
             onPanMoveUpdate: (event: GestureEvent) => this.gestures.onPanMoveUpdate(event),
             onPanMoveEnd: () => this.gestures.onPanMoveEnd(),
@@ -924,7 +962,7 @@ export struct VideoPlayer {
       this.controlsIdle.start()
       IntellectualGripPostureUtil.createHoldingHandStatus(this.holdingHandCallback)
       this.startPlayerAfterDestinationShown()
-      this.gestures.reset()
+      this.gestures.reset(true)
       this.player.volumeGestureActive = false
       this.danmakuPageVisible = true
       WantProcessUtil.setCardPlaybackHandler(this.cardPlaybackHandler)
@@ -946,7 +984,7 @@ export struct VideoPlayer {
       this.controlTouches.clear()
       this.playerDestinationShown = false
       this.stopHoldingHandSubscription()
-      this.gestures.reset()
+      this.gestures.reset(true)
       this.player.volumeGestureActive = false
       this.danmakuPageVisible = false
       if (deviceInfo.apiAvailable('26.0.0')) {
@@ -1062,60 +1100,8 @@ export struct VideoPlayer {
           : ToolsUtil.getStringResource($r('app.string.close_rotation_lock').id)
         ToolsUtil.showToast(toastMessage)
       },
-      onSpecificVideoProportions: (playAreaSize: number[]) => {
-        this.player.playAreaWidth = playAreaSize[0]
-        this.player.playAreaHeight = playAreaSize[1]
-        this.player.isZoomed = false
-        this.player.scaleFactor = 1
-        this.player.translateX = 0
-        this.player.translateY = 0
-      },
-      onOriginalRatio: () => {
-        this.player.resetAspectRatio()
-        this.player.playAreaHeight = VideoInfoUtil.playAreaHeight
-        this.player.playAreaWidth = VideoInfoUtil.playAreaWidth
-        this.player.isZoomed = false
-        this.player.scaleFactor = 1
-        this.player.translateX = 0
-        this.player.translateY = 0
-      },
-      onStretchedToFullScreen: () => {
-        this.player.stretchToFullScreen()
-        this.player.playAreaHeight = this.player.screenHeight
-        this.player.playAreaWidth = this.player.screenWidth
-        this.player.isZoomed = false
-        this.player.scaleFactor = 1
-        this.player.translateX = 0
-        this.player.translateY = 0
-      },
-      onFullScreenByWidth: () => {
-        this.player.playAreaWidth = this.player.screenWidth
-        this.player.playAreaHeight =
-          (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * this.player.screenWidth
-        this.player.isZoomed = false
-        this.player.scaleFactor = 1
-        this.player.translateX = 0
-        this.player.translateY = 0
-      },
-      onFullScreenByHeight: () => {
-        this.player.playAreaHeight = this.player.screenHeight
-        this.player.playAreaWidth =
-          (VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * this.player.screenHeight
-        this.player.isZoomed = false
-        this.player.scaleFactor = 1
-        this.player.translateX = 0
-        this.player.translateY = 0
-      },
-      onUniformScale: (scale: number) => {
-        this.player.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
-        this.player.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
-        this.player.isZoomed = false
-        this.player.scaleFactor = 1
-        this.player.translateX = 0
-        this.player.translateY = 0
-      },
       onSelectedTextChange: (text: string) => {
-        this.player.selectedText = text
+        PlayerViewportState.applyAspectRatio(this.player, text)
         Preferences.saveScreenExtend(PathUtils.appContext!, text)
       },
       pipStateChange: async () => {
@@ -1322,6 +1308,7 @@ export struct VideoPlayer {
     PlaybackSpeedMenuComponent({
       player: this.player,
       onSpeedChange: (speed: number) => {
+        this.gestures.unlockSpeed()
         this.player.updatePlaybackSpeed(speed)
         this.player.savePlayerSpeed(PathUtils.appContext!)
       }
@@ -1705,10 +1692,11 @@ export struct VideoPlayer {
       salmonLogger.addLog(TAG, `保存退出播放进度失败: ${error.message}`, true)
     })
     this.isPageDisappearing = true
+    SurfaceScreenshotCapture.discardStale()
     this.playbackSession.beginClosing()
     this.rangeEditorDialog.close()
+    this.gestures.reset()
     this.player.initialPlaying = false
-    this.player.pause()
     this.player.onWillDisappearCleanup()
   }
 

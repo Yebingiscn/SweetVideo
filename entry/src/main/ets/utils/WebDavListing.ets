@@ -1,6 +1,5 @@
 import WebDavAddress from './WebDavAddress'
 import { WebDavEntry } from '../interfaces/WebDavInterface'
-import ToolsUtil from './ToolsUtil.ets'
 
 /** XML event consumer, kept separate so DAV response handling can be tested. */
 export default class WebDavListing {
@@ -65,8 +64,7 @@ export default class WebDavListing {
   }
 
   finish(): WebDavEntry[] {
-    if (!this.multistatus || this.stack.length !== 0) throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_invalid_directory_format').id))
-    return this.entries.sort((a: WebDavEntry, b: WebDavEntry) => a.directory !== b.directory ?
-      (a.directory ? -1 : 1) : a.name.localeCompare(b.name, 'zh-CN', { numeric: true }))
+    if (!this.multistatus || this.stack.length !== 0) throw new Error('Invalid WebDAV directory format')
+    return this.entries
   }
 }

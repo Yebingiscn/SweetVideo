@@ -102,7 +102,7 @@ export default class FolderDirectory {
     return chain
   }
 
-  sortedVideos(folder: FileFolder, field: string, ascending: boolean, pinyin: boolean): VideoMetadata[] {
+  async sortedVideos(folder: FileFolder, field: string, ascending: boolean, pinyin: boolean): Promise<VideoMetadata[]> {
     const source = folder.video_list
     if (!field || source.length < 2) return source
     const cached = this.videoOrders.get(folder.date)
@@ -120,8 +120,9 @@ export default class FolderDirectory {
         videos = MediaSortUtil.sortByRecentPlayProcess(source, ascending)
         break
       default:
-        videos = MediaSortUtil.sortByNameProcess(source, ascending, pinyin)
+        videos = await MediaSortUtil.sortByNameProcess(source, ascending, pinyin)
     }
+    if (folder.video_list !== source) return folder.video_list
     this.videoOrders.set(folder.date,
       { source: source, count: source.length, field: field, ascending: ascending, pinyin: pinyin, videos: videos })
     return videos

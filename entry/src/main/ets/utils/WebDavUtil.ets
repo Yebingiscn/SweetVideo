@@ -1,6 +1,7 @@
+import { parseWebDavDirectory } from './WebDavParseTask'
 import preferences from '@ohos.data.preferences'
 import asset from '@ohos.security.asset'
-import { util, xml } from '@kit.ArkTS'
+import { util, taskpool } from '@kit.ArkTS'
 import { http } from '@kit.NetworkKit'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
@@ -11,7 +12,6 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { PathUtils } from './PathUtils'
 import TextEncodingUtil from './TextEncodingUtil'
 import WebDavAddress from './WebDavAddress'
-import WebDavListing from './WebDavListing'
 
 export interface WebDavSource {
   url: string
@@ -21,6 +21,7 @@ export interface WebDavSource {
 export class WebDavRequest {
   private requests: Set<http.HttpRequest> = new Set()
   private closed: boolean = false
+  private tasks: Set<taskpool.Task> = new Set()
 
   async request(url: string, options: http.HttpRequestOptions): Promise<http.HttpResponse> {
     if (this.closed) throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_request_cancelled').id))
@@ -39,8 +40,24 @@ export class WebDavRequest {
     }
   }
 
+  async parseDirectory(text: string, url: string, folder: string): Promise<WebDavEntry[]> {
+    if (this.closed) throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_request_cancelled').id))
+    const task = new taskpool.Task(parseWebDavDirectory, text, url, folder)
+    this.tasks.add(task)
+    try {
+      const entries = await taskpool.execute(task, taskpool.Priority.HIGH) as WebDavEntry[]
+      if (this.closed) throw new Error('Cancelled')
+      return entries
+    } catch (_) {
+      throw new Error(ToolsUtil.getStringResource(this.closed ?
+        $r('app.string.webdav_request_cancelled').id : $r('app.string.webdav_invalid_xml').id))
+    } finally { this.tasks.delete(task) }
+  }
+
   close(): void {
     this.closed = true
+    this.tasks.forEach((task: taskpool.Task) => { try { taskpool.cancel(task) } catch (_) {} })
+    this.tasks.clear()
     this.requests.forEach((request: http.HttpRequest) => { try { request.destroy() } catch (_) {} })
     this.requests.clear()
   }
@@ -132,21 +149,7 @@ export default class WebDavUtil {
         expectDataType: http.HttpDataType.STRING, usingCache: false, maxRedirects: 0,
         connectTimeout: 5000, readTimeout: 15000, maxLimit: 8 * 1024 * 1024 })
       WebDavUtil.checkStatus(response.responseCode, 207)
-      const text = response.result as string
-      if (/<!DOCTYPE|<!ENTITY/i.test(text)) throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_unsupported_xml').id))
-      const listing = new WebDavListing(url, folder)
-      const bytes = new util.TextEncoder().encodeInto(text)
-      try {
-        new xml.XmlPullParser(bytes.buffer as ArrayBuffer, 'UTF-8').parseXml({ supportDoctype: false, ignoreNameSpace: false,
-        tokenValueCallbackFunction: (event: xml.EventType, info: xml.ParseInfo): boolean => {
-          if (event === xml.EventType.START_TAG) listing.start(info.getName(), info.getNamespace())
-          else if (event === xml.EventType.END_TAG) listing.end()
-          else if (event === xml.EventType.TEXT || event === xml.EventType.CDSECT ||
-            event === xml.EventType.ENTITY_REFERENCE || event === xml.EventType.WHITESPACE) listing.characters(info.getText())
-          return true
-        } })
-      } catch (_) { throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_invalid_xml').id)) }
-      return listing.finish()
+      return await request.parseDirectory(response.result as string, url, folder)
     } catch (error) {
       salmonLogger.addLog('WebDAV', '目录读取失败', true)
       throw error instanceof Error ? error : new Error(ToolsUtil.getStringResource($r('app.string.webdav_directory_parse_failed').id))

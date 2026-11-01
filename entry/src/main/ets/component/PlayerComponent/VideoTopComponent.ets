@@ -1,8 +1,7 @@
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
-import { SCALE_FACTORS, SCREEN_EXTEND_LIST } from '../../common/Constants'
+import { SCREEN_EXTEND_LIST } from '../../common/Constants'
 import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
-import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { HiCar } from '../../utils/HiCarUtil'
 
 @ComponentV2
@@ -31,18 +30,6 @@ export struct VideoTopComponent {
   @Event onControlsOverlay: (name: string, visible: boolean) => void = () => {
   }
   @Event onExitVideoClick: () => void = () => {
-  }
-  @Event onOriginalRatio: () => void = () => {
-  }
-  @Event onStretchedToFullScreen: () => void = () => {
-  }
-  @Event onFullScreenByWidth: () => void = () => {
-  }
-  @Event onFullScreenByHeight: () => void = () => {
-  }
-  @Event onUniformScale: (_scale: number) => void = () => {
-  }
-  @Event onSpecificVideoProportions: (_playAreaSize: number[]) => void = () => {
   }
   @Event onSelectedTextChange: (_text: string) => void = () => {
   }
@@ -246,9 +233,7 @@ export struct VideoTopComponent {
       ForEach(SCREEN_EXTEND_LIST, (option: SelectOption) => {
         MenuItem({ content: option.value })
           .onClick(() => {
-            const text = option.value as string
-            this.screenExtend(text)
-            this.onSelectedTextChange(text)
+            this.selectAspectRatio(option.value as string)
           })
       }, (option: SelectOption) => option.value as string)
     }
@@ -281,45 +266,17 @@ export struct VideoTopComponent {
         MenuItem({ content: option.value })
           .height(56)
           .onClick(() => {
-            const text = option.value as string
-            this.screenExtend(text)
-            this.onSelectedTextChange(text)
+            this.selectAspectRatio(option.value as string)
           })
       }, (option: SelectOption) => option.value as string)
     }
   }
 
-  private screenExtend(text: string) {
-    if (VideoInfoUtil.ASPECT_RATIO_MAP.has(text)) {
-      const playAreaSize = VideoOperateUtil.setVideoAspectRatio(
-        VideoInfoUtil.ASPECT_RATIO_MAP.get(text)!,
-        VideoInfoUtil.playAreaWidth,
-        VideoInfoUtil.playAreaHeight
-      )
-      this.onSpecificVideoProportions(playAreaSize)
+  private selectAspectRatio(text: string): void {
+    if (text === VideoInfoUtil.screenExtendMap[4]) {
+      this.onOpenPersonalScreenExtend()
       return
     }
-    switch (text) {
-      case VideoInfoUtil.screenExtendMap[0]:
-        this.onOriginalRatio()
-        break
-      case VideoInfoUtil.screenExtendMap[1]:
-        this.onStretchedToFullScreen()
-        break
-      case VideoInfoUtil.screenExtendMap[2]: // 适应宽度
-        this.onFullScreenByWidth()
-        break
-      case VideoInfoUtil.screenExtendMap[3]: // 适应高度
-        this.onFullScreenByHeight()
-        break
-      case VideoInfoUtil.screenExtendMap[4]: // 自定义比例
-        this.onOpenPersonalScreenExtend()
-      default:
-        const scale = text ? SCALE_FACTORS.get(text) : undefined
-        if (scale) {
-          this.onUniformScale(scale)
-        }
-        break
-    }
+    this.onSelectedTextChange(text)
   }
 }

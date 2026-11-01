@@ -66,6 +66,7 @@ export interface PlayerControllerInterface extends FramePreviewTarget, PlaybackP
   onSwipingBrightness: boolean
   onSwiping: boolean
   isSliderPlayTimeChange: boolean
+  isListenVideo: boolean
   // Actual engine position, independent of the draggable progress preview.
   playbackPositionMs: number
   playing: boolean
@@ -215,10 +216,6 @@ export interface PlayerControllerInterface extends FramePreviewTarget, PlaybackP
   offMetricsEvent(callback?: (info: Array<media.AVMetricsEvent>) => void): void
 
   seekToChapter(chapterIndex: number): void
-
-  resetAspectRatio(): void
-
-  stretchToFullScreen(): void
 
   exitPlayback(timeout: number): Promise<void>
 

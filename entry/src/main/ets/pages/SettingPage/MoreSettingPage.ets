@@ -1,5 +1,5 @@
 import { salmonLogger } from 'salmonlogger'
-import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
+import { DocMarkdown } from '../../component/common/DocMarkdown'
 import NavigationAddress from '../../common/NavigationCommon'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
@@ -18,18 +18,13 @@ import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 const TAG = 'MoreSettingPage'
 
+// V2 @Consumer 消费导航状态，页面实例同时持有与导航栏绑定的稳定 Scroller。
+// 当前 CL 规则未识别 Consumer，仅忽略此声明的无状态组件建议。
 @ComponentV2
+// eslint-disable-next-line @performance/avoid-overusing-custom-component-check
 export struct MoreSettingPage {
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
-  controller: MarkdownController = new MarkdownController()
   private listScroller: Scroller = new Scroller()
-
-  aboutToAppear(): void {
-    this.controller.setTitleColor($r('app.color.text_color'))
-    this.controller.setTextColor($r('app.color.text_color'))
-    this.controller.setQuoteBackgroundColor($r('app.color.start_window_background_blur'))
-    this.controller.setLazyRender(true)
-  }
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
@@ -97,7 +92,9 @@ export struct MoreSettingPage {
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'is_list_display')
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'defaultPlayer')
               const missingFileSum = await FileFolderUtil.cleanInvalidFiles(PathUtils.appContext!)
-              ToolsUtil.showToast(missingFileSum > 0 ? ToolsUtil.getStringResourceArgs($r('app.string.deleted_files_count').id, missingFileSum) : ToolsUtil.getStringResource($r('app.string.no_invalid_files').id))
+              ToolsUtil.showToast(missingFileSum > 0 ?
+                ToolsUtil.getStringResourceArgs($r('app.string.deleted_files_count').id, missingFileSum) :
+                ToolsUtil.getStringResource($r('app.string.no_invalid_files').id))
             }
           })
         }
@@ -123,21 +120,7 @@ export struct MoreSettingPage {
 
         ListItem() {
           Column() {
-            Markdown({
-              controller: this.controller,
-              mode: 'rawfile',
-              context: PathUtils.appContext!,
-              rawfilePath: 'Tips.md',
-              callback: {
-                complete: () => {
-                  salmonLogger.addLog(TAG, 'Markdown component load success.', false)
-                },
-                fail: (code: number, message: string) => {
-                  salmonLogger.addLog(TAG,
-                    'Markdown component load error. code: ' + code + ', message: ' + message, true)
-                }
-              }
-            })
+            DocMarkdown({ rawfilePath: 'Tips.md' })
           }
           .margin({ top: 10 })
           .padding(15)

@@ -8,7 +8,7 @@ import { window } from '@kit.ArkUI'
 import { salmonLogger } from 'salmonlogger'
 import Preferences from '../database/Preferences'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import { Pc, Privacy, Setting } from '../utils/ObservedUtil'
+import { Pc, Privacy } from '../utils/ObservedUtil'
 import { PathUtils } from '../utils/PathUtils'
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil'
 import ToolsUtil from '../utils/ToolsUtil'
@@ -28,10 +28,11 @@ const TAG = 'EntryAbility'
 export default class EntryAbility extends UIAbility {
   watcher: hiAppEvent.Watcher | undefined = undefined
   private mainWindow: window.Window | undefined = undefined
-  private startupFileCleanup: Promise<void> | undefined = undefined
+  private startupFileCleanup: Promise<void> = Promise.resolve()
   private windowStageVersion: number = 0
 
   async onCreate(want: Want, launchParam: AbilityConstant.LaunchParam) {
+    VideoOperateUtil.backgroundSettingsInitialized = false
     const backgroundColorMode = Preferences.getBackgroundColorMode(this.context)
     ToolsUtil.setColorMode(this.context.getApplicationContext(), backgroundColorMode)
     //  PreferencesUtil.localPreferences(this.context, 'sweet_video')
@@ -39,6 +40,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate('context', this.context)
     HiCarUtil.start(this.context)
     PathUtils.init(this.context)
+    VideoOperateUtil.syncBackgroundColorMode(this.context)
     this.startupFileCleanup = FileFolderUtil.cleanInvalidFiles(this.context).then((count: number) => {
       salmonLogger.addLog(TAG, `启动清理失效文件完成，共 ${count} 个`, false)
     }).catch((error: BusinessError) => {
@@ -168,6 +170,8 @@ export default class EntryAbility extends UIAbility {
         hilog.error(0x0000, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err) ?? '')
         return
       }
+      VideoOperateUtil.syncBackgroundColorMode(this.context)
+      this.refreshBackground()
       this.updateWindowBackground()
       VideoOperateUtil.windowStage = windowStage
       if (this.mainWindow) {
@@ -237,6 +241,12 @@ export default class EntryAbility extends UIAbility {
   }
 
   onForeground(): void {
+    const colorModeChanged = VideoOperateUtil.syncBackgroundColorMode(this.context)
+    this.refreshBackground()
+    if (colorModeChanged) {
+      this.updateWindowBackground()
+      WindowUtil.recoveryBarColor()
+    }
     AppForegroundState.setForeground(true)
     HiCarUtil.refresh()
     MediaSmartGestureSession.setAppForeground(true)
@@ -257,21 +267,20 @@ export default class EntryAbility extends UIAbility {
   }
 
   onConfigurationUpdate(newConfig: Configuration): void {
-    let newColorMode = newConfig.colorMode
-    let currentColorMode = AppStorage.get<ConfigurationConstant.ColorMode>('currentColorMode')
-    if (newColorMode === currentColorMode) {
-      return
-    }
-    setTimeout(async () => {
-      Setting.backgroundImageSrc = ImageFileUtil.getImageUri()
-      if (Setting.backgroundDropBlur > 0 && Setting.backgroundImageSrc.length > 0) {
-        await ImageFileUtil.updateBlurBackground(Setting.backgroundDropBlur)
-      }
-    }, 100)
-    // 更新缓存中的颜色模式
-    AppStorage.setOrCreate('currentColorMode', newConfig.colorMode)
+    if (newConfig.colorMode !== ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT &&
+      newConfig.colorMode !== ConfigurationConstant.ColorMode.COLOR_MODE_DARK) return
+    if (!VideoOperateUtil.syncBackgroundColorMode(this.context, newConfig.colorMode)) return
+    this.refreshBackground()
     this.updateWindowBackground()
     WindowUtil.recoveryBarColor()
+  }
+
+  private refreshBackground(): void {
+    // Index restores the saved dark-wallpaper switch before the first selection.
+    if (!VideoOperateUtil.backgroundSettingsInitialized) return
+    void ImageFileUtil.refreshBackground().catch((error: Error) => {
+      salmonLogger.addLog(TAG, `刷新主题壁纸失败: ${error.message}`, true)
+    })
   }
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })

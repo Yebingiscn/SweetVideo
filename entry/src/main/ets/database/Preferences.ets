@@ -1,3 +1,4 @@
+import StreamHeaders from '../utils/StreamHeaders'
 import FolderHierarchy from '../utils/FolderHierarchy'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
@@ -5,7 +6,7 @@ import { VideoFormData } from '../forms/VideoFormData'
 
 import PreferencesUtil from './PreferencesUtil'
 import { Context } from '@kit.AbilityKit'
-import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
+import { SweetRepeatMode, normalizeRepeatMode } from '../common/enum/SweetRepeatMode'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
 import { MpvDecodingMethod, MpvGpuApi } from '../controller/MpvController/MpvTypes'
@@ -194,9 +195,15 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'loudness_gain', Math.max(-90, Math.min(24, gain)))
   }
 
-  static getRepeatModeState(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'repeatMode',
+  static getRepeatModeState(context: Context): SweetRepeatMode {
+    const storedMode = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'repeatMode',
       SweetRepeatMode.LIST) as SweetRepeatMode
+    const repeatMode = normalizeRepeatMode(storedMode)
+    if (storedMode !== repeatMode) {
+      PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'repeatMode', repeatMode)
+      salmonLogger.addLog('Preferences', '已将旧的或无效播放模式恢复为列表循环', false)
+    }
+    return repeatMode
   }
 
   static getBackgroundColorMode(context: Context) {
@@ -237,7 +244,7 @@ export default class Preferences {
   }
 
   static saveRepeatModeState(context: Context, repeatMode: SweetRepeatMode) {
-    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'repeatMode', repeatMode)
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'repeatMode', normalizeRepeatMode(repeatMode))
   }
 
   static saveDefaultPlayerEngine(context: Context, defaultPlayerEngine: string) {
@@ -731,6 +738,7 @@ export default class Preferences {
         sourceType: source.sourceType,
         location: source.location,
         userAgent: source.userAgent,
+        headers: source.headers,
         epgUrl: source.epgUrl,
         channels: [],
         channelCount: source.channelCount,
@@ -766,6 +774,8 @@ export default class Preferences {
       for (const v of folder.video_list) {
         const copiedVideo: VideoMetadata = {
           uri: v.uri,
+          network_custom_headers: v.network_custom_headers ? StreamHeaders.merge(v.network_custom_headers) : undefined,
+          network_user_agent: v.network_user_agent,
           title: v.title,
           artist: v.artist,
           album: v.album,

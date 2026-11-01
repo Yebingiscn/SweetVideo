@@ -1,4 +1,4 @@
-import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
+import { SweetRepeatMode, normalizeRepeatMode } from '../../common/enum/SweetRepeatMode'
 import AVSessionUtil from '../../utils/AVSessionUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
@@ -6,7 +6,7 @@ import { uiMaterial } from '@kit.ArkUI'
 import { LightMaterialModifier } from '../../common/AttributeModifierConfig'
 
 export function getRepeatModeIcon(repeatMode: SweetRepeatMode): Resource {
-  switch (repeatMode) {
+  switch (normalizeRepeatMode(repeatMode)) {
     case SweetRepeatMode.SINGLE:
       return $r('sys.symbol.repeat_1')
     case SweetRepeatMode.RANDOM:
@@ -21,7 +21,7 @@ export function getRepeatModeIcon(repeatMode: SweetRepeatMode): Resource {
 }
 
 export function getRepeatModeText(repeatMode: SweetRepeatMode): string {
-  switch (repeatMode) {
+  switch (normalizeRepeatMode(repeatMode)) {
     case SweetRepeatMode.SINGLE:
       return ToolsUtil.getStringResource($r('app.string.repeat_single').id)
     case SweetRepeatMode.RANDOM:

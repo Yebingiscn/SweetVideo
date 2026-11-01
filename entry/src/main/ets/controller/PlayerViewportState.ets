@@ -46,6 +46,16 @@ export class PlayerViewportState {
     this.snapshot = undefined
   }
 
+  static applyAspectRatio(player: PlayerControllerInterface, mode: string): void {
+    player.selectedText = mode
+    player.scaleFactor = 1
+    player.translateX = 0
+    player.translateY = 0
+    player.isZoomed = false
+    // Reuse the initial/resize layout path after committing the new mode.
+    player.setRotation()
+  }
+
   static resize(player: PlayerControllerInterface, width: number, height: number): boolean {
     if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0 ||
       (player.screenWidth === width && player.screenHeight === height)) return false

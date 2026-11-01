@@ -45,6 +45,8 @@ export interface VideoMetadata {
   external_audio_selected?: boolean
   external_audio_offset_ms?: number
   network_user_agent?: string
+  /** Explicit user configuration; session-generated credentials stay in network_http_headers. */
+  network_custom_headers?: Record<string, string>
   /** Stable SMB reference for an optional matching sidecar subtitle. */
   smb_subtitle_uri?: string
   /** Stable credential-free WebDAV reference for a matching subtitle. */

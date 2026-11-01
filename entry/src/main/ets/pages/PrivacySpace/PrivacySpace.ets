@@ -736,6 +736,7 @@ export struct PrivacySpace { // 隐私空间页
 
   aboutToDisappear(): void {
     this.pageActive = false
+    this.searchSortVersion++
     this.batchCancelled = true
     this.unregisterKnockFilesMonitor()
     this.folderDialog?.close()
@@ -1056,6 +1057,8 @@ export struct PrivacySpace { // 隐私空间页
       })
     }
     .onWillDisappear(() => {
+      this.pageActive = false
+      this.searchSortVersion++
       IntellectualGripPostureUtil.destroyHoldingHandStatus()
       PrivacySpaceUtil.closePrivacyMode()
     })
@@ -1470,7 +1473,10 @@ export struct PrivacySpace { // 隐私空间页
     }
   }
 
-  private applySearch() {
+  private searchSortVersion: number = 0
+
+  private async applySearch(): Promise<void> {
+    const version = ++this.searchSortVersion
     this.privateFolders = PrivacyFolderUtil.project(this.folderState, this.allVideos)
     const validDates = new Set(this.privateFolders.map(folder => folder.date))
     if (this.currentFolderDate !== PrivacyFolderUtil.ALL && this.currentFolderDate !== '' &&
@@ -1481,15 +1487,19 @@ export struct PrivacySpace { // 隐私空间页
     this.folderPath = directory.path(this.currentFolderDate)
     const parent = this.currentFolderDate === PrivacyFolderUtil.ALL ? null : this.currentFolderDate || null
     const query = this.searchValue.trim().toLocaleLowerCase()
-    this.childFolders = MediaSortUtil.sortFolderByNameProcess(directory.childFolders(parent)
+    const childFolders = await MediaSortUtil.sortFolderByNameProcess(directory.childFolders(parent)
       .filter(folder => !query || folder.name.toLocaleLowerCase().includes(query)), true, this.pinyinSort)
+    if (!this.pageActive || version !== this.searchSortVersion) return
+    this.childFolders = childFolders
     const scoped = PrivacyFolderUtil.videosIn(this.folderState, this.allVideos, this.currentFolderDate)
     this.currentFolderVideoCount = scoped.length
     this.video_meta_data_encryption = this.searchValue.trim()
       ? MediaLibraryService.getItemFromSearch(scoped, this.searchValue) : scoped
     if (this.currentSortField === SortField.NAME) {
-      this.video_meta_data_encryption = MediaSortUtil.sortByNameProcess(this.video_meta_data_encryption,
-        this.currentSortAsc, this.pinyinSort)
+      const source = this.video_meta_data_encryption
+      const sorted = await MediaSortUtil.sortByNameProcess(source, this.currentSortAsc, this.pinyinSort)
+      if (!this.pageActive || version !== this.searchSortVersion) return
+      this.video_meta_data_encryption = sorted
     } else if (this.currentSortField === SortField.DATETIME) {
       this.video_meta_data_encryption = MediaSortUtil.sortByDatetimeProcess(this.video_meta_data_encryption, this.currentSortAsc)
     } else if (this.currentSortField === SortField.TIME) {

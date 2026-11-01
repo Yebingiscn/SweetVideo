@@ -917,6 +917,10 @@
       "value": "Long-press speed"
     },
     {
+      "name": "long_press_speed_hint",
+      "value": "Swipe up to lock · Swipe down to restore"
+    },
+    {
       "name": "horizontal_seek_sensitivity",
       "value": "Horizontal swipe seek sensitivity"
     },
@@ -3185,6 +3189,10 @@
       "value": "No previous item"
     },
     {
+      "name": "no_next_item",
+      "value": "No next item"
+    },
+    {
       "name": "set_audio_output_mode_failed",
       "value": "Failed to set the audio output mode"
     },
@@ -4357,6 +4365,8 @@
     {"name":"network_bluray_core_required","value":"This MPV core does not support network Blu-ray folders. Update the player core."},
     {"name":"screenshot_processing","value":"Taking screenshot…"},
     {"name":"screenshot_queued","value":"Screenshot queued"},
-    {"name":"screenshot_failed","value":"Screenshot failed. Please try again."}
+    {"name":"screenshot_failed","value":"Screenshot failed. Please try again."},
+    {"name": "stream_headers_hint", "value": "Headers (optional, one per line, e.g. Referer: https://example.com)"},
+    {"name": "stream_headers_invalid", "value": "Invalid or oversized headers. Enter one Name: Value per line."}
   ]
 }
