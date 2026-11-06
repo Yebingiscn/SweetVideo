@@ -4,6 +4,12 @@ import { FileFolder } from '../interfaces/FileFolderInterface'
 import { DefaultDialogShadow } from '../common/AttributeModifierConfig'
 import { VideoListController } from '../controller/VideoListController'
 import { SideBarController } from '../component/SideBarComponent/SideBar'
+import { FolderMenuAction, FolderMenuActions } from '../component/FileFolderComponent/FileFolderSelectBuilder'
+import { RenameDialog } from '../component/Dialog/RenameDialog'
+import { MoveFileFolderDialog } from '../component/Dialog/MoveFileFolderDialog'
+import { FolderOpeningEndingDialog } from '../component/Dialog/FolderOpeningEndingDialog'
+import { InfoConfirmDialog } from '../component/Dialog/InfoConfirmDialog'
+import FolderSelection from '../utils/FolderSelection'
 import { DeletedVideosDialog } from '../component/Dialog/DeletedVideosDialog'
 import { motion } from '@kit.MultimodalAwarenessKit'
 import { salmonLogger } from 'salmonlogger'
@@ -16,10 +22,9 @@ import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportPro
 import { VideoView } from '../component/VideoItemComponent/VideoViewComponent'
 import Preferences from '../database/Preferences'
 import StartupPageUtil from '../utils/StartupPageUtil'
-import { VideoMetaDataOperator } from '../database/VideoMetaData'
+import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import AccountUtil from '../utils/AccountUtil'
-import { XAnimation } from '../utils/AnimationUtil'
 import BiometricAccessUtil from '../utils/BiometricAccessUtil'
 import { PrivacyAuthMode } from '../common/enum/PrivacyAuthMode'
 import { userAuth } from '@kit.UserAuthenticationKit'
@@ -101,11 +106,43 @@ struct Index {
   @Provider() sideBarController: SideBarController = new SideBarController()
   @Provider('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Provider() libraryKeyboard: LibraryKeyboard = new LibraryKeyboard()
+  @Provider() folderMenuActions: FolderMenuActions = new FolderMenuActions()
   @Local scrollToFolderDate: string = ''
   deletedVideosDialogController: CustomDialogController = new CustomDialogController({
     builder: DeletedVideosDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  private folderRenameDialog = new CustomDialogController({
+    builder: RenameDialog({
+      title: $r('app.string.rename_new_folder'),
+      renameTarget: 'folder',
+      onConfirm: async (name: string) => {
+        const folder = DataSyncUtil.editingFolder
+        if (folder) {
+          await FileFolderUtil.changeFileFolderName(PathUtils.appContext!, folder, name, this.fileFolderSource)
+          this.publishFolderChanges(Preferences.getFileFolder(PathUtils.appContext!))
+        }
+      }
+    }),
+    cornerRadius: 20,
+    shadow: DefaultDialogShadow,
+    onDidDisappear: () => this.libraryKeyboard.reset()
+  })
+  private folderMoveDialog = new CustomDialogController({
+    builder: MoveFileFolderDialog({
+      onFolderMoved: (folders: FileFolder[]) => this.publishFolderChanges(folders)
+    }),
+    cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  private folderTimingDialog = new CustomDialogController({
+    builder: FolderOpeningEndingDialog({
+      onConfirm: (date: string, start: number, end: number) => this.updateFolderTiming(date, start, end)
+    }),
+    cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  private folderDeleteDialog: CustomDialogController | undefined = undefined
   sideBarScroller: Scroller = new Scroller()
+  sidebarHeaderScroller: Scroller = new Scroller()
+  private sidebarFolderIndices: Map<string, number> = new Map()
   private homeWindowWidth: number = 0
   private homeNavVisible: boolean = true
   private homeResumeTimer: number | undefined = undefined
@@ -161,11 +198,28 @@ struct Index {
   }
 
   async aboutToAppear(): Promise<void> {
-    this.homeInitialization = this.initializeHome(++this.homeLifecycleVersion)
+    this.folderMenuActions.run = (action: FolderMenuAction, folder: FileFolder) => this.runFolderAction(action, folder)
+    this.folderMenuActions.playDisc = async (item: VideoMetadata, list: VideoMetadata[]) => {
+      if (!this.folderMenuActions.deleting && !this.videoListController.directoryTransitioning) {
+        this.sideBarController.closeIfOverlay(false)
+        await ToolsUtil.routerWhere(this.pathStack, item, list)
+      }
+    }
+    this.folderMenuActions.confirmDelete = (dates: string[], onDeleted: () => void) =>
+      this.confirmFolderDeletion(dates, onDeleted)
+    const lifecycleVersion = ++this.homeLifecycleVersion
+    this.homeInitialization = this.initializeHome(lifecycleVersion).catch((): boolean => {
+      if (lifecycleVersion === this.homeLifecycleVersion) {
+        salmonLogger.addLog(TAG, 'Could not initialize the media library', true)
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.library_operation_failed').id))
+      }
+      return false
+    })
     await this.homeInitialization
   }
 
   aboutToDisappear(): void {
+    this.folderDeleteDialog?.close()
     this.homeNavVisible = false
     if (this.homeResumeTimer !== undefined) {
       clearTimeout(this.homeResumeTimer)
@@ -547,6 +601,107 @@ struct Index {
     }
   }
 
+  private runFolderAction(action: FolderMenuAction, folder: FileFolder): void {
+    if (this.folderMenuActions.deleting || this.videoListController.directoryTransitioning) {
+      return
+    }
+    if (action === FolderMenuAction.INTRO_OUTRO) {
+      if (folder.video_list.length === 0) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_no_video').id))
+        return
+      }
+      DataSyncUtil.editingFolder = folder
+      this.folderTimingDialog.open()
+      return
+    }
+    if (folder.name === '首页') {
+      return
+    }
+    if (action === FolderMenuAction.EDIT) {
+      DataSyncUtil.editingFolder = folder
+      this.folderRenameDialog.open()
+    } else if (action === FolderMenuAction.MOVE) {
+      DataSyncUtil.movingFolderDate = folder.date
+      this.folderMoveDialog.open()
+    } else {
+      this.confirmFolderDeletion([folder.date])
+    }
+  }
+
+  private publishFolderChanges(folders: FileFolder[]): void {
+    const current = folders.find(folder => folder.date === this.videoListController.folder?.date)
+    if (current) {
+      this.videoListController.folder = current
+    }
+    this.fileFolderSource.updateData(folders)
+    this.file_folder_list = folders
+  }
+
+  private updateFolderTiming(date: string, start: number, end: number): void {
+    const folders = FolderOperator.updateFolderOpeningEndingTimes(date, start, end)
+    const updated = folders.find(folder => folder.date === date)
+    if (!updated) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_not_exist_set_failed').id))
+      return
+    }
+    if (this.videoListController.folder?.date === date) {
+      const visibleDates = new Set(this.videoListController.videoDataSource.getAllData().map(video => video.date))
+      const visible = updated.video_list.filter(video => visibleDates.has(video.date))
+      this.videoListController.selectDirectoryFolder(updated, visible)
+    }
+    this.publishFolderChanges(folders)
+    ToolsUtil.showToast(`已更新 ${updated.video_list.length} 个视频的片头片尾时间`)
+  }
+
+  private confirmFolderDeletion(dates: string[], onDeleted?: () => void): void {
+    if (this.folderMenuActions.deleting || this.videoListController.directoryTransitioning || dates.length === 0) {
+      return
+    }
+    const plan = FolderSelection.deletionPlan(Preferences.getFileFolder(PathUtils.appContext!), dates)
+    if (plan.dates.size === 0) {
+      return
+    }
+    this.folderDeleteDialog = new CustomDialogController({
+      builder: InfoConfirmDialog({
+        textInfo: $r('app.string.folder_batch_delete_confirm', plan.dates.size, plan.videoCount),
+        confirm: () => { void this.deleteFolders(dates, onDeleted) }
+      }),
+      cornerRadius: 20,
+      shadow: DefaultDialogShadow,
+      onDidDisappear: () => this.libraryKeyboard.reset()
+    })
+    this.folderDeleteDialog.open()
+  }
+
+  private async deleteFolders(dates: string[], onDeleted?: () => void): Promise<void> {
+    if (this.folderMenuActions.deleting) {
+      return
+    }
+    this.folderMenuActions.deleting = true
+    try {
+      const folders = await FileFolderUtil.deleteFileFoldersRecursive(PathUtils.appContext!, dates, this.fileFolderSource)
+      const retained = folders.find(folder => folder.date === this.videoListController.folder?.date)
+      const current = retained ?? folders.find(folder => folder.name === '首页') ?? folders[0]
+      this.videoListController.closeMultipleChoose()
+      if (onDeleted || !retained) {
+        this.clearSearchValue()
+      }
+      if (current && (onDeleted || !retained || this.searchValue.length === 0)) {
+        this.file_folder_list = VideoUtils.refresh(this.videoListController, this.fileFolderSource, current)
+        this.scrollToFolderDate = current.date
+      } else {
+        this.publishFolderChanges(folders)
+      }
+      onDeleted?.()
+    } catch (_error) {
+      salmonLogger.addLog(TAG, 'Could not delete folders', true)
+      const message = onDeleted ? $r('app.string.folder_batch_delete_failed') : $r('app.string.delete_failed_retry')
+      ToolsUtil.showToast(ToolsUtil.getStringResource(message.id))
+    } finally {
+      this.folderMenuActions.deleting = false
+    }
+  }
+
   clearSearchValue() {
     if (this.searchValue.length > 0) {
       this.searchValue = ''
@@ -564,6 +719,10 @@ struct Index {
     if (this.sideBarController.visibility === Visibility.Visible &&
       this.sideBarController.mode === SideBarContainerType.Overlay) {
       this.sideBarController.close(true)
+      return true
+    }
+    if (this.videoListController.directoryFolderSelection) {
+      this.videoListController.directoryFolderSelection = undefined
       return true
     }
     if (this.clearSearchValue()) {
@@ -599,6 +758,10 @@ struct Index {
       file_folder_list: this.file_folder_list,
       scrollToFolderDate: this.scrollToFolderDate,
       sideBarScroller: this.sideBarScroller,
+      sidebarHeaderScroller: this.sidebarHeaderScroller,
+      onFolderTreeIndicesChange: (indices: Map<string, number>) => {
+        this.sidebarFolderIndices = indices
+      },
       fileFolderListChange: (folders: FileFolder[]) => {
         this.file_folder_list = folders
       },
@@ -716,6 +879,18 @@ struct Index {
     if (!this.libraryKeyboard.accept(action)) {
       return true
     }
+    const selectedFolders = this.videoListController.directoryFolderSelection
+    if (selectedFolders && (action === ShortcutAction.DELETE || action === ShortcutAction.ESCAPE)) {
+      if (action === ShortcutAction.DELETE) {
+        this.confirmFolderDeletion(Array.from(selectedFolders), () => {
+          this.videoListController.directoryFolderSelection = undefined
+        })
+      } else {
+        this.videoListController.directoryFolderSelection = undefined
+      }
+      event.stopPropagation()
+      return true
+    }
     switch (action) {
       case ShortcutAction.SEARCH:
         this.sideBarController.closeIfOverlay(false)
@@ -768,7 +943,11 @@ struct Index {
         this.libraryKeyboard.directoryNavigation = previousRequest !== this.videoListController.directoryRequest
         break
       case ShortcutAction.SELECT_ALL:
-        if (this.libraryKeyboard.focusKind === 'sidebar-folder') {
+        if (selectedFolders) {
+          if (!this.folderMenuActions.deleting) {
+            this.videoListController.selectAllDirectoryFolders()
+          }
+        } else if (this.libraryKeyboard.focusKind === 'sidebar-folder') {
           this.libraryKeyboard.onFolderAction?.(action, this.libraryKeyboard.focusDate)
         } else {
           this.libraryKeyboard.onSelectAll?.()
@@ -784,8 +963,17 @@ struct Index {
             1) {
             this.libraryKeyboard.onVideoAction?.(action, DataSyncUtil.delMultipleList[0].date)
           }
-        } else if (this.libraryKeyboard.focusKind === 'sidebar-folder' ||
-          this.libraryKeyboard.focusKind === 'directory-folder') {
+        } else if (this.libraryKeyboard.focusKind === 'directory-folder') {
+          const date = selectedFolders?.size === 1 ? Array.from(selectedFolders)[0] : this.libraryKeyboard.focusDate
+          const folder = this.file_folder_list.find(item => item.date === date)
+          if (folder && (!selectedFolders || selectedFolders.size === 1)) {
+            if (action === ShortcutAction.RENAME) {
+              this.runFolderAction(FolderMenuAction.EDIT, folder)
+            } else {
+              this.confirmFolderDeletion([folder.date], () => {})
+            }
+          }
+        } else if (this.libraryKeyboard.focusKind === 'sidebar-folder') {
           this.libraryKeyboard.onFolderAction?.(action, this.libraryKeyboard.focusDate)
         } else if (this.libraryKeyboard.focusKind === 'video' || DataSyncUtil.delMultipleList.length === 1) {
           this.libraryKeyboard.onVideoAction?.(action, this.libraryKeyboard.focusDate)
@@ -811,10 +999,15 @@ struct Index {
 
   private async initializeHome(lifecycleVersion: number): Promise<boolean> {
     // 首次安装没有文件夹，必须在首次 await 前准备数据，避免子组件先进入 aboutToAppear。
-    this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
-    if (this.file_folder_list.length === 0) {
-      this.file_folder_list = FileFolderUtil.createNewFolder(PathUtils.appContext!, '首页')
+    const context = PathUtils.appContext!
+    let folders = Preferences.getFileFolder(context, true)
+    if (folders.length === 0) {
+      folders = FileFolderUtil.createNewFolder(context, '首页')
+    } else if (!folders.some(folder => folder.name === '首页')) {
+      VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
+      folders = Preferences.getFileFolder(context, true)
     }
+    this.file_folder_list = folders
     const defaultStartupFolderDate = Preferences.getDefaultStartupFolder(PathUtils.appContext!)
     const startupPage = StartupPageUtil.getPage(defaultStartupFolderDate)
     const isIptvSourceStartup = defaultStartupFolderDate.startsWith(StartupPageUtil.IPTV_SOURCE_PREFIX)
@@ -849,7 +1042,6 @@ struct Index {
     void this.applySavedFolderSort()
     setTimeout(() => {
       SelectFileUtil.getDownloadUri()
-      VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
       FileFolderUtil.fileFolderExistCheck()
       AccountUtil.initAccount()
       IntellectualGripPostureUtil.createHoldingHandStatus((data: motion.HoldingHandStatus) => {
@@ -932,7 +1124,7 @@ struct Index {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.files_saved_import_partial').id))
     }
 
-    const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)
+    const latestFolders = Preferences.getFileFolder(PathUtils.appContext!, true)
     const latestTarget = latestFolders.find((folder: FileFolder) => folder.date === targetFolder.date)
     if (!latestTarget) {
       return
@@ -956,7 +1148,6 @@ struct Index {
     } else {
       orderedVideos.push(...imported)
     }
-    latestTarget.video_list = orderedVideos
     FileFolderUtil.updateFileFolder(PathUtils.appContext!, latestTarget, orderedVideos)
     this.file_folder_list = VideoUtils.refresh(this.videoListController, this.fileFolderSource, latestTarget)
   }
@@ -1020,7 +1211,7 @@ struct Index {
       return
     }
     // 检测期间可能导入、移动或改动 URI；以最新数据生成清理计划，不覆盖新内容。
-    const plan = FolderHierarchy.pruneInvalidVideos(Preferences.getFileFolder(PathUtils.appContext!), invalidVideos)
+    const plan = FolderHierarchy.pruneInvalidVideos(Preferences.getFileFolder(PathUtils.appContext!, true), invalidVideos)
     if (plan.videos.length === 0) {
       return
     }
@@ -1179,14 +1370,18 @@ struct Index {
     }
     this.file_folder_list = result.refreshedFolders
     this.scrollToFolderDate = result.currentFolder!.date
-    const estimatedOffset = index > 0 ? 260 + (index - 1) * 70 : 0
-    XAnimation.runWithAnimation(() => {
-      this.sideBarScroller.scrollTo({
-        xOffset: 0,
-        yOffset: estimatedOffset,
-        animation: { duration: 300, curve: Curve.Ease }
-      })
-    })
+    // 整体列表包含头部等条目，按可见目录的真实位置定位，不再估算像素。
+    const sidebarIndex = this.sidebarFolderIndices.get(result.currentFolder!.date)
+    if (!HiCar.enabled && sidebarIndex !== undefined) {
+      // 先卷起头部，确保 List 的整个测量视口都处于可见范围内。
+      try {
+        this.sidebarHeaderScroller.scrollEdge(Edge.Bottom)
+        this.sideBarScroller.scrollToIndex(sidebarIndex, true, ScrollAlign.AUTO)
+      } catch (error) {
+        // 定位是界面辅助；首次挂载或旋转期间未绑定控制器，不影响已完成的目录切换。
+        salmonLogger.addLog(TAG, '侧栏目录定位暂不可用: ' + error, false)
+      }
+    }
   }
 
   /**

@@ -18,6 +18,8 @@ import { util } from '@kit.ArkTS'
 import { SubtitlePreferredLanguage } from '../common/enum/SubtitleLanguage'
 import { PrivacyAuthMode } from '../common/enum/PrivacyAuthMode'
 import PrivacyFolderUtil, { PrivacyFolderState } from '../utils/PrivacyFolderUtil'
+import AICaptionSettings, { AICaptionSettingsValue } from '../utils/AICaptionSettings'
+import lazy ToolsUtil from '../utils/ToolsUtil'
 
 const DATA_BASE_NAME = 'sweet_video'
 const MAX_PREFERENCES_STRING_BYTES = 16 * 1024 * 1024
@@ -41,9 +43,10 @@ export default class Preferences {
     Preferences.videoUriSet = null
   }
 
-  static findVideoByDate(context: Context, videoDate: string):
+  static findVideoByDate(context: Context, videoDate: string, requireSuccess: boolean = false):
     [VideoMetadata | undefined, VideoMetadata[], string | undefined] {
-    const folders = Preferences.getFileFolder(context)
+    const folders = Preferences.getFileFolder(context, requireSuccess)
+    if (Preferences.fileFolderCache === null) return [undefined, [], undefined]
     if (!Preferences.videoDateToFolderDate) {
       Preferences.buildVideoDateIndex(folders)
     }
@@ -62,6 +65,7 @@ export default class Preferences {
       return Preferences.videoUriSet!
     }
     const folders = Preferences.getFileFolder(context)
+    if (Preferences.fileFolderCache === null) return new Set<string>()
     Preferences.buildVideoUriSet(folders)
     return Preferences.videoUriSet!
   }
@@ -118,12 +122,20 @@ export default class Preferences {
   }
 
   // 所有文件夹视频数据
-  static getFileFolder(context: Context) {
+  static getFileFolder(context: Context, requireSuccess: boolean = false): FileFolder[] {
     if (Preferences.fileFolderCache !== null) {
-
       return Preferences.fileFolderCache!
     }
-    const folders = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'file_folder', []) as FileFolder[]
+    let folders: FileFolder[]
+    try {
+      folders = Preferences.getSavedFileFolders(context)
+    } catch (_error) {
+      // 仅展示允许回退，不能把读取失败的空列表发布为库或索引。
+      if (requireSuccess) throw new Error('Media library could not be read')
+      salmonLogger.addLog('Preferences', '读取视频库失败，未初始化缓存', true)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.library_operation_failed').id))
+      return []
+    }
     folders.forEach(f => {
       if (f.parent_date == undefined) {
         f.parent_date = null
@@ -139,7 +151,7 @@ export default class Preferences {
         if (!pref.hasSync('file_folder_before_hierarchy_repair')) {
           pref.putSync('file_folder_before_hierarchy_repair', folders)
         }
-        PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', repaired)
+        PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', repaired, true)
       } catch (error) {
         // 备份失败时不覆盖持久数据；本次仍使用修复后的内存视图。
         salmonLogger.addLog('Preferences', '文件夹修复备份失败，code=' + error.code, true)
@@ -154,13 +166,25 @@ export default class Preferences {
     return result
   }
 
-  // Cleanup needs confirmed persisted identifiers without replacing the live library cache.
+  static getFileFolderForUpdate(context: Context): FileFolder[] {
+    return Preferences.deepCopyFileFolders(Preferences.getFileFolder(context, true))
+  }
+
+  // 清理只读取存储快照，不使用或替换界面缓存。
+  static getSavedFileFolders(context: Context): FileFolder[] {
+    const folders = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'file_folder', [], true) as FileFolder[]
+    if (!Array.isArray(folders) || folders.some(folder => !folder || !Array.isArray(folder.video_list))) {
+      throw new Error('Invalid media library data')
+    }
+    return folders
+  }
+
   static getSavedVideoDates(context: Context, privateMode: boolean): Set<string> {
     const dates: Set<string> = new Set()
     if (privateMode) {
       Preferences.getVideoMetaDataEncryption(context, true).forEach(video => dates.add(video.date))
     } else {
-      const folders = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'file_folder', [], true) as FileFolder[]
+      const folders = Preferences.getSavedFileFolders(context)
       folders.forEach(folder => folder.video_list.forEach(video => dates.add(video.date)))
     }
     return dates
@@ -303,6 +327,15 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'subtitleBackgroundOpacity', value)
   }
 
+  static saveAISubtitleSettings(context: Context, value: AICaptionSettingsValue): void {
+    const settings = AICaptionSettings.normalize(value)
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'aiSubtitleSourceLanguage', settings.sourceLanguage)
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'aiSubtitleTargetLanguage', settings.targetLanguage)
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'aiSubtitleFontSize', settings.fontSize)
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'aiSubtitleFontColor', settings.fontColor)
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'aiSubtitleBackgroundOpacity', settings.backgroundOpacity)
+  }
+
   static saveFastForwardSeconds(context: Context, fastForwardSeconds: string) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "fastForwardSeconds", fastForwardSeconds)
   }
@@ -399,14 +432,20 @@ export default class Preferences {
   // 保存所有文件夹视频数据
   static saveFileFolder(context: Context, file_folder: FileFolder[], requireSuccess: boolean = false) {
     const copied = FolderHierarchy.repair(Preferences.deepCopyFileFolders(file_folder))
-    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', copied, requireSuccess)
+    try {
+      PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', copied, true)
+    } catch (_error) {
+      if (requireSuccess) throw new Error('Media library could not be saved')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.library_operation_failed').id))
+      return
+    }
     Preferences.fileFolderCache = copied
     Preferences.buildVideoDateIndex(copied)
     Preferences.buildVideoUriSet(copied)
   }
 
   static appendImportedVideos(context: Context, additions: Map<string, VideoMetadata[]>): number {
-    const folders = Preferences.getFileFolder(context)
+    const folders = Preferences.getFileFolder(context, true)
     const uriSet = Preferences.getVideoUriSet(context)
     if (!Preferences.videoDateToFolderDate) Preferences.buildVideoDateIndex(folders)
     const byDate = new Map<string, FileFolder>()
@@ -445,21 +484,12 @@ export default class Preferences {
   }
 
   static copyPlaybackMetadata(video: VideoMetadata): VideoMetadata {
-    const copied = Preferences.deepCopyFileFolders([
+    return Preferences.deepCopyFileFolders([
       { name: '', date: '', parent_date: null, video_list: [video] }
     ])[0].video_list[0]
-    copied.external_audio_file = video.external_audio_file
-    copied.external_audio_name = video.external_audio_name
-    copied.external_audio_selected = video.external_audio_selected
-    copied.external_audio_offset_ms = video.external_audio_offset_ms
-    copied.network_user_agent = video.network_user_agent
-    copied.smb_subtitle_uri = video.smb_subtitle_uri
-    copied.webdav_subtitle_uri = video.webdav_subtitle_uri
-    copied.ftp_subtitle_uri = video.ftp_subtitle_uri
-    return copied
   }
 
-  static savePlaybackMetadata(context: Context, videoDate: string, requireSuccess: boolean = false,
+  static savePlaybackMetadata(context: Context, videoDate: string,
     update?: (video: VideoMetadata) => void): VideoMetadata {
     const found = Preferences.findVideoByDate(context, videoDate)
     if (!found[0] || !found[2]) throw new Error('Video metadata no longer exists')
@@ -485,8 +515,19 @@ export default class Preferences {
   }
 
   static saveRecentPlay(context: Context, recent_play_deque: VideoMetadata[], requireSuccess: boolean = false) {
-    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'recent_play', recent_play_deque, requireSuccess)
-    VideoFormData.save(context, recent_play_deque)
+    try {
+      PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'recent_play', recent_play_deque, true)
+    } catch (_error) {
+      if (requireSuccess) throw new Error('Playback history could not be saved')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.library_operation_failed').id))
+      return
+    }
+    // 桌面卡片是派生数据，刷新失败不能把已成功写入的历史判为失败。
+    try {
+      VideoFormData.save(context, recent_play_deque)
+    } catch (_error) {
+      salmonLogger.addLog('Preferences', '更新播放历史卡片失败', true)
+    }
   }
 
   static saveEnableBackgroundDarkImage(context: Context, enableBackgroundDarkImage: boolean) {
@@ -515,6 +556,10 @@ export default class Preferences {
 
   static saveShowFrameTime(context: Context, showFrameTime: boolean) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'showFrameTime', showFrameTime)
+  }
+
+  static saveDanmakuHeatmapEnabled(context: Context, enabled: boolean): void {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'danmakuHeatmapEnabled', enabled)
   }
 
   static saveJumpToHistoryTime(context: Context, jumpToHistoryTime: boolean) {
@@ -696,8 +741,11 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'maxListLine', maxListLine)
   }
 
-  static getNetworkStreams(context: Context): VideoMetadata[] {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'network_streams', []) as VideoMetadata[]
+  static getNetworkStreams(context: Context, requireSuccess: boolean = false): VideoMetadata[] {
+    const streams = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'network_streams', [],
+      requireSuccess) as VideoMetadata[]
+    if (requireSuccess && !Array.isArray(streams)) throw new Error('Invalid network stream data')
+    return streams
   }
 
   static saveNetworkStreams(context: Context, streams: VideoMetadata[], requireSuccess: boolean = false) {
@@ -805,7 +853,14 @@ export default class Preferences {
           subtitle_3d_mode: v.subtitle_3d_mode,
           subtitle_offset_millis: v.subtitle_offset_millis,
           subtitle_track_id: v.subtitle_track_id,
-          audio_track_id: v.audio_track_id
+          audio_track_id: v.audio_track_id,
+          external_audio_file: v.external_audio_file,
+          external_audio_name: v.external_audio_name,
+          external_audio_selected: v.external_audio_selected,
+          external_audio_offset_ms: v.external_audio_offset_ms,
+          smb_subtitle_uri: v.smb_subtitle_uri,
+          webdav_subtitle_uri: v.webdav_subtitle_uri,
+          ftp_subtitle_uri: v.ftp_subtitle_uri
         }
         copiedVideos.push(copiedVideo)
       }

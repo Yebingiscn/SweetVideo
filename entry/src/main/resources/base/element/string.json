@@ -34,7 +34,7 @@
     },
     {
       "name": "mpv_conf_desc",
-      "value": "使用标准 mpv.conf 语法（UTF-8，最多 64 KB），支持注释和配置档。仅导入单个 conf，不会复制 shader、脚本或 include 文件，请使用沙箱可访问的绝对路径。自定义值覆盖普通初始化默认值；输出、解码、窗口绑定和播放中的界面控制仍以应用为准。保存后请开启自定义 conf；关闭可恢复默认配置。"
+      "value": "使用标准 mpv.conf 语法（UTF-8，最多 64 KB），支持注释和配置档。自定义值覆盖普通初始化默认值；输出、解码、窗口绑定和播放中的界面控制仍以应用为准。保存后请开启自定义 conf；关闭可恢复默认配置。"
     },
     {
       "name": "mpv_conf_import",
@@ -105,6 +105,10 @@
     {
       "name": "folder_batch_delete_failed",
       "value": "Could not delete the folders. Please try again."
+    },
+    {
+      "name": "library_operation_failed",
+      "value": "Media library operation failed. Please try again."
     },
     {
       "name": "directory_all_folders",
@@ -856,6 +860,10 @@
       "value": "Play in background"
     },
     {
+      "name": "auto_listen_video",
+      "value": "Auto audio-only in background"
+    },
+    {
       "name": "play_with_others",
       "value": "Play along with other apps"
     },
@@ -1482,6 +1490,82 @@
     {
       "name": "ai_subtitle",
       "value": "AI subtitles"
+    },
+    {
+      "name": "ai_subtitle_unsupported",
+      "value": "AI subtitles are not supported on this device. Your previous subtitle selection has been restored."
+    },
+    {
+      "name": "ai_subtitle_unavailable",
+      "value": "AI subtitles are temporarily unavailable. Your previous subtitle selection has been restored. Try again later."
+    },
+    {
+      "name": "ai_subtitle_settings_hint",
+      "value": "These defaults are separate from regular subtitle styles and apply the next time you enable AI subtitles. Chinese audio supports Chinese captions only; English audio supports Chinese, English or bilingual captions."
+    },
+    {
+      "name": "ai_subtitle_options_api_required",
+      "value": "Language and size require HarmonyOS 6.1.1 (API 24) or later. This system supports the panel background setting."
+    },
+    {
+      "name": "ai_subtitle_source_language",
+      "value": "Audio language"
+    },
+    {
+      "name": "ai_subtitle_target_language",
+      "value": "Caption language"
+    },
+    {
+      "name": "ai_subtitle_language_chinese",
+      "value": "Chinese"
+    },
+    {
+      "name": "ai_subtitle_language_bilingual",
+      "value": "EN + ZH"
+    },
+    {
+      "name": "ai_subtitle_font_small",
+      "value": "Small"
+    },
+    {
+      "name": "ai_subtitle_font_normal",
+      "value": "Standard"
+    },
+    {
+      "name": "ai_subtitle_font_big",
+      "value": "Large"
+    },
+    {
+      "name": "ai_subtitle_font_large",
+      "value": "Extra large"
+    },
+    {
+      "name": "ai_subtitle_font_color",
+      "value": "AI subtitle color"
+    },
+    {
+      "name": "ai_subtitle_panel_opacity",
+      "value": "Panel background"
+    },
+    {
+      "name": "ai_subtitle_opacity_transparent",
+      "value": "Transparent"
+    },
+    {
+      "name": "ai_subtitle_opacity_half",
+      "value": "Semi-transparent"
+    },
+    {
+      "name": "ai_subtitle_opacity_opaque",
+      "value": "Opaque"
+    },
+    {
+      "name": "reset_ai_subtitle_settings",
+      "value": "Reset AI subtitle defaults"
+    },
+    {
+      "name": "ai_subtitle_settings_reset",
+      "value": "AI subtitle defaults restored"
     },
     {
       "name": "subtitle_offset",
@@ -4350,6 +4434,8 @@
     {"name":"screenshot_queued","value":"Screenshot queued"},
     {"name":"screenshot_failed","value":"Screenshot failed. Please try again."},
     {"name": "stream_headers_hint", "value": "请求头（可选，每行一个，例如 Referer: https://example.com）"},
-    {"name": "stream_headers_invalid", "value": "请求头格式不正确或内容过长，请使用每行 名称: 值"}
+    {"name": "stream_headers_invalid", "value": "请求头格式不正确或内容过长，请使用每行 名称: 值"},
+    {"name": "danmaku_heatmap", "value": "Danmaku high-energy progress bar"},
+    {"name": "danmaku_heatmap_description", "value": "Show danmaku activity along the progress bar when danmaku is available."}
   ]
 }

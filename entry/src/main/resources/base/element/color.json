@@ -21,6 +21,10 @@
       "value": "#f0f0f0"
     },
     {
+      "name": "sidebar_card_border",
+      "value": "#CCFFFFFF"
+    },
+    {
       "name": "text_color",
       "value": "#202020"
     },

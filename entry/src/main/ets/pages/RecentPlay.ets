@@ -27,9 +27,12 @@ export struct RecentPlay { // 最近播放页
     builder: InfoConfirmDialog({
       textInfo: $r('app.string.clear_play_history_confirm'),
       confirm: () => {
-        for (const element of this.recent_video_meta_data ?? []) {
-          this.delData(PathUtils.appContext!, element)
+        if (!RecentPlayUtil.clearData(PathUtils.appContext!)) {
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_failed_retry').id))
+          return
         }
+        this.recent_video_meta_data = []
+        this.videoDataSource.updateData(this.recent_video_meta_data)
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -106,12 +109,18 @@ export struct RecentPlay { // 最近播放页
         const streams = Preferences.getNetworkStreams(PathUtils.appContext!)
         await ToolsUtil.routerWhere(this.pathStack, item, streams, reverse, true)
       } else {
-        const originalList = Preferences.findVideoByDate(PathUtils.appContext!, item.date)
+        let originalList: [VideoMetadata | undefined, VideoMetadata[], string | undefined]
+        try {
+          originalList = Preferences.findVideoByDate(PathUtils.appContext!, item.date, true)
+        } catch (_error) {
+          // 媒体库读取失败不代表历史记录已经失效。
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.open_video_failed').id))
+          return
+        }
         if (originalList[1].length > 0 && originalList[0]) {
           await ToolsUtil.routerWhere(this.pathStack, originalList[0], originalList[1], reverse)
-        } else {
+        } else if (this.delData(PathUtils.appContext!, item)) {
           ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.data_invalid_removed').id))
-          this.delData(PathUtils.appContext!, item)
         }
       }
     } else {
@@ -119,10 +128,14 @@ export struct RecentPlay { // 最近播放页
     }
   }
 
-  delData(context: Context, item: VideoMetadata) {
-    this.recent_video_meta_data = this.recent_video_meta_data.filter(i => i.date !== item.date)
-    RecentPlayUtil.delData(context, item.uri)
-    this.videoDataSource.deleteData(this.videoDataSource.getAllData().indexOf(item))
+  delData(context: Context, item: VideoMetadata): boolean {
+    if (!RecentPlayUtil.delData(context, item.uri)) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_failed_retry').id))
+      return false
+    }
+    this.recent_video_meta_data = this.recent_video_meta_data.filter(i => i.uri !== item.uri)
+    this.videoDataSource.updateData(this.recent_video_meta_data)
+    return true
   }
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })

@@ -24,6 +24,13 @@ import { DanmakuStorage } from './DanmakuStorage'
 
 const TAG = 'FileFolderUtil'
 
+interface CleanupReferenceSources {
+  privateVideos: VideoMetadata[]
+  folders: FileFolder[]
+  streams: VideoMetadata[]
+  recent: VideoMetadata[]
+}
+
 // 文件夹类
 export default class FileFolderUtil {
   public static duplicateVideo: number = 0
@@ -34,7 +41,10 @@ export default class FileFolderUtil {
 
   //新建文件夹
   static createNewFolder(context: Context, folder_name: string, parent_date: string | null = null): FileFolder[] {
-    const file_folder_list = Preferences.getFileFolder(context) as FileFolder[]
+    const file_folder_list = Preferences.getFileFolderForUpdate(context)
+    if (parent_date !== null && !file_folder_list.some(folder => folder.date === parent_date)) {
+      throw new Error('Parent folder no longer exists')
+    }
     const new_folder: FileFolder = {
       name: folder_name,
       date: FolderHierarchy.createId(file_folder_list),
@@ -43,7 +53,8 @@ export default class FileFolderUtil {
     }
     if (!file_folder_list.some(i => i.name === new_folder.name && i.parent_date === new_folder.parent_date)) {
       file_folder_list.push(new_folder)
-      Preferences.saveFileFolder(context, file_folder_list)
+      Preferences.saveFileFolder(context, file_folder_list, true)
+      return Preferences.getFileFolder(context, true)
     } else {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_exists').id))
     }
@@ -57,17 +68,19 @@ export default class FileFolderUtil {
       return undefined
     }
     const currentName = pathParts[0]
-    const latestFolders = Preferences.getFileFolder(context) as FileFolder[]
+    const latestFolders = Preferences.getFileFolder(context, true)
     let existingFolder = latestFolders.find(i => i.name === currentName && i.parent_date === parent_date)
     if (!existingFolder) {
-      FileFolderUtil.createNewFolder(context, currentName, parent_date)
-      const updatedFolders = Preferences.getFileFolder(context) as FileFolder[]
+      const updatedFolders = FileFolderUtil.createNewFolder(context, currentName, parent_date)
       existingFolder = updatedFolders.find(i => i.name === currentName && i.parent_date === parent_date)
+    }
+    if (!existingFolder) {
+      throw new Error('Import target folder is unavailable')
     }
     if (pathParts.length === 1) {
       return existingFolder
     }
-    return FileFolderUtil.createFolderPath(context, pathParts.slice(1), existingFolder!.date)
+    return FileFolderUtil.createFolderPath(context, pathParts.slice(1), existingFolder.date)
   }
 
   // 获取某文件夹的所有子文件夹
@@ -126,43 +139,27 @@ export default class FileFolderUtil {
   // 删除文件夹及其所有子文件夹
   static async deleteFileFoldersRecursive(context: Context, folderDates: string[],
     fileDataSource?: FileFolderDataSource): Promise<FileFolder[]> {
-    const plan = FolderSelection.deletionPlan(Preferences.getFileFolder(context), folderDates)
-    if (plan.dates.size === 0) { return Preferences.getFileFolder(context) }
+    const folders = Preferences.getFileFolderForUpdate(context)
+    const plan = FolderSelection.deletionPlan(folders, folderDates)
+    if (plan.dates.size === 0) { return Preferences.getFileFolder(context, true) }
+    // 写失败时不能先清掉仍有目录引用的播放记录和附件。
+    Preferences.saveFileFolder(context, folders.filter(folder => !plan.dates.has(folder.date)), true)
     await MediaLibraryService.deleteVideoFiles(plan.videos, DeleteType.SOFT)
-    // 清理媒体期间可能有其他目录更新，保存前重新读取，避免覆盖无关改动。
-    const folders = Preferences.getFileFolder(context).filter(folder => !plan.dates.has(folder.date))
-    Preferences.saveFileFolder(context, folders)
-    fileDataSource?.updateData(folders)
-    return folders
+    // 清理期间可能另有导入或排序，不向 UI 发布等待前的快照。
+    const savedFolders = Preferences.getFileFolder(context, true)
+    fileDataSource?.updateData(savedFolders)
+    return savedFolders
   }
 
   static async deleteFileFolderRecursive(context: Context, file_folder: FileFolder,
     fileDataSource?: FileFolderDataSource): Promise<FileFolder[]> {
-    let folders = Preferences.getFileFolder(context)
-    const datesToDelete = FolderHierarchy.descendants(folders, file_folder.date)
-    const videos = new Map<string, VideoMetadata>()
-    for (const folder of folders) {
-      if (datesToDelete.has(folder.date)) {
-        for (const video of folder.video_list ?? []) {
-          if (video.date) {
-            videos.set(video.date, video)
-          }
-        }
-      }
-    }
-    await MediaLibraryService.deleteVideoFiles(Array.from(videos.values()), DeleteType.SOFT)
-    folders = Preferences.getFileFolder(context).filter(i => !datesToDelete.has(i.date))
-    Preferences.saveFileFolder(context, folders)
-    if (fileDataSource) {
-      fileDataSource.updateData(folders)
-    }
-    return folders
+    return FileFolderUtil.deleteFileFoldersRecursive(context, [file_folder.date], fileDataSource)
   }
 
   // 添加视频到文件夹，支持批量
   static transferVideosToFileFolder(context: Context, videos: VideoMetadata[], fromFolderDate: string,
     targetFolderDate: string): FileFolder[] {
-    const folders = Preferences.getFileFolder(context) || []
+    const folders = Preferences.getFileFolderForUpdate(context)
     // 单次遍历查找两个文件夹
     let fromFolder: FileFolder | undefined
     let targetFolder: FileFolder | undefined
@@ -177,7 +174,7 @@ export default class FileFolderUtil {
         break
       }
     }
-    if (!fromFolder || !targetFolder) {
+    if (!fromFolder || !targetFolder || fromFolder === targetFolder) {
       return folders
     }
     // 创建目标视频集合用于快速查找
@@ -209,68 +206,72 @@ export default class FileFolderUtil {
         break
     }
     // Commit membership before awaiting any worker, so concurrent changes cannot resurrect moved files.
-    Preferences.saveFileFolder(context, folders)
+    Preferences.saveFileFolder(context, folders, true)
     if (sortField === SortField.NAME) {
       void ToolsUtil.sortBy(context, targetFolder.video_list, targetFolder, sortField, sortAsc, pinyinSort).catch(() => {})
     }
-    return folders
+    return Preferences.getFileFolder(context, true)
   }
 
   static async delVideosFileFolder(context: Context, videoListController: VideoListController,
     folderDataSource: FileFolderDataSource, deleteType: DeleteType = DeleteType.SOFT) {
-    let folders = Preferences.getFileFolder(context) as FileFolder[]
-    let folderIndex = folders.findIndex(i => i.date === videoListController.folder.date)
-    const folder = folders[folderIndex]
-    const surviveVideo = new Map<string, VideoMetadata>()
-    for (const video of folder.video_list) {
-      surviveVideo.set(video.uri, video)
+    const folderDate = videoListController.folder?.date
+    const folders = Preferences.getFileFolderForUpdate(context)
+    const folder = folders.find(item => item.date === folderDate)
+    if (!folder) {
+      throw new Error('Folder no longer exists')
     }
-    await MediaLibraryService.deleteVideoFiles(DataSyncUtil.delMultipleList, deleteType)
-    for (const item of DataSyncUtil.delMultipleList) {
-      surviveVideo.delete(item.uri)
+    const selectedUris = new Set(DataSyncUtil.delMultipleList.map(item => item.uri))
+    const removed = folder.video_list.filter(item => selectedUris.has(item.uri))
+    if (removed.length === 0) {
+      return folder
     }
-    folder.video_list = Array.from(surviveVideo.values())
-    folders[folderIndex] = folder
-    Preferences.saveFileFolder(context, folders)
-    videoListController.updateData(undefined, folders[folderIndex])
-    folderDataSource.updateData(folders)
-    return folders[folderIndex]
+    folder.video_list = folder.video_list.filter(item => !selectedUris.has(item.uri))
+    Preferences.saveFileFolder(context, folders, true)
+    await MediaLibraryService.deleteVideoFiles(removed, deleteType)
+    return FileFolderUtil.publishSavedFolder(context, folder.date, videoListController, folderDataSource)
   }
 
   static delVideoInFileFolder(context: Context, videoListController: VideoListController,
-    folderDataSource: FileFolderDataSource) {
-    const videoMetaData = DataSyncUtil.editingVideo
-    let folders = Preferences.getFileFolder(context) as FileFolder[]
-    let folderIndex = folders.findIndex(i => i.date === videoListController.folder.date)
-    if (folderIndex !== -1) {
-      folders[folderIndex].video_list =
-        folders[folderIndex].video_list.filter(item => item.date !== videoMetaData?.date)
-      videoListController.updateData(undefined, folders[folderIndex])
-      folderDataSource.updateData(folders)
-      Preferences.saveFileFolder(context, folders)
+    folderDataSource: FileFolderDataSource, videoMetaData: VideoMetadata): boolean {
+    const folders = Preferences.getFileFolderForUpdate(context)
+    const folder = folders.find(item => item.date === videoListController.folder?.date)
+    if (!folder || !folder.video_list.some(item => item.date === videoMetaData.date && item.uri === videoMetaData.uri)) {
+      return false
     }
-    return folders[folderIndex]
+    folder.video_list = folder.video_list.filter(item => item.date !== videoMetaData.date)
+    Preferences.saveFileFolder(context, folders, true)
+    FileFolderUtil.publishSavedFolder(context, folder.date, videoListController, folderDataSource)
+    return true
   }
 
   static updateVideoInFileFolder(context: Context, videoListController: VideoListController,
-    folderDataSource: FileFolderDataSource) {
-    const videoMetaData = DataSyncUtil.editingVideo
-    if (!videoMetaData) {
-      return
+    folderDataSource: FileFolderDataSource, videoMetaData: VideoMetadata): boolean {
+    const folders = Preferences.getFileFolderForUpdate(context)
+    const targetFolder = folders.find(item => item.date === videoListController.folder?.date)
+    if (!targetFolder) {
+      return false
     }
-    const folders = Preferences.getFileFolder(context) as FileFolder[]
-    const folderIndex = folders.findIndex(i => i.date === videoListController.folder.date)
-    if (folderIndex === -1) {
-      return
+    const videoIndex = targetFolder.video_list.findIndex(item => item.date === videoMetaData.date &&
+      item.uri === videoMetaData.uri)
+    if (videoIndex < 0) {
+      return false
     }
-    const targetFolder = folders[folderIndex]
-    let videoIndex = targetFolder.video_list.findIndex(item => item.date === videoMetaData.date)
-    if (videoIndex >= 0) {
-      targetFolder.video_list[videoIndex] = videoMetaData
+    targetFolder.video_list[videoIndex] = videoMetaData
+    Preferences.saveFileFolder(context, folders, true)
+    FileFolderUtil.publishSavedFolder(context, targetFolder.date, videoListController, folderDataSource)
+    return true
+  }
+
+  private static publishSavedFolder(context: Context, folderDate: string, videoListController: VideoListController,
+    folderDataSource: FileFolderDataSource): FileFolder | undefined {
+    const folders = Preferences.getFileFolder(context, true)
+    const folder = folders.find(item => item.date === folderDate)
+    if (folder && videoListController.folder?.date === folderDate) {
+      videoListController.updateData(undefined, folder)
     }
-    videoListController.updateData(undefined, targetFolder)
     folderDataSource.updateData(folders)
-    Preferences.saveFileFolder(context, folders)
+    return folder
   }
 
   // 删除文件夹（含子文件夹）
@@ -281,10 +282,7 @@ export default class FileFolderUtil {
 
   static moveFileFolder(context: Context, folderDate: string, targetParentDate: string | null,
     fileFolderDataSource?: FileFolderDataSource): FileFolder[] {
-    // 不修改界面正在持有的对象；Repeat 必须收到新对象才能更新层级和缩进。
-    const folders: FileFolder[] = Preferences.getFileFolder(context).map((folder): FileFolder => ({
-      name: folder.name, date: folder.date, parent_date: folder.parent_date, video_list: folder.video_list
-    }))
+    const folders = Preferences.getFileFolderForUpdate(context)
     if (folderDate === targetParentDate) {
       return folders
     }
@@ -299,20 +297,22 @@ export default class FileFolderUtil {
       }
     }
     const targetFolder = folders.find(i => i.date === folderDate)
-    if (targetFolder?.name === '首页' && targetFolder.parent_date === null) {
+    if (!targetFolder) {
+      throw new Error('Folder no longer exists')
+    }
+    if ((targetFolder.name === '首页' && targetFolder.parent_date === null) ||
+      targetFolder.parent_date === targetParentDate) {
       return folders
     }
-    if (targetFolder) {
-      const duplicate = folders.find(i => i.name === targetFolder.name &&
-        i.parent_date === targetParentDate && i.date !== targetFolder.date)
-      if (duplicate) {
-        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.target_folder_name_exists').id))
-        return folders
-      }
-      targetFolder.parent_date = targetParentDate
+    const duplicate = folders.find(i => i.name === targetFolder.name &&
+      i.parent_date === targetParentDate && i.date !== targetFolder.date)
+    if (duplicate) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.target_folder_name_exists').id))
+      return folders
     }
-    Preferences.saveFileFolder(context, folders)
-    const savedFolders = Preferences.getFileFolder(context)
+    targetFolder.parent_date = targetParentDate
+    Preferences.saveFileFolder(context, folders, true)
+    const savedFolders = Preferences.getFileFolder(context, true)
     if (fileFolderDataSource) {
       fileFolderDataSource.updateData(savedFolders)
     }
@@ -322,25 +322,26 @@ export default class FileFolderUtil {
   //改变文件夹名称
   static async changeFileFolderName(context: Context, folder: FileFolder, newFolderName: string,
     fileFolderDataSource: FileFolderDataSource) {
-    let folders = Preferences.getFileFolder(context) as FileFolder[]
+    const folders = Preferences.getFileFolderForUpdate(context)
     const targetFolder = folders.find(i => i.date === folder.date)
-    if (targetFolder) {
-      const duplicate = folders.find(i => i.name === newFolderName && i.parent_date === targetFolder.parent_date &&
-        i.date !== targetFolder.date)
-      if (duplicate) {
-        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.same_folder_name_exists').id))
-        return
-      }
-      targetFolder.name = newFolderName
+    if (!targetFolder) {
+      throw new Error('Folder no longer exists')
     }
-    Preferences.saveFileFolder(context, folders)
-    fileFolderDataSource.updateData(folders)
+    const duplicate = folders.find(i => i.name === newFolderName && i.parent_date === targetFolder.parent_date &&
+      i.date !== targetFolder.date)
+    if (duplicate) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.same_folder_name_exists').id))
+      return
+    }
+    targetFolder.name = newFolderName
+    Preferences.saveFileFolder(context, folders, true)
+    fileFolderDataSource.updateData(Preferences.getFileFolder(context, true))
   }
 
   // 更新文件夹内视频
   static updateFileFolder(context: Context, folder: FileFolder, newVideoMetaDataList: VideoMetadata[]): void {
-    let folders = Preferences.getFileFolder(context) as FileFolder[]
-    let folderIndex = folders.findIndex(i => i.date === folder.date)
+    const folders = Preferences.getFileFolderForUpdate(context)
+    const folderIndex = folders.findIndex(i => i.date === folder.date)
     if (folderIndex === -1) {
       return
     }
@@ -350,16 +351,15 @@ export default class FileFolderUtil {
         `[test] updateFileFolder 阻止空列表覆盖 folder=${folder.name}, 旧列表长度=${oldList.length}`, true)
       return
     }
-    folders[folderIndex].video_list = newVideoMetaDataList
-    Preferences.saveFileFolder(context, folders)
+    folders[folderIndex].video_list = [...newVideoMetaDataList]
+    Preferences.saveFileFolder(context, folders, true)
   }
 
   // 更新文件夹所有内容
   static async updateFileFolderList(context: Context, file_folder: FileFolder) {
-    let file_folder_list = Preferences.getFileFolder(context)
-    file_folder_list = file_folder_list.filter(i => i.date !== file_folder?.date)
+    const file_folder_list = Preferences.getFileFolderForUpdate(context).filter(i => i.date !== file_folder.date)
     file_folder_list.push(file_folder)
-    Preferences.saveFileFolder(context, file_folder_list)
+    Preferences.saveFileFolder(context, file_folder_list, true)
   }
 
   static existsVideoInFolders(context: Context, uri: string, title: string,
@@ -401,7 +401,18 @@ export default class FileFolderUtil {
     return parts.length > 0 ? parts : undefined
   }
 
+  private static readCleanupReferenceSources(context: Context): CleanupReferenceSources {
+    return {
+      privateVideos: Preferences.getVideoMetaDataEncryption(context, true),
+      folders: Preferences.getSavedFileFolders(context),
+      streams: Preferences.getNetworkStreams(context, true),
+      recent: Preferences.getRecentPlay(context, true)
+    }
+  }
+
   static async cleanInvalidFiles(context: Context): Promise<number> {
+    // 引用源任一路失败都不能当成空库，先确认能完整读取再扫描沙箱附件。
+    FileFolderUtil.readCleanupReferenceSources(context)
     const directories = await Promise.all([
       fileIo.listFile(PathUtils.coverPath).catch(() => {
         salmonLogger.addLog(TAG, 'get cover fail', true)
@@ -417,6 +428,8 @@ export default class FileFolderUtil {
       }),
       fileIo.listFile(ExternalAudioStorage.directory).catch(() => [] as string[])
     ])
+    // 目录扫描期间可能发生导入或附件变更，按扫描后的最新引用计算删除集合。
+    const references = FileFolderUtil.readCleanupReferenceSources(context)
     const coverResult = directories[0]
     const subtitleResult = directories[1]
     const danmakuResult = directories[2]
@@ -425,20 +438,16 @@ export default class FileFolderUtil {
       ? coverResult.filter(file => validFileRegex.test(file) && !file.endsWith('.tmp')) : []
     const subtitleFromSandboxArray: string[] = Array.isArray(subtitleResult)
       ? subtitleResult.filter(file => validFileRegex.test(file) && !file.endsWith('.tmp')) : []
-    const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context)
-    const fileFolder = Preferences.getFileFolder(context)
-    const networkStreams = Preferences.getNetworkStreams(context)
-    const recentPlay = Preferences.getRecentPlay(context)
     const existingItemsSet = new Set<string>()
     const audioReferences = new Set<string>()
     const collectReferences = (item: VideoMetadata): void => {
       if (item.date) existingItemsSet.add(item.date)
       if (item.external_audio_file) audioReferences.add(item.external_audio_file)
     }
-    for (const item of videoMetaDataEncryption) collectReferences(item)
-    for (const item of networkStreams) collectReferences(item)
-    for (const item of recentPlay) collectReferences(item)
-    for (const folder of fileFolder) {
+    for (const item of references.privateVideos) collectReferences(item)
+    for (const item of references.streams) collectReferences(item)
+    for (const item of references.recent) collectReferences(item)
+    for (const folder of references.folders) {
       for (const item of folder.video_list || []) collectReferences(item)
     }
     const audioFiles = directories[3]

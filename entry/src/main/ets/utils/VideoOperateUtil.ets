@@ -38,6 +38,7 @@ import { VIDEO_HDR_TYPE } from '../common/enum/HDR_TYPE'
 import MediaLibraryService from './MediaLibraryService'
 import lazy FFmpegThumbnailUtil from './FFmpegThumbnailUtil'
 import { SurfaceScreenshotCandidate, SurfaceScreenshotCapture, SurfaceScreenshotRequest } from './SurfaceScreenshotCapture'
+import AICaptionSettings from './AICaptionSettings'
 
 const TAG = 'VideoOperateUtil'
 
@@ -151,6 +152,7 @@ export default class VideoOperateUtil {
   static initSetting(context: common.UIAbilityContext) {
     VideoOperateUtil.backgroundSettingsInitialized = false
     PermissionUtil.reqPermissionsFromUser(PermissionUtil.permissions, context)
+    const aiSubtitleDefaults = AICaptionSettings.defaults()
     const settingDefaults: Record<string, preferences.ValueType> = {
       'backgroundDropBlur': 0,
       'backgroundColorMode': BackgroundColorMode.AUTO,
@@ -178,6 +180,11 @@ export default class VideoOperateUtil {
       'subtitleShadowSize': 6,
       'subtitleShadowColor': '#000000',
       'subtitleBackgroundOpacity': 0,
+      'aiSubtitleSourceLanguage': aiSubtitleDefaults.sourceLanguage,
+      'aiSubtitleTargetLanguage': aiSubtitleDefaults.targetLanguage,
+      'aiSubtitleFontSize': aiSubtitleDefaults.fontSize,
+      'aiSubtitleFontColor': aiSubtitleDefaults.fontColor,
+      'aiSubtitleBackgroundOpacity': aiSubtitleDefaults.backgroundOpacity,
       'allowDoubleFastForward': true,
       'skipIntroTime': '0',
       'skipOutroTime': '0',
@@ -187,6 +194,7 @@ export default class VideoOperateUtil {
       'showSettingPageEntry': true,
       'allowGestureEntry': true,
       'showFrameTime': true,
+      'danmakuHeatmapEnabled': true,
       'jumpToHistoryTime': true,
       'randomCover': false,
       'coverLayoutMode': CoverLayoutMode.VERTICAL_PLATE,
@@ -246,6 +254,18 @@ export default class VideoOperateUtil {
     Setting.subtitleShadowSize = valueMap['subtitleShadowSize'] as number
     Setting.subtitleShadowColor = valueMap['subtitleShadowColor'] as string
     Setting.subtitleBackgroundOpacity = valueMap['subtitleBackgroundOpacity'] as number
+    const aiSubtitleSettings = AICaptionSettings.normalize({
+      sourceLanguage: valueMap['aiSubtitleSourceLanguage'] as string,
+      targetLanguage: valueMap['aiSubtitleTargetLanguage'] as string,
+      fontSize: valueMap['aiSubtitleFontSize'] as number,
+      fontColor: valueMap['aiSubtitleFontColor'] as string,
+      backgroundOpacity: valueMap['aiSubtitleBackgroundOpacity'] as number
+    })
+    Setting.aiSubtitleSourceLanguage = aiSubtitleSettings.sourceLanguage
+    Setting.aiSubtitleTargetLanguage = aiSubtitleSettings.targetLanguage
+    Setting.aiSubtitleFontSize = aiSubtitleSettings.fontSize
+    Setting.aiSubtitleFontColor = aiSubtitleSettings.fontColor
+    Setting.aiSubtitleBackgroundOpacity = aiSubtitleSettings.backgroundOpacity
     Setting.allowDoubleFastForward = valueMap['allowDoubleFastForward'] as boolean
     Setting.skipIntroTime = valueMap['skipIntroTime'] as string
     Setting.skipOutroTime = valueMap['skipOutroTime'] as string
@@ -255,6 +275,7 @@ export default class VideoOperateUtil {
     Setting.showSettingPageEntry = valueMap['showSettingPageEntry'] as boolean
     Setting.allowGestureEntry = valueMap['allowGestureEntry'] as boolean
     Setting.showFrameImgStatus = valueMap['showFrameTime'] as boolean
+    Setting.danmakuHeatmapEnabled = valueMap['danmakuHeatmapEnabled'] as boolean
     Setting.jumpToHistoryTimeStatus = valueMap['jumpToHistoryTime'] as boolean
     Setting.randomCover = valueMap['randomCover'] as boolean
     Setting.coverLayout = valueMap['coverLayoutMode'] as CoverLayoutMode
@@ -348,7 +369,7 @@ export default class VideoOperateUtil {
     if (VideoInfoUtil.ASPECT_RATIO_MAP.has(text)) {
       return VideoOperateUtil.setVideoAspectRatio(
         VideoInfoUtil.ASPECT_RATIO_MAP.get(text)!,
-        VideoInfoUtil.playAreaWidth, VideoInfoUtil.playAreaHeight)
+        screenWidth, screenHeight)
     }
     if (text === '拉伸全屏') {
       return [screenWidth, screenHeight]

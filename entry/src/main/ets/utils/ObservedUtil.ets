@@ -37,6 +37,11 @@ class SettingUtil {
   public subtitleShadowSize: number = 6
   public subtitleShadowColor: string = '#000000'
   public subtitleBackgroundOpacity: number = 0
+  public aiSubtitleSourceLanguage: string = 'zh'
+  public aiSubtitleTargetLanguage: string = 'zh'
+  public aiSubtitleFontSize: number = 2
+  public aiSubtitleFontColor: string = '#FFFFFFFF'
+  public aiSubtitleBackgroundOpacity: number = 50
   public allowDoubleFastForward: boolean = true
   public skipIntroTime: string = '0'
   public skipOutroTime: string = '0'
@@ -59,6 +64,7 @@ class SettingUtil {
   public showSettingPageEntry: boolean = true
   public allowGestureEntry: boolean = true
   public showFrameImgStatus: boolean = true
+  public danmakuHeatmapEnabled: boolean = true
   public jumpToHistoryTimeStatus: boolean = true
   public enableAiPrivacyAntiPeep: boolean = false
   public defaultBrightness: number = 0

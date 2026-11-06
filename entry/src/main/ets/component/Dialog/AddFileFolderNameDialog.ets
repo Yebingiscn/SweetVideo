@@ -4,6 +4,8 @@ import { PathUtils } from '../../utils/PathUtils'
 import Preferences from '../../database/Preferences'
 import { DialogButtonBar } from './DialogButtonBar'
 import FolderDirectory from '../../utils/FolderDirectory'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { salmonLogger } from 'salmonlogger'
 
 @CustomDialog
 export struct AddFileFolderNameDialog {
@@ -127,10 +129,15 @@ export struct AddFileFolderNameDialog {
           if (this.onCreateFolder) {
             this.onCreateFolder(this.file_folder_name.trim(), this.selected_parent_date)
           } else {
-            const updatedFolders =
-              FileFolderUtil.createNewFolder(PathUtils.appContext!, this.file_folder_name,
+            try {
+              const updatedFolders = FileFolderUtil.createNewFolder(PathUtils.appContext!, this.file_folder_name,
                 this.selected_parent_date)
-            this.onFolderAdded?.(updatedFolders)
+              this.onFolderAdded?.(updatedFolders)
+            } catch (_error) {
+              salmonLogger.addLog('AddFileFolderNameDialog', 'Could not create the folder', true)
+              ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.library_operation_failed').id))
+              return
+            }
           }
           this.controller?.close()
         }

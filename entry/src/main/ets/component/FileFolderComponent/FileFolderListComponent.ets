@@ -45,6 +45,7 @@ export function FileFolderListBuilder(fileFolderListBuilderValue: FileFolderList
     SymbolGlyph(fileFolderListBuilderValue.videoListController?.folder?.date ===
       fileFolderListBuilderValue.folder?.date ?
       $r('sys.symbol.doc_plaintext_and_folder') : $r('sys.symbol.folder'))
+      .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
       .fontSize(22)
       .fontColor(fileFolderListBuilderValue.videoListController?.folder?.date ===
         fileFolderListBuilderValue.folder?.date ?
@@ -58,6 +59,7 @@ export function FileFolderListBuilder(fileFolderListBuilderValue: FileFolderList
 
     Column() {
       Text(fileFolderListBuilderValue.folder?.name)
+        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
         .width('100%')
         .fontColor(fileFolderListBuilderValue.videoListController?.folder?.date ===
           fileFolderListBuilderValue.folder?.date ?

@@ -32,13 +32,13 @@ export default class WantProcess {
   private static cardNavigationReady: boolean = false
   private static cardRequestVersion: number = 0
 
-  private static cardPlaybackHandler: ((video: VideoMetadata) => boolean) | undefined = undefined
+  private static cardPlaybackHandler: ((video: VideoMetadata, list: VideoMetadata[]) => boolean) | undefined = undefined
 
-  static setCardPlaybackHandler(handler: (video: VideoMetadata) => boolean): void {
+  static setCardPlaybackHandler(handler: (video: VideoMetadata, list: VideoMetadata[]) => boolean): void {
     WantProcess.cardPlaybackHandler = handler
   }
 
-  static clearCardPlaybackHandler(handler: (video: VideoMetadata) => boolean): void {
+  static clearCardPlaybackHandler(handler: (video: VideoMetadata, list: VideoMetadata[]) => boolean): void {
     if (WantProcess.cardPlaybackHandler === handler) {
       WantProcess.cardPlaybackHandler = undefined
     }
@@ -222,42 +222,59 @@ export default class WantProcess {
     if (!context) {
       return
     }
-    const recent = Preferences.getRecentPlay(context)
-    const video = recent.find(item => item.date === mediaId && VideoFormData.isPublicMedia(item))
-    if (!video) {
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.play_record_invalid').id))
-      pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null)
-      return
-    }
     try {
-      if (video.uri.startsWith('file://') || video.uri.startsWith('/')) {
-        // A desktop card grants no new file access. Restore the app's existing
-        // persisted grant before preflight, just like the normal player does.
-        const activated = await PermissionUtil.activatePermission(video.uri)
-        if (requestVersion !== WantProcess.cardRequestVersion) { return }
-        if (!activated) { throw new Error('File permission activation failed') }
-        // activatePermission may use its readable cache. Still check the file
-        // itself so moved/deleted files do not pass preflight on a stale cache.
-        const file = await fileIo.open(video.uri, fileIo.OpenMode.READ_ONLY)
-        await fileIo.close(file)
-      }
-    } catch (error) {
-      if (requestVersion !== WantProcess.cardRequestVersion) { return }
-      const code = (error as BusinessError)?.code ?? 'unknown'
-      salmonLogger.addLog(TAG, `卡片文件访问失败，code=${code}`, true)
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.file_access_denied').id))
-      pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null)
-      return
-    }
-    if (requestVersion !== WantProcess.cardRequestVersion) { return }
-    try {
-      const paths = pathStack.getAllPathName()
-      if (paths[paths.length - 1] === NavigationAddress.VIDEO_PLAYER &&
-        WantProcess.cardPlaybackHandler?.(video)) {
+      const recent = Preferences.getRecentPlay(context, true)
+      const historyVideo = recent.find(item => item.date === mediaId && VideoFormData.isPublicMedia(item))
+      if (!historyVideo) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.play_record_invalid').id))
+        pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null)
         return
       }
-      const params = new PlayerParams(video, [video], undefined, false,
-        VideoOperateUtil.resolvePlayerType(video, false))
+      // 历史记录只用于定位；播放与授权检查使用媒体库的最新元数据。
+      const storedVideo = Preferences.findVideoByDate(context, mediaId, true)[0] ?? historyVideo
+      if (!VideoFormData.isPublicMedia(storedVideo)) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.play_record_invalid').id))
+        pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null)
+        return
+      }
+      const checkedUri = storedVideo.uri
+      try {
+        if (checkedUri.startsWith('file://') || checkedUri.startsWith('/')) {
+          // 卡片不授予新权限；恢复既有授权后仍实际打开文件检查可读性。
+          const activated = await PermissionUtil.activatePermission(checkedUri)
+          if (requestVersion !== WantProcess.cardRequestVersion) { return }
+          if (!activated) { throw new Error('File permission activation failed') }
+          const file = await fileIo.open(checkedUri, fileIo.OpenMode.READ_ONLY)
+          await fileIo.close(file)
+        }
+      } catch (error) {
+        if (requestVersion !== WantProcess.cardRequestVersion) { return }
+        const code = (error as BusinessError)?.code ?? 'unknown'
+        salmonLogger.addLog(TAG, `卡片文件访问失败，code=${code}`, true)
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.file_access_denied').id))
+        pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null)
+        return
+      }
+      if (requestVersion !== WantProcess.cardRequestVersion) { return }
+      // 授权可能异步等待，重新取最新对象和原顺序队列，不覆盖等待期间的元数据更新。
+      const found = Preferences.findVideoByDate(context, mediaId, true)
+      const video = found[0] ?? historyVideo
+      if (video.uri !== checkedUri || !VideoFormData.isPublicMedia(video)) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.play_record_invalid').id))
+        pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null)
+        return
+      }
+      const list = found[0] && found[1].length > 0 ? found[1] : [video]
+      salmonLogger.addLog(TAG,
+        `卡片播放队列已恢复: videoId=${video.date}, total=${list.length}, source=${found[0] ? 'folder' : 'history'}`)
+      const paths = pathStack.getAllPathName()
+      if (paths[paths.length - 1] === NavigationAddress.VIDEO_PLAYER &&
+        WantProcess.cardPlaybackHandler?.(video, list)) {
+        return
+      }
+      // 显式传完整队列，在 onReady 启播前赋值，不依赖 folder_date 的延迟恢复分支。
+      const params = new PlayerParams(video, list, undefined, false,
+        VideoOperateUtil.resolvePlayerType(video, false), found[0] ? found[2] : undefined)
       params.resumeFromCard = true
       pathStack.pushPathByName(NavigationAddress.VIDEO_PLAYER, params)
     } catch (error) {

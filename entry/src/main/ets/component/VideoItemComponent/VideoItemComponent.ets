@@ -14,6 +14,7 @@ import { RenameDialog } from '../../component/Dialog/RenameDialog'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import { SideBarController } from '../SideBarComponent/SideBar'
 import { VideoMetaDataOperator } from '../../database/VideoMetaData'
+import Preferences from '../../database/Preferences'
 import VideoUtils from '../../utils/VideoUtil'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 import FileFolderUtil from '../../utils/FileFolderUtil'
@@ -72,11 +73,12 @@ export struct VideoList {
         try {
           await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
             DataSyncUtil.editingVideo!)
-        } catch (e) {
-          ToolsUtil.showToast(`删除失败:${e}`)
-        } finally {
-          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+        } catch (_error) {
+          salmonLogger.addLog('VideoList', 'Could not delete the video', true)
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_failed_retry').id))
+          return
         }
+        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow,
     onDidDisappear: () => this.libraryKeyboard.reset()
@@ -97,51 +99,19 @@ export struct VideoList {
       renameTarget: 'video',
       preserveExtension: true,
       onConfirm: (title: string) => {
-        const editingVideo = DataSyncUtil.editingVideo!
-        const targetIndex = MediaLibraryService.getItemIndex(this.videoListController.videoMetaDataList, editingVideo)
-        if (targetIndex === -1) {
+        const editingVideo = DataSyncUtil.editingVideo
+        if (!editingVideo) {
           return
         }
-        if (this.videoListController.videoMetaDataList.some((v, index) => index !== targetIndex &&
-          v.title === title)) {
+        const found = Preferences.findVideoByDate(PathUtils.appContext!, editingVideo.date, true)
+        const original = found[0]
+        if (!original || found[2] !== this.videoListController.folder?.date ||
+          found[1].some(video => video.date !== original.date && video.title === title)) {
           return
         }
-        const original = this.videoListController.videoMetaDataList[targetIndex]
-        const updatedVideo: VideoMetadata = {
-          uri: original.uri,
-          title: title as string,
-          artist: original.artist,
-          album: original.album,
-          date: original.date,
-          size: original.size,
-          cover_size: original.cover_size,
-          has_video_track: original.has_video_track,
-          time: original.time,
-          last_play: original.last_play,
-          last_played_at: original.last_played_at,
-          format: original.format,
-          video_size: original.video_size,
-          bit_rate: original.bit_rate,
-          hdr_type: original.hdr_type,
-          audio_type: original.audio_type,
-          frame_rate: original.frame_rate,
-          start_time: original.start_time,
-          end_time: original.end_time,
-          end_time_is_duration: original.end_time_is_duration,
-          external_subtitle_format: original.external_subtitle_format,
-          pointA: original.pointA,
-          pointB: original.pointB,
-          subtitle_mode: original.subtitle_mode,
-          subtitle_visible: original.subtitle_visible,
-          subtitle_ai_asr_shown: original.subtitle_ai_asr_shown,
-          subtitle_3d_mode: original.subtitle_3d_mode,
-          subtitle_offset_millis: original.subtitle_offset_millis,
-          subtitle_track_id: original.subtitle_track_id
-        }
-        this.videoListController.videoMetaDataList[targetIndex] = updatedVideo
-        DataSyncUtil.editingVideo = updatedVideo
-        this.videoListController.videoDataSource.updateItem(targetIndex, updatedVideo)
-        FileFolderUtil.updateVideoInFileFolder(PathUtils.appContext!, this.videoListController, this.fileFolderSource)
+        const updatedVideo = Preferences.copyPlaybackMetadata(original)
+        updatedVideo.title = title
+        this.saveEditedVideo(updatedVideo)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -160,12 +130,13 @@ export struct VideoList {
           DataSyncUtil.delMultipleList = this.batchDelList
           await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
             this.fileFolderSource, deleteType)
-        } catch (e) {
-          ToolsUtil.showToast(`删除失败:${e}`)
-        } finally {
-          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-          this.videoListController.closeMultipleChoose()
+        } catch (_error) {
+          salmonLogger.addLog('VideoList', 'Could not delete the selected videos', true)
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_failed_retry').id))
+          return
         }
+        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+        this.videoListController.closeMultipleChoose()
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow,
     onDidDisappear: () => this.libraryKeyboard.reset()
@@ -182,11 +153,46 @@ export struct VideoList {
     builder: InfoConfirmDialog({
       textInfo: $r('app.string.invalid_file_clear_confirm'),
       confirm: async () => {
-        await this.videoListController.videoDataSource.deleteUnExistFile(this._invalidItem!, this.videoListController,
-          this.fileFolderSource)
+        try {
+          await this.videoListController.videoDataSource.deleteUnExistFile(this._invalidItem!, this.videoListController,
+            this.fileFolderSource)
+        } catch (_error) {
+          salmonLogger.addLog('VideoList', 'Could not remove the unavailable video', true)
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_failed_retry').id))
+        }
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+
+  private saveEditedVideo(video: VideoMetadata): void {
+    if (!FileFolderUtil.updateVideoInFileFolder(PathUtils.appContext!, this.videoListController,
+      this.fileFolderSource, video)) {
+      throw new Error('Video no longer exists in the folder')
+    }
+    DataSyncUtil.editingVideo = video
+  }
+
+  private async changeExternalSubtitle(item: VideoMetadata | undefined): Promise<void> {
+    if (!item) return
+    const context = PathUtils.appContext!
+    const folderDate = this.videoListController.folder?.date
+    try {
+      const original = Preferences.findVideoByDate(context, item.date, true)
+      if (!original[0] || original[2] !== folderDate) return
+      const draft = Preferences.copyPlaybackMetadata(original[0])
+      await SubtitleUtil.importOrDeleteSubtitleProcess(draft)
+      // 系统选文件期间，播放记忆或其它元数据可能已有更新；仅合并字幕字段。
+      const latest = Preferences.findVideoByDate(context, item.date, true)
+      if (!latest[0] || latest[2] !== folderDate || this.videoListController.folder?.date !== folderDate ||
+        latest[0].external_subtitle_format === draft.external_subtitle_format) return
+      const updated = Preferences.copyPlaybackMetadata(latest[0])
+      updated.external_subtitle_format = draft.external_subtitle_format
+      this.saveEditedVideo(updated)
+    } catch (_error) {
+      salmonLogger.addLog('VideoList', 'Could not update external subtitle metadata', true)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.library_operation_failed').id))
+    }
+  }
   @Event onSearchValueChange: (v: string) => void = () => {
   }
   @Event onDelMultipleListChange: (v: VideoMetadata[]) => void = () => {
@@ -283,7 +289,7 @@ export struct VideoList {
         coverRefreshToken: this.coverRefreshToken,
         menuBuilder: (item: VideoMetadata | undefined) => { this.MenuBuilder(item) },
         menuOptions: (item: VideoMetadata, response: ResponseType) => this.videoMenuOptions(item, response),
-        onVideoTap: (item: VideoMetadata) => this.handleVideoItemTap(item),
+        onVideoTap: (item: VideoMetadata, list?: VideoMetadata[]) => this.handleVideoItemTap(item, list),
         onSearchValueChange: (value: string) => this.onSearchValueChange(value),
         onScrollDirectionChange: (isUp: boolean) => this.onScrollDirectionChange(isUp),
         onDirectoryFolderChange: (date: string) => this.onDirectoryFolderChange(date)
@@ -524,8 +530,9 @@ export struct VideoList {
     }
   }
 
-  async clickItem(item: VideoMetadata | undefined, reverse: boolean = false) {
-    if (!item || !this.videoListController.videoDataSource.getAllData().some(i => i.date == item?.date!)) {
+  async clickItem(item: VideoMetadata | undefined, reverse: boolean = false, list?: VideoMetadata[]) {
+    const videos = list ?? this.videoListController.videoDataSource.getAllData()
+    if (!item || !videos.some(video => video.date === item.date)) {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.data_loading_retry').id))
       this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
       return
@@ -546,8 +553,8 @@ export struct VideoList {
       }, 500)
     }
     if (ToolsUtil.isNetworkUrl(item.uri) || await SelectFileUtil.isFileExist(item.uri, true)) {
-      await ToolsUtil.routerWhere(this.pathStack, item,
-        this.videoListController.videoDataSource.getAllData(), reverse, false)
+      await ToolsUtil.routerWhere(this.pathStack, item, list ?? this.videoListController.videoDataSource.getAllData(),
+        reverse, false)
     } else {
       this._invalidItem = item
       this.invalidFileDialog.open()
@@ -696,18 +703,7 @@ export struct VideoList {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')),
         content: $r('app.string.menu_import_subtitle')
       })
-        .onClick(async () => {
-          DataSyncUtil.editingVideo = item!
-          await SubtitleUtil.importOrDeleteSubtitleProcess(item!)
-          const targetIndex = MediaLibraryService.getItemIndex(this.videoListController.videoMetaDataList, item!)
-          if (targetIndex !== -1) {
-            this.videoListController.videoMetaDataList[targetIndex] = item!
-            // 使用增量更新而不是全量重载，提升性能
-            this.videoListController.videoDataSource.updateItem(targetIndex, item!)
-            FileFolderUtil.updateVideoInFileFolder(PathUtils.appContext!, this.videoListController,
-              this.fileFolderSource)
-          }
-        })
+        .onClick(() => { void this.changeExternalSubtitle(item) })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder_badge_arrow_left')),
         content: $r('app.string.menu_open_file_location')
@@ -758,14 +754,14 @@ export struct VideoList {
     }
   }
 
-  private async handleVideoItemTap(video: VideoMetadata): Promise<void> {
+  private async handleVideoItemTap(video: VideoMetadata, list?: VideoMetadata[]): Promise<void> {
     if (this.videoListController.directoryMode && this.videoListController.directoryTransitioning) {
       return
     }
     if (this.videoListController.multipleChooseState !== Visibility.Visible) {
-      const currentVideo = this.displayMode === ListDisplayMode.LIST_DISPLAY ?
+      const currentVideo = !list && this.displayMode === ListDisplayMode.LIST_DISPLAY ?
         MediaLibraryService.getItem(this.videoListController.videoMetaDataList, video.date) : video
-      await this.clickItem(currentVideo)
+      await this.clickItem(currentVideo, false, list)
       return
     }
     if (this._delMultipleList.some(item => item.date === video.date)) {

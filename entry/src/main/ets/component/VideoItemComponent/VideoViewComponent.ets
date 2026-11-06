@@ -30,6 +30,7 @@ import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu'
+import { FolderMenuActions } from '../FileFolderComponent/FileFolderSelectBuilder'
 import { MaskComponent } from '../SideBarComponent/MaskComponent'
 import { SearchComponent } from './SearchComponent'
 import { SortMenuComponent } from '../common/SortMenuComponent'
@@ -39,9 +40,11 @@ import { HiCar } from '../../utils/HiCarUtil'
 import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
 import { KeyboardShortcuts, LibraryKeyboard } from '../../utils/KeyboardShortcuts'
 import HomeSidebarLayout from '../../utils/HomeSidebarLayout'
+import { salmonLogger } from 'salmonlogger'
 
 @ComponentV2
 export struct VideoView {
+  @Consumer() folderMenuActions: FolderMenuActions = new FolderMenuActions()
   @Consumer() libraryKeyboard: LibraryKeyboard = new LibraryKeyboard()
   searchController: SearchController = new SearchController()
   @Param loading: boolean = false
@@ -68,10 +71,13 @@ export struct VideoView {
             await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
               this.fileFolderSource, deleteType)
           }
-        } finally {
-          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-          this.videoListController.closeMultipleChoose()
+        } catch (_error) {
+          salmonLogger.addLog('VideoView', 'Could not delete the selected videos', true)
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_failed_retry').id))
+          return
         }
+        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+        this.videoListController.closeMultipleChoose()
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow,
     onDidDisappear: () => this.libraryKeyboard.reset()
@@ -169,6 +175,13 @@ export struct VideoView {
     }
   }
 
+  @Monitor('videoListController.directoryFolderSelection')
+  onDirectoryFolderSelectionChanged(): void {
+    if (this.videoListController.directoryFolderSelection) {
+      this.searchBarHidden = false
+    }
+  }
+
   @Monitor('searchValue')
   onSearchValueMonitor() {
     this._searchValue = this.searchValue
@@ -220,7 +233,8 @@ export struct VideoView {
         searchBarHidden: this.searchBarHidden,
         contentWidth: this.availableWidth,
         onScrollDirectionChange: (isUp: boolean) => {
-          if (HiCar.enabled || this.is_edit || this.searchBarHidden === isUp) {
+          if (HiCar.enabled || this.is_edit || this.videoListController.directoryFolderSelection ||
+            this.searchBarHidden === isUp) {
             return
           }
           // 显隐动画由工具栏自身负责，滚动回调中不强制刷新布局。
@@ -275,6 +289,11 @@ export struct VideoView {
     const scaleInset = this.availableHeight * (1 - scale) / 2
     // 抵消父级居中缩放带来的顶部位移，保留原有 20vp 的底部阴影避让。
     return -(SafeHeight.topSafeHeight + 100 + scaleInset / scale)
+  }
+
+  @Computed
+  get showStandardToolbarActions(): boolean {
+    return !this.is_edit && (!HiCar.enabled || this.availableWidth >= 400)
   }
 
   @Builder
@@ -367,7 +386,7 @@ export struct VideoView {
           onSearchBlur: () => { this.libraryKeyboard.editing = false }
         })
 
-        if (!this.is_edit && (!HiCar.enabled || this.availableWidth >= 400)) {
+        if (this.showStandardToolbarActions) {
           Button({ type: ButtonType.Circle, stateEffect: true }) {
             SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
               .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
@@ -381,20 +400,24 @@ export struct VideoView {
           .attributeModifier(new LightMaterialModifier())
           .transition(XAnimation.getAnimation('right', 0, false))
 
-          if (this.videoListController.multipleChooseState === Visibility.Visible) {
-            Button({ type: ButtonType.Circle, stateEffect: true }) {
-              SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-                .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-            }
-            .attributeModifier(new ButtonFancyModifier(HiCar.enabled ? 56 : 40, HiCar.enabled ? 56 : 40))
-            .bindMenu(this.SelectItemMenuBuilder,
-              {
-                backgroundBlurStyle: BlurStyle.Regular,
-                hapticFeedbackMode: HapticFeedbackMode.ENABLED
-              })
-            .attributeModifier(new LightMaterialModifier())
-            .transition(XAnimation.getAnimation('right', 0, false))
+        }
+
+        if (this.videoListController.directoryFolderSelection ||
+          (this.showStandardToolbarActions && this.videoListController.multipleChooseState === Visibility.Visible)) {
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
+              .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
           }
+          .attributeModifier(new ButtonFancyModifier(HiCar.enabled ? 56 : 40, HiCar.enabled ? 56 : 40))
+          .accessibilityText($r('app.string.multiple_choice'))
+          .enabled(!this.videoListController.directoryFolderSelection || !this.folderMenuActions.deleting)
+          .bindMenu(this.SelectItemMenuBuilder,
+            {
+              backgroundBlurStyle: BlurStyle.Regular,
+              hapticFeedbackMode: HapticFeedbackMode.ENABLED
+            })
+          .attributeModifier(new LightMaterialModifier())
+          .transition(XAnimation.getAnimation('right', 0, false))
         }
       }
       .width('100%')
@@ -405,7 +428,10 @@ export struct VideoView {
     }
     .width('100%')
     .padding({ top: HiCar.enabled ? 8 : SafeHeight.topSafeHeight, left: 16, right: 16 })
-    .translate({ y: !HiCar.enabled && this.searchBarHidden ? this.toolbarHiddenTranslationY : 0 })
+    .translate({
+      y: !HiCar.enabled && this.searchBarHidden && !this.videoListController.directoryFolderSelection ?
+        this.toolbarHiddenTranslationY : 0
+    })
     .animation({ duration: 300, curve: Curve.Ease })
   }
 
@@ -533,6 +559,15 @@ export struct VideoView {
     })
   }
 
+  @Computed
+  get allSelectionItemsSelected(): boolean {
+    if (this.videoListController.directoryFolderSelection) {
+      return this.videoListController.allDirectoryFoldersSelected
+    }
+    const count = this.videoListController.videoMetaDataList.length
+    return count > 0 && this.delMultipleList.length === count
+  }
+
   @Builder
   SelectItemMenuBuilder() {
     Menu() {
@@ -541,20 +576,25 @@ export struct VideoView {
         content: $r('app.string.cancel')
       })
         .onClick(() => {
-          this.videoListController.closeMultipleChoose()
+          if (this.videoListController.directoryFolderSelection) {
+            this.videoListController.directoryFolderSelection = undefined
+          } else {
+            this.videoListController.closeMultipleChoose()
+          }
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.checkmark_square_on_square')),
-        content: this.delMultipleList.length === this.videoListController.videoMetaDataList.length &&
-          this.videoListController.videoMetaDataList.length > 0 ? $r('app.string.deselect_all') :
-          $r('app.string.select_all')
+        content: this.allSelectionItemsSelected ? $r('app.string.deselect_all') : $r('app.string.select_all')
       })
         .onClick(() => {
-          if (this.delMultipleList.length === this.videoListController.videoMetaDataList.length &&
-            this.videoListController.videoMetaDataList.length > 0) {
-            this.delMultipleList = []
+          if (this.videoListController.directoryFolderSelection) {
+            if (this.allSelectionItemsSelected) {
+              this.videoListController.directoryFolderSelection = new Set()
+            } else {
+              this.videoListController.selectAllDirectoryFolders()
+            }
           } else {
-            this.delMultipleList = [...this.videoListController.videoMetaDataList]
+            this.delMultipleList = this.allSelectionItemsSelected ? [] : [...this.videoListController.videoMetaDataList]
           }
         })
       MenuItem({
@@ -562,14 +602,24 @@ export struct VideoView {
         content: $r('app.string.delete_selected'),
         labelInfo: 'Delete'
       })
+        .enabled(this.videoListController.directoryFolderSelection?.size !== 0)
         .onClick(() => {
-          this.batchDelConfirmDialog.open()
+          const folders = this.videoListController.directoryFolderSelection
+          if (folders) {
+            this.folderMenuActions.confirmDelete(Array.from(folders), () => {
+              this.videoListController.directoryFolderSelection = undefined
+            })
+          } else {
+            this.batchDelConfirmDialog.open()
+          }
         })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
-        content: $r('app.string.move_to_folder'),
-        builder: (): void => this.MoveToFolderMenuBuilder()
-      })
+      if (!this.videoListController.directoryFolderSelection) {
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
+          content: $r('app.string.move_to_folder'),
+          builder: (): void => this.MoveToFolderMenuBuilder()
+        })
+      }
     }.attributeModifier(new MenuFancyModifier())
   }
 
@@ -716,7 +766,7 @@ export struct VideoView {
    */
   private canShowRecentPlayButton(): boolean {
     return !this.videoListController.directoryOverview && !this.loading && !this.is_edit &&
-      this._searchValue.length === 0 &&
+      this._searchValue.length === 0 && !this.videoListController.directoryFolderSelection &&
       this.videoListController.multipleChooseState !== Visibility.Visible &&
       this.videoListController.videoMetaDataList.length > 0
   }

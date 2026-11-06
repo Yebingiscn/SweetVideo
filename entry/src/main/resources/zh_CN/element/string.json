@@ -34,7 +34,7 @@
     },
     {
       "name": "mpv_conf_desc",
-      "value": "使用标准 mpv.conf 语法（UTF-8，最多 64 KB），支持注释和配置档。仅导入单个 conf，不会复制 shader、脚本或 include 文件，请使用沙箱可访问的绝对路径。自定义值覆盖普通初始化默认值；输出、解码、窗口绑定和播放中的界面控制仍以应用为准。保存后请开启自定义 conf；关闭可恢复默认配置。"
+      "value": "使用标准 mpv.conf 语法（UTF-8，最多 64 KB），支持注释和配置档。自定义值覆盖普通初始化默认值；输出、解码、窗口绑定和播放中的界面控制仍以应用为准。保存后请开启自定义 conf；关闭可恢复默认配置。"
     },
     {
       "name": "mpv_conf_import",
@@ -105,6 +105,10 @@
     {
       "name": "folder_batch_delete_failed",
       "value": "文件夹删除失败，请重试。"
+    },
+    {
+      "name": "library_operation_failed",
+      "value": "媒体库操作失败，请重试。"
     },
     {
       "name": "directory_all_folders",
@@ -871,6 +875,10 @@
       "value": "后台播放"
     },
     {
+      "name": "auto_listen_video",
+      "value": "后台自动听视频"
+    },
+    {
       "name": "play_with_others",
       "value": "与其他应用同时播放"
     },
@@ -1497,6 +1505,82 @@
     {
       "name": "ai_subtitle",
       "value": "AI 字幕"
+    },
+    {
+      "name": "ai_subtitle_unsupported",
+      "value": "当前设备不支持 AI 字幕，已恢复原字幕选择"
+    },
+    {
+      "name": "ai_subtitle_unavailable",
+      "value": "AI 字幕暂时不可用，已恢复原字幕选择，请稍后重试"
+    },
+    {
+      "name": "ai_subtitle_settings_hint",
+      "value": "独立于普通字幕样式，下次开启 AI 字幕时生效。中文音频仅支持中文显示；英文音频支持中文、英文或中英双语。"
+    },
+    {
+      "name": "ai_subtitle_options_api_required",
+      "value": "语言、字号设置需要 HarmonyOS 6.1.1（API 24）及以上版本，当前系统可设置面板背景。"
+    },
+    {
+      "name": "ai_subtitle_source_language",
+      "value": "音频语言"
+    },
+    {
+      "name": "ai_subtitle_target_language",
+      "value": "显示语言"
+    },
+    {
+      "name": "ai_subtitle_language_chinese",
+      "value": "中文"
+    },
+    {
+      "name": "ai_subtitle_language_bilingual",
+      "value": "中英双语"
+    },
+    {
+      "name": "ai_subtitle_font_small",
+      "value": "小号"
+    },
+    {
+      "name": "ai_subtitle_font_normal",
+      "value": "标准"
+    },
+    {
+      "name": "ai_subtitle_font_big",
+      "value": "大号"
+    },
+    {
+      "name": "ai_subtitle_font_large",
+      "value": "超大"
+    },
+    {
+      "name": "ai_subtitle_font_color",
+      "value": "AI 字幕颜色"
+    },
+    {
+      "name": "ai_subtitle_panel_opacity",
+      "value": "面板背景"
+    },
+    {
+      "name": "ai_subtitle_opacity_transparent",
+      "value": "全透明"
+    },
+    {
+      "name": "ai_subtitle_opacity_half",
+      "value": "半透明"
+    },
+    {
+      "name": "ai_subtitle_opacity_opaque",
+      "value": "不透明"
+    },
+    {
+      "name": "reset_ai_subtitle_settings",
+      "value": "恢复 AI 字幕默认设置"
+    },
+    {
+      "name": "ai_subtitle_settings_reset",
+      "value": "已恢复 AI 字幕默认设置"
     },
     {
       "name": "subtitle_offset",
@@ -4365,6 +4449,8 @@
     {"name":"screenshot_queued","value":"截图已加入队列"},
     {"name":"screenshot_failed","value":"截图失败，请重试"},
     {"name": "stream_headers_hint", "value": "请求头（可选，每行一个，例如 Referer: https://example.com）"},
-    {"name": "stream_headers_invalid", "value": "请求头格式不正确或内容过长，请使用每行 名称: 值"}
+    {"name": "stream_headers_invalid", "value": "请求头格式不正确或内容过长，请使用每行 名称: 值"},
+    {"name": "danmaku_heatmap", "value": "弹幕高能进度条"},
+    {"name": "danmaku_heatmap_description", "value": "有弹幕时显示进度条上的高能分布"}
   ]
 }

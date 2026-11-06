@@ -125,8 +125,35 @@ export interface PlaybackProgressSliderParams {
   playTime: number
   totalTime: number
   markers?: PlaybackProgressMarker[]
+  danmakuHeatmapPath?: string
+  onSliderWidthChange?: (width: number) => void
   onSliderChange?: (value: number, mode?: SliderChangeMode) => void
   onSliderTouch?: (event: TouchEvent) => void
+}
+
+export const PLAYBACK_HEATMAP_HEIGHT: number = 22
+const PLAYBACK_MARKER_LABEL_HEIGHT: number = 12
+const PLAYBACK_MARKER_LABEL_GAP: number = 2
+
+// Leave a separate caption row for A/B and intro/outro labels above the track.
+export function playbackHeatmapInset(params: PlaybackProgressSliderParams): number {
+  if (!params.danmakuHeatmapPath) { return 0 }
+  const hasCaption = params.markers?.some((marker: PlaybackProgressMarker): boolean =>
+    marker.kind !== 'chapter' && marker.key.length > 0 && marker.label.length > 0 &&
+    Number.isFinite(marker.timeMs) && marker.timeMs >= 0 && marker.timeMs <= params.totalTime) ?? false
+  return hasCaption ? 28 : 16
+}
+
+export function playbackHeatmapTop(params: PlaybackProgressSliderParams): number {
+  const captionSpace = playbackHeatmapInset(params) > 16 ?
+    PLAYBACK_MARKER_LABEL_HEIGHT + PLAYBACK_MARKER_LABEL_GAP * 2 : 0
+  return (params.height ?? 40) / 2 - PLAYBACK_SLIDER_TRACK_THICKNESS / 2 -
+    PLAYBACK_HEATMAP_HEIGHT - captionSpace
+}
+
+function playbackMarkerLabelTop(params: PlaybackProgressSliderParams): number {
+  return params.danmakuHeatmapPath ? (params.height ?? 40) / 2 - PLAYBACK_SLIDER_TRACK_THICKNESS / 2 -
+    PLAYBACK_MARKER_LABEL_HEIGHT - PLAYBACK_MARKER_LABEL_GAP : 0
 }
 
 @Builder
@@ -148,50 +175,63 @@ export function PlaybackProgressSliderBuilder($$: PlaybackProgressSliderParams) 
       .blockColor(Color.White)
       .attributeModifier(new LightMaterialModifier())
       .height($$.height ?? 40)
+      .margin({ top: playbackHeatmapInset($$) })
       .width('100%')
       .opacity(0.9)
 
-    if (playbackRangeMarkers($$.markers, $$.totalTime).length > 0) {
+    if ($$.danmakuHeatmapPath || playbackRangeMarkers($$.markers, $$.totalTime).length > 0) {
       Stack({ alignContent: Alignment.TopStart }) {
-        ForEach(playbackRangeMarkers($$.markers, $$.totalTime), (marker: PlaybackRangeMarker) => {
-          Rect()
-            .width(marker.kind === 'chapter' ? 1 : 2)
-            .height(marker.kind === 'chapter' ? 8 : 12)
-            .fill(marker.color)
-            .stroke('#99000000')
-            .strokeWidth(0.5)
-            .position({ x: playbackRangeMarkerPosition(marker.ratio), y: '50%' })
-            .translate({ x: marker.kind === 'chapter' ? -0.5 : -1, y: marker.kind === 'chapter' ? -4 : -6 })
-            .hitTestBehavior(HitTestMode.Transparent)
-        }, (marker: PlaybackRangeMarker): string =>
-          `${marker.key}:${marker.timeMs}:${marker.label}:${JSON.stringify(marker.color)}:${marker.ratio}:${marker.kind ?? 'range'}`)
-        ForEach(playbackRangeMarkerLabels(playbackRangeMarkers($$.markers, $$.totalTime)),
-          (label: PlaybackRangeMarkerLabel) => {
-            Text(label.label)
+        if ($$.danmakuHeatmapPath) {
+          Path().commands($$.danmakuHeatmapPath ?? '').fill($r('app.color.main_color'))
+          .fillOpacity(0.8)
+          .strokeWidth(0)
+          .width('100%')
+          .height(PLAYBACK_HEATMAP_HEIGHT)
+          .position({ x: 0, y: playbackHeatmapTop($$) })
+          .hitTestBehavior(HitTestMode.None)
+        }
+        Repeat<PlaybackRangeMarker>(playbackRangeMarkers($$.markers, $$.totalTime))
+          .each((repeatItem: RepeatItem<PlaybackRangeMarker>) => {
+            Rect()
+              .width(repeatItem.item.kind === 'chapter' ? 1 : 2)
+              .height(repeatItem.item.kind === 'chapter' ? 8 : 12)
+              .fill(repeatItem.item.color)
+              .stroke($r('sys.color.mask_secondary'))
+              .strokeWidth(0.5)
+              .position({ x: playbackRangeMarkerPosition(repeatItem.item.ratio), y: '50%' })
+              .translate({ x: repeatItem.item.kind === 'chapter' ? -0.5 : -1, y: repeatItem.item.kind === 'chapter' ? -4 : -6 })
+              .hitTestBehavior(HitTestMode.Transparent)
+          })
+          .key((marker: PlaybackRangeMarker): string => marker.key)
+        Repeat<PlaybackRangeMarkerLabel>(playbackRangeMarkerLabels(playbackRangeMarkers($$.markers, $$.totalTime)))
+          .each((repeatItem: RepeatItem<PlaybackRangeMarkerLabel>) => {
+            Text(repeatItem.item.label)
               .fontSize(10)
               .minFontSize(7)
               .maxFontSize(10)
               .fontWeight(FontWeight.Medium)
-              .fontColor(label.color)
+              .fontColor(repeatItem.item.color)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
               .textAlign(TextAlign.Center)
               .textShadow({ color: Color.Black, type: ShadowType.BLUR, radius: 3 })
-              .width(playbackRangeMarkerLabelWidth(label))
-              .height(12)
-              .position({ x: playbackRangeMarkerPosition(label.ratio), y: 0 })
+              .width(playbackRangeMarkerLabelWidth(repeatItem.item))
+              .height(PLAYBACK_MARKER_LABEL_HEIGHT)
+              .position({ x: playbackRangeMarkerPosition(repeatItem.item.ratio), y: playbackMarkerLabelTop($$) })
               .translate({ x: '-50%' })
               .hitTestBehavior(HitTestMode.Transparent)
-          }, (label: PlaybackRangeMarkerLabel): string =>
-            `${label.key}:${label.ratio}:${label.label}:${JSON.stringify(label.color)}:${label.compact ?? false}`)
+          })
+          .key((label: PlaybackRangeMarkerLabel): string => label.key)
       }
       .width('100%')
       .height($$.height ?? 40)
       .padding({ left: PLAYBACK_SLIDER_TRACK_INSET, right: PLAYBACK_SLIDER_TRACK_INSET })
-      .hitTestBehavior(HitTestMode.Transparent)
+      .margin({ top: playbackHeatmapInset($$) })
+      .hitTestBehavior(HitTestMode.None)
       .accessibilityLevel('no-hide-descendants')
     }
   }
   .width('100%')
-  .height($$.height ?? 40)
+  .height(($$.height ?? 40) + playbackHeatmapInset($$))
+  .onSizeChange((_oldSize: SizeResult, size: SizeResult) => $$.onSliderWidthChange?.(Number(size.width)))
 }

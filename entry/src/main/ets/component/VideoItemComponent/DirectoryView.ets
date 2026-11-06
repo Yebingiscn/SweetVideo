@@ -1,4 +1,4 @@
-import BluRayDirectory from '../../utils/BluRayDirectory'
+import { FolderContextMenu, FolderMenuActions } from '../FileFolderComponent/FileFolderSelectBuilder'
 import { HiCar } from '../../utils/HiCarUtil'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PathUtils } from '../../utils/PathUtils'
@@ -25,6 +25,7 @@ enum DirectoryCoverPlacement {
 
 @ComponentV2
 export struct DirectoryView {
+  @Consumer() folderMenuActions: FolderMenuActions = new FolderMenuActions()
   @Consumer() libraryKeyboard: LibraryKeyboard = new LibraryKeyboard()
   @Param videoListController: VideoListController = new VideoListController()
   @Param searchValue: string = ''
@@ -37,7 +38,7 @@ export struct DirectoryView {
   @Param coverRefreshToken: number = 0
   @Consumer() file_folder_list: FileFolder[] = []
   @BuilderParam menuBuilder: (item: VideoMetadata | undefined) => void
-  @Event onVideoTap: (item: VideoMetadata) => Promise<void> = async () => {
+  @Event onVideoTap: (item: VideoMetadata, list?: VideoMetadata[]) => Promise<void> = async () => {
   }
   @Local directoryEntries: DirectoryEntry[] = []
   @Local directoryHero: DirectoryHero | undefined = undefined
@@ -50,11 +51,15 @@ export struct DirectoryView {
   private directoryAlive: boolean = false
   private directorySortVersion: number = 0
   private directoryKeyboardTimer: number = 0
+
   @Event menuOptions: (item: VideoMetadata, response: ResponseType) => ContextMenuOptions = () => ({})
+
   @Event onSearchValueChange: (v: string) => void = () => {
   }
+
   @Event onScrollDirectionChange: (isUp: boolean) => void = () => {
   }
+
   @Event onDirectoryFolderChange: (date: string) => void = () => {
   }
 
@@ -65,6 +70,8 @@ export struct DirectoryView {
   }
 
   aboutToDisappear(): void {
+    this.videoListController.directoryFolderSelection = undefined
+    this.videoListController.directorySelectableFolderDates = []
     clearTimeout(this.directoryKeyboardTimer)
     this.directoryAlive = false
     this.directorySortVersion++
@@ -83,6 +90,7 @@ export struct DirectoryView {
 
   @Monitor('searchValue')
   onSearchValueMonitor(): void {
+    this.closeFolderSelection()
     this._searchValue = this.searchValue
   }
 
@@ -116,6 +124,14 @@ export struct DirectoryView {
       return
     }
     this.directoryEntries = entries
+    const selected = this.videoListController.directoryFolderSelection
+    if (selected) {
+      const dates = this.selectableFolderDates()
+      const visible = new Set(dates)
+      this.videoListController.directorySelectableFolderDates = dates
+      this.videoListController.directoryFolderSelection =
+        new Set(Array.from(selected).filter(date => visible.has(date)))
+    }
     if (this.directoryEntries.length > 0) {
       // Repeat 会复用目录滚动节点，切换后主动恢复位置，不依赖 onAppear 再次触发。
       this.restoreDirectoryScroll(this.directoryKey())
@@ -146,11 +162,11 @@ export struct DirectoryView {
   @Builder
   DirectoryCoverImagesBuilder(folder: Binding<FileFolder>) {
     Image($r('app.media.sweet_video_alt'))
-      .attributeModifier(new ImageFancyModifier(16, '100%', '100%'))
+      .attributeModifier(new ImageFancyModifier(12, '100%', '100%'))
     if (this.directoryIndex.coverDates(folder.value.date).length === 1) {
       Image(PathUtils.coverUri(this.directoryIndex.coverDates(folder.value.date)[0]))
         .dynamicRangeMode(DynamicRangeMode.CONSTRAINT)
-        .attributeModifier(new ImageFancyModifier(16, '100%', '100%'))
+        .attributeModifier(new ImageFancyModifier(12, '100%', '100%'))
     } else if (this.directoryIndex.coverDates(folder.value.date).length > 1) {
       // 按实际封面数量排布：两张左右分栏，三张左大右小，四张四格。
       Repeat<string>(this.directoryIndex.coverDates(folder.value.date))
@@ -196,13 +212,26 @@ export struct DirectoryView {
       } else {
         this.DirectoryCoverImagesBuilder(folder)
       }
-      SymbolGlyph($r('sys.symbol.folder'))
-        .fontSize(14)
-        .fontColor([$r('app.color.main_color')])
-        .padding(5)
-        .backgroundColor($r('app.color.start_window_background'))
-        .borderRadius(10)
-        .margin(6)
+      if (this.videoListController.directoryFolderSelection &&
+        (placement === DirectoryCoverPlacement.LIST || placement === DirectoryCoverPlacement.CARD)) {
+        Checkbox()
+          .select(this.videoListController.directoryFolderSelection.has(folder.value.date))
+          .enabled(folder.value.name !== '首页')
+          .selectedColor($r('app.color.main_color'))
+          .width(22)
+          .height(22)
+          .margin(8)
+          .hitTestBehavior(HitTestMode.None)
+          .focusable(false)
+      } else {
+        SymbolGlyph($r('sys.symbol.folder'))
+          .fontSize(14)
+          .fontColor([$r('app.color.main_color')])
+          .padding(5)
+          .backgroundColor($r('app.color.start_window_background'))
+          .borderRadius(10)
+          .margin(6)
+      }
     }
     .width(placement === DirectoryCoverPlacement.LIST ?
       (this.directoryCoverLayout === CoverLayoutMode.VERTICAL_PLATE ? 85 : 110) :
@@ -225,17 +254,14 @@ export struct DirectoryView {
   }
 
   @Builder
-  BluRayFolderMenu(folder: FileFolder) {
-    Menu() {
-      Repeat<VideoMetadata>(folder.video_list.filter((item: VideoMetadata) => BluRayDirectory.isEntry(item.uri)))
-        .each((entry: RepeatItem<VideoMetadata>) => {
-          MenuItem({ content: $r('app.string.play_bluray'), labelInfo: entry.item.title })
-            .onClick(async () => {
-              await this.onVideoTap(entry.item)
-            })
-        })
-        .key((item: VideoMetadata) => item.date)
-    }
+  DirectoryFolderMenu(folder: FileFolder) {
+    FolderContextMenu(folder, this.folderMenuActions, this.videoListController.directoryFolderSelection !== undefined,
+      () => this.startFolderSelection(folder), () => this.closeFolderSelection(),
+      async (item: VideoMetadata, list: VideoMetadata[]) => {
+        if (!this.folderMenuActions.deleting) {
+          await this.onVideoTap(item, list)
+        }
+      })
   }
 
   @Builder
@@ -265,17 +291,11 @@ export struct DirectoryView {
       }.layoutWeight(1).alignItems(HorizontalAlign.Start)
     }
     .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-    .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, 'directory-header', '', () => {
-      this.libraryKeyboard.directoryNavigation = true
-      this.videoListController.requestDirectoryBack()
-    }))
     .width('100%')
     .accessibilityText($r('app.string.directory_folder_accessibility', folder.value.name,
       folder.value.video_list.length, this.directoryIndex.childFolders(folder.value.date).length))
-    .bindContextMenu(this.BluRayFolderMenu(folder.value), ResponseType.LongPress)
-    .onClick(() => {
-      this.videoListController.requestDirectory(folder.value.date)
-    })
+    .bindContextMenu(this.DirectoryFolderMenu(folder.value), ResponseType.LongPress)
+    .bindContextMenu(this.DirectoryFolderMenu(folder.value), ResponseType.RightClick)
     .backdropBlur(Setting.listItemBackgroundBlur ? 150 : 0)
     .borderRadius(12)
   }
@@ -314,11 +334,14 @@ export struct DirectoryView {
     .padding({ bottom: 12 })
     .accessibilityText($r('app.string.directory_folder_accessibility', folder.value.name,
       folder.value.video_list.length, this.directoryIndex.childFolders(folder.value.date).length))
-    // Long press opens the disc menu; a normal click enters the folder.
-    .bindContextMenu(this.BluRayFolderMenu(folder.value), ResponseType.LongPress)
-    .onClick(() => {
-      this.videoListController.requestDirectory(folder.value.date)
-    })
+    .bindContextMenu(this.DirectoryFolderMenu(folder.value), ResponseType.LongPress)
+    .bindContextMenu(this.DirectoryFolderMenu(folder.value), ResponseType.RightClick)
+  }
+
+  @Computed
+  get selectionCountLabel(): Resource | undefined {
+    const selected = this.videoListController.directoryFolderSelection
+    return selected ? $r('app.string.folder_selection_count', selected.size) : undefined
   }
 
   @Builder
@@ -328,7 +351,7 @@ export struct DirectoryView {
         Column({ space: 6 }) {
           Text($r('app.string.directory_all_folders'))
             .fontSize(22).fontWeight(FontWeight.Bold).fontColor($r('app.color.text_color'))
-          Text($r('app.string.directory_root_count', this.directoryIndex.childFolders(null).length))
+          Text(this.selectionCountLabel ?? $r('app.string.directory_root_count', this.directoryIndex.childFolders(null).length))
             .fontSize(13).fontColor($r('sys.color.font_secondary'))
         }.alignItems(HorizontalAlign.Start).layoutWeight(1)
       } else {
@@ -349,7 +372,7 @@ export struct DirectoryView {
                   .id('directory-header:title')
                   .opacity(
                     this.directoryHero?.folder.date === folder.item.date && this.directoryHero.contentHidden ? 0 : 1)
-                Text($r('app.string.directory_item_count', folder.item.video_list.length,
+                Text(this.selectionCountLabel ?? $r('app.string.directory_item_count', folder.item.video_list.length,
                   this.directoryIndex.childFolders(folder.item.date).length))
                   .fontSize(13)
                   .fontColor($r('sys.color.font_secondary'))
@@ -369,6 +392,10 @@ export struct DirectoryView {
     .height(88)
     .padding({ left: 16, right: 16, bottom: 16 })
     .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+    .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, 'directory-header', '', () => {
+      this.libraryKeyboard.directoryNavigation = true
+      this.videoListController.requestDirectoryBack()
+    }))
     .onClick(() => {
       this.videoListController.requestDirectoryBack()
     })
@@ -429,15 +456,8 @@ export struct DirectoryView {
     .clickEffect(this.videoClickEffect(entry.item.video))
     .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, entry.item.folder ? 'directory-folder' : 'video',
       entry.item.folder?.date ?? entry.item.video!.date, () => this.activateDirectoryEntry(entry.item)))
-    .gesture(
-      TapGesture({ count: 1, fingers: 1 }).onAction(async () => {
-        if (entry.item.folder) {
-          this.videoListController.requestDirectory(entry.item.folder.date)
-        } else if (entry.item.video) {
-          await this.onVideoTap(entry.item.video)
-        }
-      })
-    )
+    .enabled(!this.videoListController.directoryFolderSelection || entry.item.folder !== undefined)
+    .gesture(TapGesture({ count: 1, fingers: 1 }).onAction(() => this.activateDirectoryEntry(entry.item, false)))
     .onAreaChange((_old: Area, area: Area) => {
       if (entry.item.video) {
         KnockShareUtil.updateVideoRegion(entry.item.video, area)
@@ -463,15 +483,8 @@ export struct DirectoryView {
     .clickEffect(this.videoClickEffect(entry.item.video))
     .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, entry.item.folder ? 'directory-folder' : 'video',
       entry.item.folder?.date ?? entry.item.video!.date, () => this.activateDirectoryEntry(entry.item)))
-    .gesture(
-      TapGesture({ count: 1, fingers: 1 }).onAction(async () => {
-        if (entry.item.folder) {
-          this.videoListController.requestDirectory(entry.item.folder.date)
-        } else if (entry.item.video) {
-          await this.onVideoTap(entry.item.video)
-        }
-      })
-    )
+    .enabled(!this.videoListController.directoryFolderSelection || entry.item.folder !== undefined)
+    .gesture(TapGesture({ count: 1, fingers: 1 }).onAction(() => this.activateDirectoryEntry(entry.item, false)))
     .onAreaChange((_old: Area, area: Area) => {
       if (entry.item.video) {
         KnockShareUtil.updateVideoRegion(entry.item.video, area)
@@ -666,16 +679,56 @@ export struct DirectoryView {
     return `${folderKey}:${this.directoryLayout}:${this.directoryCoverLayout}:${this.videoListController.listLine}`
   }
 
-  private activateDirectoryEntry(entry: DirectoryEntry): void {
-    if (this.videoListController.directoryTransitioning) {
+  private activateDirectoryEntry(entry: DirectoryEntry, keyboard: boolean = true): void {
+    if (this.folderMenuActions.deleting || this.videoListController.directoryTransitioning) {
+      return
+    }
+    const selected = this.videoListController.directoryFolderSelection
+    if (selected) {
+      if (entry.folder && entry.folder.name !== '首页') {
+        const dates = new Set(selected)
+        if (!dates.delete(entry.folder.date)) {
+          dates.add(entry.folder.date)
+        }
+        this.videoListController.directoryFolderSelection = dates
+      }
       return
     }
     if (entry.folder) {
-      this.libraryKeyboard.directoryNavigation = true
+      this.libraryKeyboard.directoryNavigation = keyboard
       this.videoListController.requestDirectory(entry.folder.date)
     } else if (entry.video) {
       this.onVideoTap(entry.video).catch(() => {
       })
+    }
+  }
+
+  private selectableFolderDates(): string[] {
+    const dates: string[] = []
+    for (const entry of this.directoryEntries) {
+      if (entry.folder && entry.folder.name !== '首页') {
+        dates.push(entry.folder.date)
+      }
+    }
+    return dates
+  }
+
+  private startFolderSelection(folder: FileFolder): void {
+    if (this.folderMenuActions.deleting || this.videoListController.directoryTransitioning) {
+      return
+    }
+    const dates = this.selectableFolderDates()
+    if (dates.length === 0) {
+      return
+    }
+    this.videoListController.closeMultipleChoose()
+    this.videoListController.directorySelectableFolderDates = dates
+    this.videoListController.directoryFolderSelection = new Set(folder.name === '首页' ? [] : [folder.date])
+  }
+
+  private closeFolderSelection(): void {
+    if (!this.folderMenuActions.deleting) {
+      this.videoListController.directoryFolderSelection = undefined
     }
   }
 
@@ -704,7 +757,7 @@ export struct DirectoryView {
 
   private async navigateDirectory(date: string | null): Promise<void> {
     const controller = this.videoListController
-    if (!controller.directoryMode || controller.directoryTransitioning ||
+    if (!controller.directoryMode || controller.directoryTransitioning || controller.directoryFolderSelection ||
       controller.multipleChooseState === Visibility.Visible ||
       (date === null ? controller.directoryOverview :
         !controller.directoryOverview && controller.folder?.date === date)) {
@@ -752,8 +805,11 @@ export struct DirectoryView {
       const directoryIndex = this.directoryIndex
       const videos = await directoryIndex.sortedVideos(target, Preferences.getSortField(context),
         Preferences.getSortAsc(context), Preferences.getPinyinSort(context))
-      if (!this.directoryAlive || !controller.directoryMode || sortVersion !== this.directorySortVersion || directoryIndex !== this.directoryIndex) {
-        if (sortVersion === this.directorySortVersion) controller.directoryTransitioning = false
+      if (!this.directoryAlive || !controller.directoryMode || sortVersion !== this.directorySortVersion ||
+        directoryIndex !== this.directoryIndex) {
+        if (sortVersion === this.directorySortVersion) {
+          controller.directoryTransitioning = false
+        }
         return
       }
       controller.selectDirectoryFolder(target, videos)

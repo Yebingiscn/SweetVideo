@@ -7,6 +7,7 @@ import { salmonLogger } from 'salmonlogger'
 import { LocalSidecarFile } from './LocalSidecarFile'
 import { DanmakuStorage } from './DanmakuStorage'
 import { Setting } from './ObservedUtil'
+import { DanmakuHeatmap } from './DanmakuHeatmap'
 
 /** Playback state backed by a sandbox XML file keyed by the video's stable ID. */
 @ObservedV2
@@ -22,6 +23,33 @@ export class DanmakuSession {
   private media: string = ''
   private generation: number = 0
   private disposed: boolean = false
+  private heatmapSource: DanmakuItem[] | undefined = undefined
+  private heatmapDuration: number = 0
+  private heatmapOffset: number = 0
+  private heatmapPath: string = ''
+  private heatmapValues: number[] = []
+  private heatmapWidth: number = 0
+  private heatmapHeight: number = 0
+
+  // Resize only regenerates the bounded path; progress ticks never rescan comments.
+  getHeatmapPath(durationMs: number, width: number = 1000, height: number = 100): string {
+    const dataChanged = this.heatmapSource !== this.items || this.heatmapDuration !== durationMs ||
+      this.heatmapOffset !== this.offsetMs
+    if (dataChanged) {
+      this.heatmapSource = this.items
+      this.heatmapDuration = durationMs
+      this.heatmapOffset = this.offsetMs
+      this.heatmapValues = DanmakuHeatmap.build(this.items, durationMs, this.offsetMs)
+    }
+    const pathWidth = Number.isFinite(width) ? Math.max(0, width) : 0
+    const pathHeight = Number.isFinite(height) ? Math.max(0, height) : 0
+    if (dataChanged || this.heatmapWidth !== pathWidth || this.heatmapHeight !== pathHeight) {
+      this.heatmapWidth = pathWidth
+      this.heatmapHeight = pathHeight
+      this.heatmapPath = DanmakuHeatmap.path(this.heatmapValues, pathWidth, pathHeight)
+    }
+    return this.heatmapPath
+  }
 
   setMedia(media: string): void {
     if (this.media !== media) {
@@ -64,6 +92,11 @@ export class DanmakuSession {
     this.generation++
     this.loading = false
     this.items = []
+    this.heatmapSource = undefined
+    this.heatmapPath = ''
+    this.heatmapValues = []
+    this.heatmapWidth = 0
+    this.heatmapHeight = 0
     this.name = ''
     this.offsetMs = 0
   }

@@ -2,6 +2,8 @@ import { DialogButtonBar } from './DialogButtonBar'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import TimeUtil from '../../utils/TimeUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { salmonLogger } from 'salmonlogger'
 
 @CustomDialog
 export struct FolderOpeningEndingDialog {
@@ -138,7 +140,13 @@ export struct FolderOpeningEndingDialog {
   }
 
   private confirmInput(): void {
-    this.onConfirm?.(this.folderDate, this.startTime * 1000, this.endTime * 1000)
+    try {
+      this.onConfirm?.(this.folderDate, this.startTime * 1000, this.endTime * 1000)
+    } catch (_error) {
+      salmonLogger.addLog('FolderOpeningEndingDialog', 'Could not save intro/outro settings', true)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.library_operation_failed').id))
+      return
+    }
     this.controller?.close()
   }
 }

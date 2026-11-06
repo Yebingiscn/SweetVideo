@@ -17,6 +17,8 @@ export class VideoListController {
   @Trace directoryTransitioning: boolean = false
   @Trace directoryTarget: string = ''
   @Trace directoryRequest: number = 0
+  @Trace directoryFolderSelection: Set<string> | undefined = undefined
+  @Trace directorySelectableFolderDates: string[] = []
   listScroller: ListScroller = new ListScroller()
   waterFlowScroller: ListScroller = new ListScroller()
   directoryScroller: ListScroller = new ListScroller()
@@ -50,13 +52,26 @@ export class VideoListController {
   setDirectoryView(enabled: boolean): void {
     if (this.directoryMode === enabled) { return }
     this.closeMultipleChoose()
+    this.directoryFolderSelection = undefined
     this.directoryOverview = false
     this.directoryMode = enabled
     Preferences.saveDirectoryView(PathUtils.appContext!, enabled)
   }
 
+  get allDirectoryFoldersSelected(): boolean {
+    return this.directorySelectableFolderDates.length > 0 &&
+      this.directoryFolderSelection?.size === this.directorySelectableFolderDates.length
+  }
+
+  selectAllDirectoryFolders(): void {
+    if (this.directoryFolderSelection) {
+      this.directoryFolderSelection = new Set(this.directorySelectableFolderDates)
+    }
+  }
+
   requestDirectory(date: string | null): void {
-    if (!this.directoryMode || this.directoryTransitioning || this.multipleChooseState === Visibility.Visible) {
+    if (!this.directoryMode || this.directoryTransitioning || this.directoryFolderSelection ||
+      this.multipleChooseState === Visibility.Visible) {
       return
     }
     this.directoryTarget = date ?? ''

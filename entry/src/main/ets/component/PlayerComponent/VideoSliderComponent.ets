@@ -2,14 +2,43 @@ import type { PlayerControllerInterface } from '../../controller/PlayerControlle
 import { VIDEO_HDR_TYPE } from '../../common/enum/HDR_TYPE'
 import { GradientTagBuilder, SolidColorTagBuilder } from '../common/MediaTagBuilder'
 import ToolsUtil from '../../utils/ToolsUtil'
-import { AnimatedPlaybackTimeBuilder, PlaybackProgressSliderBuilder, PlaybackProgressMarker } from './PlaybackProgressComponent'
+import { AnimatedPlaybackTimeBuilder, PlaybackProgressSliderBuilder, PlaybackProgressMarker, playbackHeatmapInset, PLAYBACK_HEATMAP_HEIGHT } from './PlaybackProgressComponent'
+import { PLAYBACK_SLIDER_TRACK_INSET } from './PlaybackRangeMarkers'
 import { HiCar } from '../../utils/HiCarUtil'
+import { DanmakuSession } from '../../utils/DanmakuSession'
+import { Setting } from '../../utils/ObservedUtil'
 import { playbackChapterMarkers } from './PlaybackRangeMarkers'
 
 @ComponentV2
 export struct VideoSliderComponent {
   @Require @Param player: PlayerControllerInterface
   @Param markers: PlaybackProgressMarker[] = []
+  @Param danmaku: DanmakuSession | undefined = undefined
+  @Local sliderWidth: number = 0
+
+  private get danmakuHeatmapPath(): string {
+    if (!Setting.danmakuHeatmapEnabled || !this.danmaku) { return '' }
+    const uiContext = this.getUIContext()
+    const trackWidth = Math.max(0, this.sliderWidth - PLAYBACK_SLIDER_TRACK_INSET * 2)
+    return this.danmaku.getHeatmapPath(this.player.nowPlaying?.time ?? 0,
+      uiContext.vp2px(trackWidth), uiContext.vp2px(PLAYBACK_HEATMAP_HEIGHT))
+  }
+
+  private updateSliderWidth(width: number): void {
+    if (Number.isFinite(width) && width >= 0 && this.sliderWidth !== width) {
+      this.sliderWidth = width
+    }
+  }
+
+  private get carSliderHeight(): number {
+    return 56 + playbackHeatmapInset({
+      playTime: this.player.playTime,
+      totalTime: this.player.nowPlaying?.time ?? 0,
+      markers: this.markers,
+      height: 56,
+      danmakuHeatmapPath: this.danmakuHeatmapPath
+    })
+  }
 
   private get networkStatusText(): string {
     const cache = this.player.networkCacheDuration.toFixed(1)
@@ -34,12 +63,14 @@ export struct VideoSliderComponent {
           PlaybackProgressSliderBuilder({
           playTime: this.player.playTime, totalTime: this.player.nowPlaying?.time || 0, height: 56,
           markers: this.markers.concat(playbackChapterMarkers(this.player.chapterList)),
+          danmakuHeatmapPath: this.danmakuHeatmapPath,
+          onSliderWidthChange: (width: number) => this.updateSliderWidth(width),
           onSliderChange: (value: number, mode?: SliderChangeMode) => this.onSliderChange(value, mode),
           onSliderTouch: (event: TouchEvent) => this.onSliderTouch(event)
           })
         }.layoutWeight(1)
       }
-      .width('100%').height(56)
+      .width('100%').height(this.carSliderHeight)
     } else {
     Column() {
       Row() {
@@ -144,6 +175,8 @@ export struct VideoSliderComponent {
         totalTime: this.player.nowPlaying?.time || 0,
         onSliderChange: (value: number, mode?: SliderChangeMode) => this.onSliderChange(value, mode),
         markers: this.markers.concat(playbackChapterMarkers(this.player.chapterList)),
+        danmakuHeatmapPath: this.danmakuHeatmapPath,
+        onSliderWidthChange: (width: number) => this.updateSliderWidth(width),
         onSliderTouch: (event: TouchEvent) => this.onSliderTouch(event)
       })
     }

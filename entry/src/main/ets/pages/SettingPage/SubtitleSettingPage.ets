@@ -8,9 +8,11 @@ import { PathUtils } from '../../utils/PathUtils'
 import SubtitleStyleUtil from '../../utils/SubtitleStyleUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { LengthMetrics } from '@kit.ArkUI'
-import { HdsColorPicker, hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import lazy { HdsColorPicker } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { SubtitlePreferredLanguage } from '../../common/enum/SubtitleLanguage'
 import { deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import AICaptionSettings, { AICaptionSettingsValue } from '../../utils/AICaptionSettings'
 
 const SUBTITLE_PREVIEW_HEIGHT: number = 220
 
@@ -21,6 +23,16 @@ export struct SubtitleSettingPage {
   private listScroller: Scroller = new Scroller()
   private subtitleLanguages: ResourceStr[] =
     [$r('app.string.lang_simplified_chinese'), $r('app.string.lang_traditional_chinese'), $r('app.string.lang_english')]
+  private aiSourceLanguages: ResourceStr[] =
+    [$r('app.string.ai_subtitle_language_chinese'), $r('app.string.lang_english')]
+  private aiTargetLanguages: ResourceStr[] =
+    [$r('app.string.ai_subtitle_language_chinese'), $r('app.string.lang_english'),
+      $r('app.string.ai_subtitle_language_bilingual')]
+  private aiFontSizes: ResourceStr[] =
+    [$r('app.string.ai_subtitle_font_small'), $r('app.string.ai_subtitle_font_normal'),
+      $r('app.string.ai_subtitle_font_big'), $r('app.string.ai_subtitle_font_large')]
+  private aiPanelOpacities: ResourceStr[] = [$r('app.string.ai_subtitle_opacity_transparent'),
+    $r('app.string.ai_subtitle_opacity_half'), $r('app.string.ai_subtitle_opacity_opaque')]
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
@@ -107,9 +119,7 @@ export struct SubtitleSettingPage {
           })
         }
 
-        ListItem() {
-          this.ColorPalette(0)
-        }
+        this.ColorPalette(0)
 
         ListItem() {
           SettingsSliderItem({
@@ -130,9 +140,7 @@ export struct SubtitleSettingPage {
           })
         }
 
-        ListItem() {
-          this.ColorPalette(1)
-        }
+        this.ColorPalette(1)
 
         ListItem() {
           SettingsToggleItem({
@@ -167,9 +175,7 @@ export struct SubtitleSettingPage {
             })
           }
 
-          ListItem() {
-            this.ColorPalette(2)
-          }
+          this.ColorPalette(2)
         }
 
         ListItem() {
@@ -202,6 +208,10 @@ export struct SubtitleSettingPage {
               ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.subtitle_style_reset').id))
             }
           })
+        }
+
+        if (canIUse('SystemCapability.AI.AICaption')) {
+          this.AISubtitleSettings()
         }
       }
       .clip(false)
@@ -290,6 +300,131 @@ export struct SubtitleSettingPage {
   }
 
   @Builder
+  private AISubtitleSettings() {
+    ListItem() {
+      Column({ space: 8 }) {
+        Text($r('app.string.ai_subtitle'))
+          .fontSize(18)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('sys.color.font_primary'))
+          .width('100%')
+        Text($r('app.string.ai_subtitle_settings_hint'))
+          .fontSize(12)
+          .fontColor($r('sys.color.font_secondary'))
+          .width('100%')
+      }
+      .padding({
+        left: 16,
+        right: 16,
+        top: 20,
+        bottom: 8
+      })
+    }
+
+    if (deviceInfo.apiAvailable(24)) {
+      ListItem() {
+        SettingsMenuItem({
+          symbol: $r('sys.symbol.textformat_size_square'),
+          message: $r('app.string.ai_subtitle_source_language'),
+          list: this.aiSourceLanguages,
+          selected: Setting.aiSubtitleSourceLanguage === 'en' ? 1 : 0,
+          onChange: (index: number) => {
+            Setting.aiSubtitleSourceLanguage = index === 1 ? 'en' : 'zh'
+            this.saveAISettings()
+          }
+        })
+      }
+
+      // Select 的选项在组件首次创建时生成，切换源语言时用不同分支重建，避免保留非法选项。
+      if (Setting.aiSubtitleSourceLanguage === 'en') {
+        this.AITargetLanguageMenu(true)
+      } else {
+        this.AITargetLanguageMenu(false)
+      }
+
+      ListItem() {
+        SettingsMenuItem({
+          symbol: $r('sys.symbol.title_size'),
+          message: $r('app.string.font_size'),
+          list: this.aiFontSizes,
+          selected: Setting.aiSubtitleFontSize - 1,
+          onChange: (index: number) => {
+            Setting.aiSubtitleFontSize = index + 1
+            this.saveAISettings()
+          }
+        })
+      }
+
+      this.ColorPalette(3)
+    } else {
+      ListItem() {
+        Text($r('app.string.ai_subtitle_options_api_required'))
+          .fontSize(12)
+          .fontColor($r('sys.color.font_secondary'))
+          .width('100%')
+          .padding({ left: 16, right: 16, bottom: 8 })
+      }
+    }
+
+    ListItem() {
+      SettingsMenuItem({
+        symbol: $r('sys.symbol.rectangle_lefthalf_inset_filled'),
+        message: $r('app.string.ai_subtitle_panel_opacity'),
+        list: this.aiPanelOpacities,
+        selected: Math.round(AICaptionSettings.getInitialOpacity(Setting.aiSubtitleBackgroundOpacity, '2in1') * 2),
+        onChange: (index: number) => {
+          Setting.aiSubtitleBackgroundOpacity = index * 50
+          this.saveAISettings()
+        }
+      })
+    }
+
+    ListItem() {
+      SettingsClickItem({
+        symbol: $r('sys.symbol.arrow_counterclockwise'),
+        message: $r('app.string.reset_ai_subtitle_settings'),
+        showArrow: false,
+        onPress: () => {
+          this.saveAISettings(AICaptionSettings.defaults())
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.ai_subtitle_settings_reset').id))
+        }
+      })
+    }
+  }
+
+  @Builder
+  private AITargetLanguageMenu(englishSource: boolean) {
+    ListItem() {
+      SettingsMenuItem({
+        symbol: $r('sys.symbol.textformat_size_square'),
+        message: $r('app.string.ai_subtitle_target_language'),
+        list: englishSource ? this.aiTargetLanguages : [this.aiTargetLanguages[0]],
+        selected: englishSource ? Math.max(0, ['zh', 'en', 'zh-en'].indexOf(Setting.aiSubtitleTargetLanguage)) : 0,
+        onChange: (index: number) => {
+          Setting.aiSubtitleTargetLanguage = englishSource ? (['zh', 'en', 'zh-en'][index] ?? 'zh') : 'zh'
+          this.saveAISettings()
+        }
+      })
+    }
+  }
+
+  private saveAISettings(value?: AICaptionSettingsValue): void {
+    const settings = AICaptionSettings.normalize(value ?? {
+      sourceLanguage: Setting.aiSubtitleSourceLanguage,
+      targetLanguage: Setting.aiSubtitleTargetLanguage,
+      fontSize: Setting.aiSubtitleFontSize,
+      fontColor: Setting.aiSubtitleFontColor,
+      backgroundOpacity: Setting.aiSubtitleBackgroundOpacity
+    })
+    Setting.aiSubtitleSourceLanguage = settings.sourceLanguage
+    Setting.aiSubtitleTargetLanguage = settings.targetLanguage
+    Setting.aiSubtitleFontSize = settings.fontSize
+    Setting.aiSubtitleFontColor = settings.fontColor
+    Setting.aiSubtitleBackgroundOpacity = settings.backgroundOpacity
+    Preferences.saveAISubtitleSettings(PathUtils.appContext!, settings)
+  }
+
+  @Builder
   private PreviewCard() {
     Stack({ alignContent: Alignment.TopStart }) {
       Column({ space: 6 }) {
@@ -337,36 +472,49 @@ export struct SubtitleSettingPage {
     .margin({ top: 8, bottom: 10 })
   }
 
-  @Builder
-  private ColorPalette(target: number) {
-    Row({ space: 12 }) {
-      Text(this.getColorTitle(target))
-        .fontSize(15)
-        .fontColor($r('sys.color.font_primary'))
-        .layoutWeight(1)
-      Text(this.getSelectedColor(target))
-        .fontSize(13)
-        .fontColor($r('sys.color.font_secondary'))
-      if (deviceInfo.apiAvailable('26.0.0')) {
-        HdsColorPicker({
-          initialColor: this.getSelectedColor(target),
-          initialFavoriteColors: this.favoriteColors,
-          onColorSelected: (color: string) => {
-            this.selectColor(target, color)
-          },
-          onFavoriteColorsUpdate: (colors: string[]) => {
-            this.favoriteColors = colors
-          }
-        })
-      }
-    }
-    .width('100%')
-    .padding(16)
-    .borderRadius(16)
-    .backgroundColor($r('app.color.start_window_background_blur'))
+  private isColorPickerDeviceSupported(): boolean {
+    return (deviceInfo.deviceType === 'phone' || deviceInfo.deviceType === 'tablet') &&
+      canIUse('SystemCapability.UIDesign.HDSPattern.Standard')
   }
 
-  private getColorTitle(target: number): ResourceStr {
+  @Builder
+  private ColorPalette(target: number) {
+    // Syscap/API 版本不代表设备提供此组件；2in1/TV 不创建条目，也不触碰延迟导入。
+    if (this.isColorPickerDeviceSupported() && deviceInfo.apiAvailable('26.0.0')) {
+      ListItem() {
+        Row({ space: 12 }) {
+          Text(this.getColorTitle(target))
+            .fontSize(15)
+            .fontColor($r('sys.color.font_primary'))
+            .layoutWeight(1)
+          Text(this.getSelectedColor(target))
+            .fontSize(13)
+            .fontColor($r('sys.color.font_secondary'))
+          if (deviceInfo.apiAvailable('26.0.0')) {
+            HdsColorPicker({
+              initialColor: this.getSelectedColor(target),
+              initialFavoriteColors: this.favoriteColors,
+              onColorSelected: (color: string) => {
+                this.selectColor(target, color)
+              },
+              onFavoriteColorsUpdate: (colors: string[]) => {
+                this.favoriteColors = colors
+              }
+            })
+          }
+        }
+        .width('100%')
+        .padding(16)
+        .borderRadius(16)
+        .backgroundColor($r('app.color.start_window_background_blur'))
+      }
+    }
+  }
+
+  private getColorTitle(target: number): Resource {
+    if (target === 3) {
+      return $r('app.string.ai_subtitle_font_color')
+    }
     return target === 0 ? $r('app.string.pick_text_color') :
       (target === 1 ? $r('app.string.pick_outline_color') : $r('app.string.pick_shadow_color'))
   }
@@ -393,7 +541,9 @@ export struct SubtitleSettingPage {
   }
 
   private getSelectedColor(target: number): string {
-    if (target === 0) {
+    if (target === 3) {
+      return Setting.aiSubtitleFontColor
+    } else if (target === 0) {
       return Setting.subtitleColor
     } else if (target === 1) {
       return Setting.subtitleBorderColor
@@ -403,7 +553,11 @@ export struct SubtitleSettingPage {
   }
 
   private selectColor(target: number, value: string): void {
-    if (target === 0) {
+    if (target === 3) {
+      Setting.aiSubtitleFontColor = value
+      this.saveAISettings()
+      return
+    } else if (target === 0) {
       Setting.subtitleColor = value
       Preferences.saveSubtitleColor(PathUtils.appContext!, value)
     } else if (target === 1) {

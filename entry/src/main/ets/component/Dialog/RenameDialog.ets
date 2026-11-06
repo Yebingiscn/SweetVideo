@@ -4,6 +4,8 @@ import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { salmonLogger } from 'salmonlogger'
 
 @CustomDialog
 export struct RenameDialog {
@@ -12,7 +14,7 @@ export struct RenameDialog {
   @Prop preserveExtension: boolean = false
   @Prop renameTarget: 'video' | 'folder' = 'video'
   @State name: string = ''
-  onConfirm?: (name: string) => void
+  onConfirm?: (name: string) => void | Promise<void>
   private initialName: string = ''
   private extension: string = ''
 
@@ -58,7 +60,7 @@ export struct RenameDialog {
         () => {
           this.controller?.close()
         },
-        () => {
+        async () => {
           if (!this.name?.trim()) {
             return
           }
@@ -66,7 +68,13 @@ export struct RenameDialog {
             const finalName = this.preserveExtension
               ? this.name.trim() + this.extension
               : this.name.trim()
-            this.onConfirm(finalName)
+            try {
+              await this.onConfirm(finalName)
+            } catch (_error) {
+              salmonLogger.addLog('RenameDialog', 'Could not save the name', true)
+              ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.library_operation_failed').id))
+              return
+            }
           }
           this.controller?.close()
         }

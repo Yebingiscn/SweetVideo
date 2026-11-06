@@ -454,17 +454,18 @@ export default class SelectFileUtil {
                 videoInfo.has_video_track = true
                 videoInfo.video_size = ''
               }
+              const targetDate = file_folder?.date ?? Preferences.getFileFolder(context, true)[0]?.date
+              if (!targetDate) throw new Error('Import target folder is unavailable')
               if (importBatch) {
-                const targetDate = file_folder?.date ?? Preferences.getFileFolder(context)[0]?.date
-                if (!targetDate) throw new Error('Import target folder is unavailable')
                 importBatch.add(targetDate, videoInfo)
-              } else if (file_folder) {
-                file_folder.video_list.push(videoInfo)
-                FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
               } else {
-                const folders = Preferences.getFileFolder(context)
-                folders[0].video_list.push(videoInfo)
-                Preferences.saveFileFolder(context, folders)
+                const additions = new Map<string, VideoMetadata[]>()
+                additions.set(targetDate, [videoInfo])
+                if (Preferences.appendImportedVideos(context, additions) === 0) {
+                  FileFolderUtil.duplicateVideo++
+                  importHandled = true
+                  return
+                }
               }
               shouldSaveCover = !disc
               coverUri = uri

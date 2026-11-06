@@ -50,7 +50,7 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.headphones'),
-            message: '后台自动听视频（回到前台恢复画面）',
+            message: ToolsUtil.getStringResource($r('app.string.auto_listen_video').id),
             enable: Setting.autoListenVideo,
             onChange: (checked: boolean) => {
               Setting.autoListenVideo = checked
@@ -149,6 +149,25 @@ export struct PlayerSettingPage {
         }
 
         ListItem() {
+          Column({ space: 4 }) {
+            SettingsToggleItem({
+              symbol: $r('sys.symbol.resolution_video'),
+              message: ToolsUtil.getStringResource($r('app.string.danmaku_heatmap').id),
+              enable: Setting.danmakuHeatmapEnabled,
+              onChange: (checked: boolean) => {
+                Setting.danmakuHeatmapEnabled = checked
+                Preferences.saveDanmakuHeatmapEnabled(PathUtils.appContext!, checked)
+              }
+            })
+            Text($r('app.string.danmaku_heatmap_description'))
+              .fontSize(12)
+              .fontColor($r('sys.color.font_secondary'))
+              .width('100%')
+              .padding({ left: 16, right: 16, bottom: 12 })
+          }
+        }
+
+        ListItem() {
           SettingsToggleItem({
 
             symbol: $r('sys.symbol.pin'),
@@ -207,7 +226,8 @@ export struct PlayerSettingPage {
           SettingsSegmentButtonItem({
             symbol: $r('sys.symbol.hand_draw'),
             message: ToolsUtil.getStringResource($r('app.string.horizontal_seek_sensitivity').id),
-            tips: [$r('app.string.sensitivity_normal'), $r('app.string.sensitivity_medium'), $r('app.string.sensitivity_low')],
+            tips: [$r('app.string.sensitivity_normal'), $r('app.string.sensitivity_medium'),
+              $r('app.string.sensitivity_low')],
             tabSelectedIndex: Setting.seekSensitivity,
             onButtonClick: (tabSelectedIndex: number) => {
               Setting.seekSensitivity = tabSelectedIndex

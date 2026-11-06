@@ -7,6 +7,8 @@ import FileFolderUtil from '../utils/FileFolderUtil';
 import { PathUtils } from '../utils/PathUtils';
 import Preferences from './Preferences';
 import PreferencesUtil from './PreferencesUtil';
+import MediaLibraryService from '../utils/MediaLibraryService';
+import ToolsUtil from '../utils/ToolsUtil';
 
 export class VideoMetaDataOperator {
   static getVideoMetaDataByFolderName(folderName: string): VideoMetadata[] {
@@ -15,24 +17,31 @@ export class VideoMetaDataOperator {
   }
 
   static migrationRootVideoMetaToRootFolder() {
-    const folders = Preferences.getFileFolder(PathUtils.appContext!)
+    const context = PathUtils.appContext!
+    const folders = Preferences.getFileFolder(context, true)
     const folder = folders.find(item => item.name === '首页')
     if (!folder) {
       const rootFolder: FileFolder = {
         name: '首页',
         date: '0',
-        video_list: PreferencesUtil.getPreferencesValue(PathUtils.appContext!, 'sweet_video', 'recent_video_meta_data',
-          []) as VideoMetadata[],
+        video_list: PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'recent_video_meta_data',
+          [], true) as VideoMetadata[],
         parent_date: null
       }
-      Preferences.saveFileFolder(PathUtils.appContext!, [rootFolder, ...folders])
+      Preferences.saveFileFolder(context, [rootFolder, ...folders], true)
     }
   }
 
   static async deleteItem(videoListController: VideoListController, fileFolderSource: FileFolderDataSource,
     deleteType: DeleteType, deleteItem: VideoMetadata) {
-    await videoListController.videoDataSource.deleteItem(deleteType, deleteItem);
-    FileFolderUtil.delVideoInFileFolder(PathUtils.appContext!, videoListController, fileFolderSource)
+    // 元数据写入失败时，不先移除列表项、删除附件或处理原文件。
+    if (!FileFolderUtil.delVideoInFileFolder(PathUtils.appContext!, videoListController, fileFolderSource, deleteItem)) {
+      throw new Error('Video no longer exists in the folder')
+    }
+    await MediaLibraryService.deleteVideoResource(deleteItem, deleteType)
+    if (deleteType === DeleteType.RECENT) {
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.moved_to_recycle').id, deleteItem.title))
+    }
   }
 }
 
@@ -50,7 +59,8 @@ export class FolderOperator {
   }
 
   static updateFolderOpeningEndingTimes(folderDate: string, startTime: number, endTime: number): FileFolder[] {
-    const folders = Preferences.getFileFolder(PathUtils.appContext!)
+    const context = PathUtils.appContext!
+    const folders = Preferences.getFileFolderForUpdate(context)
     const targetFolder = folders.find(item => item.date === folderDate)
     if (!targetFolder) {
       return folders
@@ -60,7 +70,7 @@ export class FolderOperator {
       video.end_time = endTime
       video.end_time_is_duration = true
     })
-    Preferences.saveFileFolder(PathUtils.appContext!, folders)
-    return Preferences.getFileFolder(PathUtils.appContext!)
+    Preferences.saveFileFolder(context, folders, true)
+    return Preferences.getFileFolder(context, true)
   }
 }

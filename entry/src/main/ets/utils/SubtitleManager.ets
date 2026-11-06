@@ -4,6 +4,12 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import SubtitleUtil from './SubtitleUtil'
 import SubtitleLanguageUtil from './SubtitleLanguageUtil'
 import { Setting } from './ObservedUtil'
+import { deviceInfo } from '@kit.BasicServicesKit'
+import { AICaptionController } from '@kit.SpeechKit'
+import { salmonLogger } from 'salmonlogger'
+import ToolsUtil from './ToolsUtil'
+
+const TAG = 'SubtitleManager'
 
 @ObservedV2
 export class SubtitleManager {
@@ -11,12 +17,17 @@ export class SubtitleManager {
   @Trace subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   private player: PlayerControllerInterface | undefined
   private isMpv: boolean = false
+  private aiFallbackMode: SubtitleMode = SubtitleMode.NONE
+  private aiFallbackTrackId: number = -1
+  private aiFallbackSecondaryTrackId: number = -1
+  private aiFallbackMedia: VideoMetadata | undefined = undefined
+  private pendingAISelection: boolean = false
 
   constructor(player?: PlayerControllerInterface) {
     if (player) {
       this.player = player
       this.isMpv = player.isMpvPlayer()
-      this.subtitleMode = player.subtitleSelected
+      this.syncFromPlayer()
     }
   }
 
@@ -77,8 +88,28 @@ export class SubtitleManager {
   }
 
   switchToAI(): void {
+    if (this.isAIAsrShown || !this.canEnableAICaption()) {
+      return
+    }
+    this.rememberAIFallback(this.subtitleMode)
     this.setMode(SubtitleMode.AI_SUBTITLE)
-    this.savePreference(true)
+    // 只有初始化成功才记住用户的 AI 选择，失败不能覆盖原字幕偏好。
+    this.pendingAISelection = true
+  }
+
+  onAICaptionPrepared(): void {
+    if (this.isAIAsrShown && this.pendingAISelection && this.aiFallbackMedia === this.player?.nowPlaying) {
+      this.pendingAISelection = false
+      this.savePreference(true)
+    }
+  }
+
+  onAICaptionError(): void {
+    if (!this.isAIAsrShown) {
+      return
+    }
+    this.restoreAIFallback()
+    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.ai_subtitle_unavailable').id))
   }
 
   set3DMode(mode: Subtitle3DMode): void {
@@ -120,6 +151,14 @@ export class SubtitleManager {
       this.subtitleMode = SubtitleMode.NONE
     }
 
+    if (this.isAIAsrShown) {
+      this.rememberAIFallback(hasExternalSubtitle ? SubtitleMode.EXTERNAL_SUBTITLE :
+        (hasInnerSubtitle ? SubtitleMode.INNER_SUBTITLE : SubtitleMode.NONE))
+      if (!this.canEnableAICaption()) {
+        this.restoreAIFallback()
+      }
+    }
+
     this.player!.subtitleSelected = this.subtitleMode
 
     if (subtitle3DMode !== undefined &&
@@ -147,8 +186,81 @@ export class SubtitleManager {
 
   syncFromPlayer(): void {
     if (this.player) {
+      if (this.player.subtitleSelected === SubtitleMode.AI_SUBTITLE &&
+        (!this.isAIAsrShown || this.aiFallbackMedia !== this.player.nowPlaying)) {
+        this.rememberAIFallback(this.getDefaultSubtitleMode())
+        if (!this.canEnableAICaption()) {
+          this.restoreAIFallback()
+          return
+        }
+      }
       this.subtitleMode = this.player.subtitleSelected
     }
+  }
+
+  private canEnableAICaption(): boolean {
+    try {
+      if (canIUse('SystemCapability.AI.AICaption')) {
+        // API 23–25 没有检测接口，继续使用原流程，并由 onError 处理失败。
+        if (!deviceInfo.apiAvailable('26.0.0')) {
+          return true
+        }
+        const supported = new AICaptionController().isCapabilitySupported()
+        salmonLogger.addLog(TAG, `AI字幕设备能力检测: supported=${supported}`)
+        if (supported) {
+          return true
+        }
+      }
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.ai_subtitle_unsupported').id))
+    } catch (error) {
+      salmonLogger.addLog(TAG, `AI字幕设备能力检测失败: ${error}`, true)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.ai_subtitle_unavailable').id))
+    }
+    return false
+  }
+
+  private getDefaultSubtitleMode(): SubtitleMode {
+    return (this.player?.nowPlaying?.external_subtitle_format?.length ?? 0) > 0 ? SubtitleMode.EXTERNAL_SUBTITLE :
+      ((this.player?.subtitleTrack.length ?? 0) > 0 ? SubtitleMode.INNER_SUBTITLE : SubtitleMode.NONE)
+  }
+
+  private rememberAIFallback(mode: SubtitleMode): void {
+    this.aiFallbackMode = mode
+    this.aiFallbackTrackId = this.player?.subtitleTrackSelected ?? -1
+    this.aiFallbackSecondaryTrackId = this.player?.secondarySubtitleTrackSelected ?? -1
+    this.aiFallbackMedia = this.player?.nowPlaying
+    this.pendingAISelection = false
+  }
+
+  private restoreAIFallback(): void {
+    this.pendingAISelection = false
+    let mode = this.aiFallbackMedia === this.player?.nowPlaying ? this.aiFallbackMode : this.getDefaultSubtitleMode()
+    if (mode === SubtitleMode.EXTERNAL_SUBTITLE &&
+      (this.player?.nowPlaying?.external_subtitle_format?.length ?? 0) === 0) {
+      mode = this.getDefaultSubtitleMode()
+    }
+    if (mode === SubtitleMode.INNER_SUBTITLE && this.player) {
+      const track = this.player.subtitleTrack.find(item =>
+      this.aiFallbackMedia === this.player?.nowPlaying && item.id === this.aiFallbackTrackId) ??
+        SubtitleLanguageUtil.selectPreferredTrack(this.player.subtitleTrack, Setting.subtitlePreferredLanguage)
+      this.player.subtitleTrackSelected = track?.id ?? -1
+      if (!track) {
+        mode = SubtitleMode.NONE
+      }
+    }
+    this.setMode(mode)
+    if (mode === SubtitleMode.INNER_SUBTITLE && this.isMpv && this.player &&
+      this.aiFallbackMedia === this.player.nowPlaying &&
+      this.aiFallbackSecondaryTrackId !== this.player.subtitleTrackSelected &&
+      this.player.subtitleTrack.some(track => track.id === this.aiFallbackSecondaryTrackId)) {
+      this.player.subtitleController.selectSecondarySubtitleTrack(this.aiFallbackSecondaryTrackId)
+    }
+    if (mode === SubtitleMode.INNER_SUBTITLE && !this.isMpv && this.player) {
+      this.player.subtitleController.selectSubtitleTrack(this.player.subtitleTrackSelected)
+    } else if (mode === SubtitleMode.EXTERNAL_SUBTITLE) {
+      this.player?.subtitleController.refreshExternalSubtitleByPlaybackTime(false, this.subtitleVisibility)
+    }
+    // 临时能力/服务故障不写回视频的字幕选择，保留原有记忆。
   }
 
   syncMpvSubtitleVisibility(): void {
@@ -169,8 +281,11 @@ export class SubtitleManager {
   }
 
   private setMode(mode: SubtitleMode): void {
+    this.pendingAISelection = false
     this.subtitleMode = mode
-    this.player!.subtitleSelected = mode
+    if (this.player) {
+      this.player.subtitleSelected = mode
+    }
     this.syncMpvSubtitleVisibility()
   }
 }

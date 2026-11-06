@@ -34,7 +34,7 @@
     },
     {
       "name": "mpv_conf_desc",
-      "value": "Standard mpv.conf syntax (UTF-8, up to 64 KB), including comments and profiles. Only the conf file is imported; this does not copy shaders, scripts or include files; use sandbox-accessible absolute paths. Custom values override ordinary initialization defaults. Output, decoding, window binding and runtime UI controls remain app-managed. Enable after saving; disable to restore defaults."
+      "value": "Standard mpv.conf syntax (UTF-8, up to 64 KB), including comments and profiles. Custom values override ordinary initialization defaults. Output, decoding, window binding and runtime UI controls remain app-managed. Enable after saving; disable to restore defaults."
     },
     {
       "name": "mpv_conf_import",
@@ -68,20 +68,62 @@
       "name": "mpv_conf_save_failed",
       "value": "Could not save config. Please retry."
     },
-    {"value":"Aspect ratio","name":"hicar_aspect"},
-    {"value":"Audio tracks","name":"hicar_audio"},
-    {"value":"Chapters","name":"hicar_chapters"},
-    {"value":"HiCar layout","name":"hicar_layout"},
-    {"value":"Automatically enabled when HiCar is connected. Turn on to preview larger controls on the left.","name":"hicar_layout_tip"},
-    {"value":"Media sources","name":"hicar_media_sources"},
-    {"value":"More controls","name":"hicar_more_controls"},
-    {"value":"Next","name":"hicar_next"},
-    {"value":"Pause","name":"hicar_pause"},
-    {"value":"Play","name":"hicar_play"},
-    {"value":"Playlist","name":"hicar_playlist"},
-    {"value":"Previous","name":"hicar_previous"},
-    {"value":"Playback speed","name":"hicar_speed"},
-    {"value":"Subtitles","name":"hicar_subtitles"},
+    {
+      "value": "Aspect ratio",
+      "name": "hicar_aspect"
+    },
+    {
+      "value": "Audio tracks",
+      "name": "hicar_audio"
+    },
+    {
+      "value": "Chapters",
+      "name": "hicar_chapters"
+    },
+    {
+      "value": "HiCar layout",
+      "name": "hicar_layout"
+    },
+    {
+      "value": "Automatically enabled when HiCar is connected. Turn on to preview larger controls on the left.",
+      "name": "hicar_layout_tip"
+    },
+    {
+      "value": "Media sources",
+      "name": "hicar_media_sources"
+    },
+    {
+      "value": "More controls",
+      "name": "hicar_more_controls"
+    },
+    {
+      "value": "Next",
+      "name": "hicar_next"
+    },
+    {
+      "value": "Pause",
+      "name": "hicar_pause"
+    },
+    {
+      "value": "Play",
+      "name": "hicar_play"
+    },
+    {
+      "value": "Playlist",
+      "name": "hicar_playlist"
+    },
+    {
+      "value": "Previous",
+      "name": "hicar_previous"
+    },
+    {
+      "value": "Playback speed",
+      "name": "hicar_speed"
+    },
+    {
+      "value": "Subtitles",
+      "name": "hicar_subtitles"
+    },
     {
       "name": "home_style",
       "value": "Home style"
@@ -105,6 +147,10 @@
     {
       "name": "folder_batch_delete_failed",
       "value": "Could not delete the folders. Please try again."
+    },
+    {
+      "name": "library_operation_failed",
+      "value": "Media library operation failed. Please try again."
     },
     {
       "name": "directory_all_folders",
@@ -541,8 +587,7 @@
     {
       "name": "folder_not_exist_set_failed",
       "value": "Folder does not exist. Failed to save."
-    }
-,
+    },
     {
       "name": "not_logged_in",
       "value": "Not signed in"
@@ -862,8 +907,7 @@
     {
       "name": "video_form_empty",
       "value": "Open Sweet Video to start playing"
-    }
-,
+    },
     {
       "name": "seconds_n",
       "value": "%ds"
@@ -871,6 +915,10 @@
     {
       "name": "background_playback",
       "value": "Play in background"
+    },
+    {
+      "name": "auto_listen_video",
+      "value": "Auto audio-only in background"
     },
     {
       "name": "play_with_others",
@@ -1499,6 +1547,82 @@
     {
       "name": "ai_subtitle",
       "value": "AI subtitles"
+    },
+    {
+      "name": "ai_subtitle_unsupported",
+      "value": "AI subtitles are not supported on this device. Your previous subtitle selection has been restored."
+    },
+    {
+      "name": "ai_subtitle_unavailable",
+      "value": "AI subtitles are temporarily unavailable. Your previous subtitle selection has been restored. Try again later."
+    },
+    {
+      "name": "ai_subtitle_settings_hint",
+      "value": "These defaults are separate from regular subtitle styles and apply the next time you enable AI subtitles. Chinese audio supports Chinese captions only; English audio supports Chinese, English or bilingual captions."
+    },
+    {
+      "name": "ai_subtitle_options_api_required",
+      "value": "Language and size require HarmonyOS 6.1.1 (API 24) or later. This system supports the panel background setting."
+    },
+    {
+      "name": "ai_subtitle_source_language",
+      "value": "Audio language"
+    },
+    {
+      "name": "ai_subtitle_target_language",
+      "value": "Caption language"
+    },
+    {
+      "name": "ai_subtitle_language_chinese",
+      "value": "Chinese"
+    },
+    {
+      "name": "ai_subtitle_language_bilingual",
+      "value": "EN + ZH"
+    },
+    {
+      "name": "ai_subtitle_font_small",
+      "value": "Small"
+    },
+    {
+      "name": "ai_subtitle_font_normal",
+      "value": "Standard"
+    },
+    {
+      "name": "ai_subtitle_font_big",
+      "value": "Large"
+    },
+    {
+      "name": "ai_subtitle_font_large",
+      "value": "Extra large"
+    },
+    {
+      "name": "ai_subtitle_font_color",
+      "value": "AI subtitle color"
+    },
+    {
+      "name": "ai_subtitle_panel_opacity",
+      "value": "Panel background"
+    },
+    {
+      "name": "ai_subtitle_opacity_transparent",
+      "value": "Transparent"
+    },
+    {
+      "name": "ai_subtitle_opacity_half",
+      "value": "Semi-transparent"
+    },
+    {
+      "name": "ai_subtitle_opacity_opaque",
+      "value": "Opaque"
+    },
+    {
+      "name": "reset_ai_subtitle_settings",
+      "value": "Reset AI subtitle defaults"
+    },
+    {
+      "name": "ai_subtitle_settings_reset",
+      "value": "AI subtitle defaults restored"
     },
     {
       "name": "subtitle_offset",
@@ -4344,11 +4468,26 @@
       "name": "playback_outro_marker",
       "value": "Outro"
     },
-    {"name":"play_bluray","value":"Play Blu-ray disc"},
-    {"name":"bluray_access_error","value":"The disc is incomplete or unreadable. Use Import from folder to select and authorize the disc root folder."},
-    {"name":"bluray_mpv_required","value":"Blu-ray folders require the MPV player"},
-    {"name":"bluray_private_unsupported","value":"Blu-ray folders cannot be copied to Private Space. Import them into the local library."},
-    {"name":"bluray_source_preserved","value":"The disc entry was removed. Manage its original folder in Files."},
+    {
+      "name": "play_bluray",
+      "value": "Play Blu-ray disc"
+    },
+    {
+      "name": "bluray_access_error",
+      "value": "The disc is incomplete or unreadable. Use Import from folder to select and authorize the disc root folder."
+    },
+    {
+      "name": "bluray_mpv_required",
+      "value": "Blu-ray folders require the MPV player"
+    },
+    {
+      "name": "bluray_private_unsupported",
+      "value": "Blu-ray folders cannot be copied to Private Space. Import them into the local library."
+    },
+    {
+      "name": "bluray_source_preserved",
+      "value": "The disc entry was removed. Manage its original folder in Files."
+    },
     {
       "name": "bluray_titles",
       "value": "Blu-ray titles"
@@ -4361,12 +4500,41 @@
       "name": "bluray_title_switch_failed",
       "value": "Could not save the title selection. Please try again."
     },
-    {"name":"network_bluray_prepare_failed","value":"Could not read the Blu-ray folder. Check the connection, access and BDMV files."},
-    {"name":"network_bluray_core_required","value":"This MPV core does not support network Blu-ray folders. Update the player core."},
-    {"name":"screenshot_processing","value":"Taking screenshot…"},
-    {"name":"screenshot_queued","value":"Screenshot queued"},
-    {"name":"screenshot_failed","value":"Screenshot failed. Please try again."},
-    {"name": "stream_headers_hint", "value": "Headers (optional, one per line, e.g. Referer: https://example.com)"},
-    {"name": "stream_headers_invalid", "value": "Invalid or oversized headers. Enter one Name: Value per line."}
+    {
+      "name": "network_bluray_prepare_failed",
+      "value": "Could not read the Blu-ray folder. Check the connection, access and BDMV files."
+    },
+    {
+      "name": "network_bluray_core_required",
+      "value": "This MPV core does not support network Blu-ray folders. Update the player core."
+    },
+    {
+      "name": "screenshot_processing",
+      "value": "Taking screenshot…"
+    },
+    {
+      "name": "screenshot_queued",
+      "value": "Screenshot queued"
+    },
+    {
+      "name": "screenshot_failed",
+      "value": "Screenshot failed. Please try again."
+    },
+    {
+      "name": "stream_headers_hint",
+      "value": "Headers (optional, one per line, e.g. Referer: https://example.com)"
+    },
+    {
+      "name": "stream_headers_invalid",
+      "value": "Invalid or oversized headers. Enter one Name: Value per line."
+    },
+    {
+      "name": "danmaku_heatmap",
+      "value": "Danmaku high-energy progress bar"
+    },
+    {
+      "name": "danmaku_heatmap_description",
+      "value": "Show danmaku activity along the progress bar when danmaku is available."
+    }
   ]
 }

@@ -10,15 +10,17 @@ import {
 } from '../../common/AttributeModifierConfig'
 import { VideoListController } from '../../controller/VideoListController'
 import { SideBarController } from './SideBar'
-import lazy { importAndProcessFiles } from '../../utils/FileProcessorUtil'
 import type { ProgressInfo } from '../../utils/FileProcessorUtil'
+import lazy { importAndProcessFiles } from '../../utils/FileProcessorUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import {
-  CapsuleSegmentButtonV2, ColorMetrics, SegmentButtonV2ItemOptions, SegmentButtonV2Items,
+  CapsuleSegmentButtonV2,
+  ColorMetrics,
+  SegmentButtonV2ItemOptions,
+  SegmentButtonV2Items,
   uiMaterial
 } from '@kit.ArkUI'
 import { IMenuItem } from '../../interfaces/IMenuItemInterface'
-import { SortField } from '../../common/enum/SortField'
 import NavigationAddress from '../../common/NavigationCommon'
 import Preferences from '../../database/Preferences'
 import { XAnimation } from '../../utils/AnimationUtil'
@@ -45,6 +47,10 @@ export struct SideBarContentComponent {
   @Local isLogin: boolean = false
   @Local folderDeleting: boolean = false
   @Param sideBarScroller: Scroller = new Scroller()
+  @Param sidebarHeaderScroller: Scroller = new Scroller()
+  @Local sidebarViewportHeight: number = 1
+  @Local localContentHeight: number = 0
+  @Local networkContentHeight: number = 0
   @Local currentSourceTab: number = 0
   @Local segmentItems: SegmentButtonV2Items = new SegmentButtonV2Items([
     { text: ToolsUtil.getStringResource($r('app.string.segment_local').id) } as SegmentButtonV2ItemOptions,
@@ -58,9 +64,19 @@ export struct SideBarContentComponent {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+
+  @Computed
+  get sidebarPageHeight(): number {
+    const contentHeight = this.currentSourceTab === 0 ? this.localContentHeight : this.networkContentHeight
+    return Number.isFinite(contentHeight) && contentHeight > 0 ?
+      Math.min(this.sidebarViewportHeight, contentHeight) : this.sidebarViewportHeight
+  }
+
   @Event fileFolderListChange: (folders: FileFolder[]) => void = () => {
   }
   @Event scrollToFolderDateChange: (date: string) => void = () => {
+  }
+  @Event onFolderTreeIndicesChange: (indices: Map<string, number>) => void = () => {
   }
   @Event searchValueClear: () => boolean = () => false
   @Event onImportProgress: (info: ProgressInfo) => void = () => {
@@ -72,10 +88,16 @@ export struct SideBarContentComponent {
 
   aboutToAppear(): void {
     this.libraryKeyboard.onImport = async (folders: boolean): Promise<void> => {
-      if (folders && !deviceInfo.apiAvailable('26.0.0')) return
+      if (folders && !deviceInfo.apiAvailable('26.0.0')) {
+        return
+      }
       this.sideBarController.closeIfOverlay(false)
-      if (folders) await this.importMediaFolders()
-      else await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, 'video'), this.videoListController.folder)
+      if (folders) {
+        await this.importMediaFolders()
+      } else {
+        await this.toMetaData(
+          await SelectFileUtil.selectFromFileManager(undefined, 'video'), this.videoListController.folder)
+      }
     }
     try {
       this.itemSelectedBackgroundColor = ColorMetrics.resourceColor($r('app.color.main_color'))
@@ -157,358 +179,394 @@ export struct SideBarContentComponent {
   }
 
   build() {
+    // 保留 SideBarContainer 的原始宽度和开关行为，留白仅在侧栏内部布局。
     Column() {
-      // 头部固定区域：标题 + 用户卡片 + 快捷入口 + 分段按钮
-      Column() {
-        Row() {
-          Text($r('app.string.EntryAbility_label'))
-            .fontSize(20)
-            .fontColor($r('app.color.text_color'))
-            .fontWeight(FontWeight.Bold)
-            .textOverflow({ overflow: TextOverflow.MARQUEE })
-          Text(TimeUtil.getTextByTime())
-            .fontSize(15)
-            .fontColor($r('app.color.text_color'))
-            .textOverflow({ overflow: TextOverflow.MARQUEE })
-            .margin({ left: 5, right: 12 })
-        }
-        .alignItems(VerticalAlign.Bottom)
-        .width('100%')
-        .justifyContent(FlexAlign.Start)
-        .margin({ top: SafeHeight.topSafeHeight })
-        .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
-        .onClick(() => {
-          ToolsUtil.startVibration()
-          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.toast_easter_egg').id))
-        })
-
-        Row() {
-          Image(userData?.userAvatar || $r("app.media.Foreground"))
-            .attributeModifier(new ImageFancyModifier(20, 45, 45))
-            .margin({ left: 10 })
-          Column({ space: 2 }) {
-            Text(userData.isLogin ? (userData.nickName || ToolsUtil.getStringResource($r('app.string.logged_in').id)) :
-              ToolsUtil.getStringResource($r('app.string.tap_to_login').id))
-              .fontColor($r('app.color.text_color'))
-              .fontSize(15)
-              .textOverflow({ overflow: TextOverflow.MARQUEE })
-            if (userData.isLogin) {
-              Text(userData.isVip ? $r('app.string.vip_label') : $r('app.string.non_vip'))
-                .fontSize(10)
-                .fontColor(userData.isVip ? $r('sys.color.white') : $r('sys.color.black'))
-                .backgroundColor(userData.isVip ? $r('app.color.main_color') : '#c1b2a3')
-                .fontWeight(userData.isVip ? FontWeight.Bold : FontWeight.Normal)
-                .borderRadius(6)
-                .padding({
-                  left: 5,
-                  right: 5,
-                  top: 2,
-                  bottom: 2
-                })
-            }
-          }
-          .alignItems(HorizontalAlign.Start)
-          .layoutWeight(1)
-          .margin({ left: 10, right: 12 })
-        }
-        .height(65)
-        .onClick(() => {
-          this.isLogin = true
-        })
-        .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
-        .margin({ top: 10 })
-        .justifyContent(FlexAlign.Start)
-        .backgroundColor($r('app.color.list_item_background'))
-        .borderRadius(16)
-        .shadow({
-          radius: 4,
-          color: $r('app.color.shadow_color'),
-          offsetX: 0,
-          offsetY: 1
-        })
-        .bindSheet(this.isLogin, userLoginBuilder(() => {
-          this.isLogin = false
-          this.pathStack.pushPathByName(NavigationAddress.VIP_PAGE, true)
-        }), {
-          detents: [SheetSize.FIT_CONTENT],
-          height: SheetSize.MEDIUM,
-          preferType: SheetType.CENTER,
-          enableOutsideInteractive: false,
-          dragBar: true,
-          showClose: true,
-          title: { title: $r('app.string.account_info') },
-          onWillDismiss: () => {
-            this.isLogin = false
-          }
-        })
-
-        // 快捷入口：设置 + 最近播放（从底部移到顶部）
-        Row() {
-          Column() {
-            SymbolGlyph($r('sys.symbol.gearshape'))
-              .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
-            Text($r('app.string.setting'))
-              .fontSize(11)
-              .fontColor($r('app.color.text_color'))
-              .margin({ top: 4 })
-          }
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .layoutWeight(1)
-          .padding({ top: 12, bottom: 12 })
-          .alignItems(HorizontalAlign.Center)
-          .onClick(() => {
-            this.sideBarController.closeIfOverlay(false)
-            this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
-          })
-
-          Column() {
-            SymbolGlyph($r('sys.symbol.clock'))
-              .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
-            Text($r('app.string.recent_play'))
-              .fontSize(11)
-              .fontColor($r('app.color.text_color'))
-              .margin({ top: 4 })
-          }
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .layoutWeight(1)
-          .padding({ top: 12, bottom: 12 })
-          .alignItems(HorizontalAlign.Center)
-          .onClick(() => {
-            this.sideBarController.closeIfOverlay(false)
-            this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
-          })
-        }
-        .width('100%')
-        .margin({ top: 10 })
-        .backgroundColor($r('app.color.list_item_background'))
-        .borderRadius(16)
-        .shadow({
-          radius: 4,
-          color: $r('app.color.shadow_color'),
-          offsetX: 0,
-          offsetY: 1
-        })
-
-        // 本地/网络切换 - CapsuleSegmentButtonV2
-        if (deviceInfo.apiAvailable('26.0.0')) {
-          CapsuleSegmentButtonV2({
-            items: this.segmentItems,
-            selectedIndex: this.currentSourceTab,
-            itemSelectedFontColor: this.itemSelectedFontColor,
-            itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
-            enableStateAnimation: true,
-            onItemClicked: (index: number) => {
-              this.currentSourceTab = index
-            },
-            backgroundSystemMaterial: new uiMaterial.ImmersiveMaterial({
-              style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
-              colorInvert: true,
-              interactive: true,
-              lightEffect: {}
-            })
-          })
-            .margin({ top: 10, bottom: 6 })
-        } else {
-          CapsuleSegmentButtonV2({
-            items: this.segmentItems,
-            selectedIndex: this.currentSourceTab,
-            itemSelectedFontColor: this.itemSelectedFontColor,
-            itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
-            enableStateAnimation: true,
-            onItemClicked: (index: number) => {
-              this.currentSourceTab = index
-            },
-          })
-            .margin({ top: 10, bottom: 6 })
-        }
-      }
-      .width('100%')
-      .padding({ left: 16, right: 16 })
-
-      // 内容区域：Swiper 切换本地/网络
-      Swiper() {
-        SideBarFolderComponent({
-          onPlayDisc: async (item: VideoMetadata, list: VideoMetadata[]) => {
-            this.sideBarController.closeIfOverlay(false)
-            await ToolsUtil.routerWhere(this.pathStack, item, list)
-          },
-          sideBarController: this.sideBarController,
-          videoListController: this.videoListController,
-          fileFolderSource: this.fileFolderSource,
-          file_folder_list: this.file_folder_list,
-          sideBarScroller: this.sideBarScroller,
-          currentSourceTab: this.currentSourceTab,
-          // 闭包保留父组件上下文，避免 BuilderParam 将 this 切换到文件夹子组件。
-          importActions: () => {
-            this.ImportActions()
-          },
-          fileFolderListChange: this.fileFolderListChange,
-          scrollToFolderDateChange: this.scrollToFolderDateChange,
-          searchValueClear: this.searchValueClear,
-          onDeletingChange: (deleting: boolean) => {
-            this.folderDeleting = deleting
-          }
-        })
-
-        // Tab 1: 网络
-        Scroll() {
-          Column({ space: 8 }) {
-            Button({ type: ButtonType.Normal, stateEffect: true }) {
-              Row() {
-                SymbolGlyph($r('sys.symbol.switch_TV'))
-                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                Text($r('app.string.stream'))
-                  .fontSize(15)
-                  .margin({ left: 10, right: 12 })
-                  .textOverflow({ overflow: TextOverflow.MARQUEE })
-              }
-            }
-            .align(Alignment.Start)
-            .padding({ left: 16, right: 16 })
-            .attributeModifier(new ButtonFancyModifier('100%', 60))
-            .backgroundColor(Color.Transparent)
-            .animation({ duration: 300, curve: Curve.Ease })
-            .onClick(() => {
-              this.sideBarController.closeIfOverlay(false)
-              this.pathStack.pushPathByName(NavigationAddress.STREAM_PAGE, null)
-            })
-
-            Button({ type: ButtonType.Normal, stateEffect: true }) {
-              Row() {
-                SymbolGlyph($r('sys.symbol.TV_tv'))
-                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                Text('IPTV')
-                  .fontSize(15)
-                  .margin({ left: 10, right: 12 })
-                  .textOverflow({ overflow: TextOverflow.MARQUEE })
-              }
-            }
-            .align(Alignment.Start)
-            .padding({ left: 16, right: 16 })
-            .attributeModifier(new ButtonFancyModifier('100%', 60))
-            .backgroundColor(Color.Transparent)
-            .animation({ duration: 300, curve: Curve.Ease })
-            .onClick(() => {
-              this.sideBarController.closeIfOverlay(false)
-              this.pathStack.pushPathByName(NavigationAddress.IPTV_SOURCE_PAGE, null)
-            })
-
-            Button({ type: ButtonType.Normal, stateEffect: true }) {
-              Row() {
-                SymbolGlyph($r('sys.symbol.folder_badge_ellipsis'))
-                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                Text('SMB')
-                  .fontSize(15)
-                  .margin({ left: 10, right: 12 })
-                  .textOverflow({ overflow: TextOverflow.MARQUEE })
-              }
-            }
-            .align(Alignment.Start)
-            .padding({ left: 16, right: 16 })
-            .attributeModifier(new ButtonFancyModifier('100%', 60))
-            .backgroundColor(Color.Transparent)
-            .animation({ duration: 300, curve: Curve.Ease })
-            .onClick(() => {
-              this.sideBarController.closeIfOverlay(false)
-              this.pathStack.pushPathByName(NavigationAddress.SMB_PAGE, null)
-            })
-
-            Button({ type: ButtonType.Normal, stateEffect: true }) {
-              Row() {
-                SymbolGlyph($r('sys.symbol.folder_badge_ellipsis'))
-                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                Text('WebDAV')
-                  .fontSize(15)
-                  .margin({ left: 10, right: 12 })
-                  .textOverflow({ overflow: TextOverflow.MARQUEE })
-              }
-            }
-            .align(Alignment.Start)
-            .padding({ left: 16, right: 16 })
-            .attributeModifier(new ButtonFancyModifier('100%', 60))
-            .backgroundColor(Color.Transparent)
-            .animation({ duration: 300, curve: Curve.Ease })
-            .onClick(() => {
-              this.sideBarController.closeIfOverlay(false)
-              this.pathStack.pushPathByName(NavigationAddress.WEBDAV_PAGE, null)
-            })
-
-            Button({ type: ButtonType.Normal, stateEffect: true }) {
-              Row() {
-                SymbolGlyph($r('sys.symbol.folder_badge_ellipsis'))
-                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                Text('FTP')
-                  .fontSize(15)
-                  .margin({ left: 10, right: 12 })
-                  .textOverflow({ overflow: TextOverflow.MARQUEE })
-              }
-            }
-            .align(Alignment.Start)
-            .padding({ left: 16, right: 16 })
-            .attributeModifier(new ButtonFancyModifier('100%', 60))
-            .backgroundColor(Color.Transparent)
-            .animation({ duration: 300, curve: Curve.Ease })
-            .onClick(() => {
-              this.sideBarController.closeIfOverlay(false)
-              this.pathStack.pushPathByName(NavigationAddress.FTP_PAGE, null)
-            })
-
-            Button({ type: ButtonType.Normal, stateEffect: true }) {
-              Row() {
-                SymbolGlyph($r('sys.symbol.cloud'))
-                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                Text($r('app.string.huawei_drive'))
-                  .fontSize(15)
-                  .margin({ left: 10, right: 12 })
-                  .textOverflow({ overflow: TextOverflow.MARQUEE })
-              }
-            }
-            .align(Alignment.Start)
-            .padding({ left: 16, right: 16 })
-            .attributeModifier(new ButtonFancyModifier('100%', 60))
-            .backgroundColor(Color.Transparent)
-            .animation({ duration: 300, curve: Curve.Ease })
-            .onClick(() => {
-              this.sideBarController.closeIfOverlay(false)
-              this.pathStack.pushPathByName(NavigationAddress.HUAWEI_DRIVE_PAGE, null)
-            })
-
-          }
-          .backgroundColor($r('app.color.list_item_background'))
-          .width('100%')
-          .borderRadius(16)
-          .padding({ top: 4, bottom: 4 })
-          .shadow({
-            radius: 4,
-            color: $r('app.color.shadow_color'),
-            offsetX: 0,
-            offsetY: 1
-          })
-        }
-        .padding({ left: 16, right: 16 })
-        .align(Alignment.Top)
-        .edgeEffect(EdgeEffect.Spring)
-        .scrollBar(BarState.Off)
-        .width('100%')
-        .height('100%')
-      }
-      .index(this.currentSourceTab)
-      .indicator(false)
-      .layoutWeight(1)
-      .width('100%')
-      .onChange((index: number) => {
-        this.currentSourceTab = index
-      })
+      this.SidebarCard()
     }
     .width('100%')
-    .justifyContent(FlexAlign.Start)
+    .height('100%')
+    .padding({
+      left: 12,
+      right: 12,
+      top: SafeHeight.topSafeHeight + 12,
+      bottom: SafeHeight.bottomSafeHeight
+    })
+    .backgroundColor(Color.Transparent)
     .enabled(!this.folderDeleting)
-    .backgroundColor(Setting.backgroundImageSrc.length > 0 ? '' : $r('app.color.sidebar_background_color'))
     .transition(TransitionEffect.translate({ x: -300 })
       .combine(TransitionEffect.OPACITY)
       .animation(XAnimation.getAnimationCurve()))
     .visibility(this.sideBarController.visibility)
-    .borderRadius(this.sideBarController.mode === SideBarContainerType.Overlay ? 16 : 0)
+    // 账号弹层只绑定一次，不随滚动或分页销毁。
+    .bindSheet(this.isLogin, userLoginBuilder(() => {
+      this.isLogin = false
+      this.pathStack.pushPathByName(NavigationAddress.VIP_PAGE, true)
+    }), {
+      detents: [SheetSize.FIT_CONTENT],
+      height: SheetSize.MEDIUM,
+      preferType: SheetType.CENTER,
+      enableOutsideInteractive: false,
+      dragBar: true,
+      showClose: true,
+      title: { title: $r('app.string.account_info') },
+      onWillDismiss: () => {
+        this.isLogin = false
+      }
+    })
+  }
+
+  @Builder
+  private SidebarHeader() {
+    // 公共头部参与纵向滚动，但位于横向分页外，只构建一次。
+    Column() {
+      Row() {
+        Text($r('app.string.EntryAbility_label'))
+          .fontSize(20)
+          .fontColor($r('app.color.text_color'))
+          .fontWeight(FontWeight.Bold)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.MARQUEE })
+        Text(TimeUtil.getTextByTime())
+          .fontSize(15)
+          .fontColor($r('app.color.text_color'))
+          .maxLines(1)
+          .layoutWeight(1)
+          .textOverflow({ overflow: TextOverflow.MARQUEE })
+          .margin({ left: 5, right: 12 })
+      }
+      .alignItems(VerticalAlign.Bottom)
+      .width('100%')
+      .justifyContent(FlexAlign.Start)
+      .margin({ top: 12 })
+      .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
+      .onClick(() => {
+        ToolsUtil.startVibration()
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.toast_easter_egg').id))
+      })
+
+      Row() {
+        Image(userData?.userAvatar || $r("app.media.Foreground"))
+          .attributeModifier(new ImageFancyModifier(20, 45, 45))
+          .margin({ left: 10 })
+        Column({ space: 2 }) {
+          Text(userData.isLogin ? (userData.nickName || ToolsUtil.getStringResource($r('app.string.logged_in').id)) :
+            ToolsUtil.getStringResource($r('app.string.tap_to_login').id))
+            .fontColor($r('app.color.text_color'))
+            .fontSize(15)
+            .textOverflow({ overflow: TextOverflow.MARQUEE })
+          if (userData.isLogin) {
+            Text(userData.isVip ? $r('app.string.vip_label') : $r('app.string.non_vip'))
+              .fontSize(10)
+              .fontColor(userData.isVip ? $r('sys.color.white') : $r('sys.color.black'))
+              .backgroundColor(userData.isVip ? $r('app.color.main_color') : '#c1b2a3')
+              .fontWeight(userData.isVip ? FontWeight.Bold : FontWeight.Normal)
+              .borderRadius(6)
+              .padding({
+                left: 5,
+                right: 5,
+                top: 2,
+                bottom: 2
+              })
+          }
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+        .margin({ left: 10, right: 12 })
+      }
+      .height(65)
+      .onClick(() => {
+        this.isLogin = true
+      })
+      .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
+      .margin({ top: 10 })
+      .justifyContent(FlexAlign.Start)
+      .backgroundColor($r('app.color.list_item_background'))
+      .borderRadius(16)
+
+      // 快捷入口：设置 + 最近播放（从底部移到顶部）
+      Row() {
+        Column() {
+          SymbolGlyph($r('sys.symbol.gearshape'))
+            .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
+          Text($r('app.string.setting'))
+            .fontSize(11)
+            .fontColor($r('app.color.text_color'))
+            .margin({ top: 4 })
+        }
+        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+        .layoutWeight(1)
+        .padding({ top: 12, bottom: 12 })
+        .alignItems(HorizontalAlign.Center)
+        .onClick(() => {
+          this.sideBarController.closeIfOverlay(false)
+          this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
+        })
+
+        Column() {
+          SymbolGlyph($r('sys.symbol.clock'))
+            .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
+          Text($r('app.string.recent_play'))
+            .fontSize(11)
+            .fontColor($r('app.color.text_color'))
+            .margin({ top: 4 })
+        }
+        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+        .layoutWeight(1)
+        .padding({ top: 12, bottom: 12 })
+        .alignItems(HorizontalAlign.Center)
+        .onClick(() => {
+          this.sideBarController.closeIfOverlay(false)
+          this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
+        })
+      }
+      .width('100%')
+      .margin({ top: 10 })
+      .backgroundColor($r('app.color.list_item_background'))
+      .borderRadius(16)
+
+      // 本地/网络切换 - CapsuleSegmentButtonV2
+      if (deviceInfo.apiAvailable('26.0.0')) {
+        CapsuleSegmentButtonV2({
+          items: this.segmentItems,
+          selectedIndex: this.currentSourceTab,
+          itemSelectedFontColor: this.itemSelectedFontColor,
+          itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+          enableStateAnimation: true,
+          onItemClicked: (index: number) => {
+            this.currentSourceTab = index
+          },
+          backgroundSystemMaterial: new uiMaterial.ImmersiveMaterial({
+            style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
+            colorInvert: true,
+            interactive: true,
+            lightEffect: {}
+          })
+        })
+          .margin({ top: 10, bottom: 6 })
+      } else {
+        CapsuleSegmentButtonV2({
+          items: this.segmentItems,
+          selectedIndex: this.currentSourceTab,
+          itemSelectedFontColor: this.itemSelectedFontColor,
+          itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+          enableStateAnimation: true,
+          onItemClicked: (index: number) => {
+            this.currentSourceTab = index
+          },
+        })
+          .margin({ top: 10, bottom: 6 })
+      }
+    }
+    .width('100%')
+    .padding({ left: 12, right: 12 })
+  }
+
+  @Builder
+  private SidebarCard() {
+    // 短分页按内容收缩，长分页仍有界，避免空占整屏或把虚拟列表展开成全量内容。
+    Scroll(this.sidebarHeaderScroller) {
+      Column() {
+        this.SidebarHeader()
+        Swiper() {
+          SideBarFolderComponent({
+            sideBarController: this.sideBarController,
+            videoListController: this.videoListController,
+            fileFolderSource: this.fileFolderSource,
+            file_folder_list: this.file_folder_list,
+            sideBarScroller: this.sideBarScroller,
+            currentSourceTab: this.currentSourceTab,
+            onContentHeightChange: (height: number) => {
+              if (Number.isFinite(height) && height > 0 && Math.abs(height - this.localContentHeight) > 0.5) {
+                this.localContentHeight = height
+              }
+            },
+            // 闭包保留父组件上下文，避免 BuilderParam 将 this 切换到文件夹子组件。
+            importActions: () => {
+              this.ImportActions()
+            },
+            fileFolderListChange: this.fileFolderListChange,
+            scrollToFolderDateChange: this.scrollToFolderDateChange,
+            onFolderTreeIndicesChange: this.onFolderTreeIndicesChange,
+            searchValueClear: this.searchValueClear,
+            onDeletingChange: (deleting: boolean) => {
+              this.folderDeleting = deleting
+            }
+          })
+
+          // Tab 1: 网络
+          List() {
+            ListItem() {
+              Column({ space: 8 }) {
+                Button({ type: ButtonType.Normal, stateEffect: true }) {
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.switch_TV'))
+                      .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                    Text($r('app.string.stream'))
+                      .fontSize(15)
+                      .margin({ left: 10, right: 12 })
+                      .textOverflow({ overflow: TextOverflow.MARQUEE })
+                  }
+                }
+                .align(Alignment.Start)
+                .padding({ left: 16, right: 16 })
+                .attributeModifier(new ButtonFancyModifier('100%', 60))
+                .backgroundColor(Color.Transparent)
+                .animation({ duration: 300, curve: Curve.Ease })
+                .onClick(() => {
+                  this.sideBarController.closeIfOverlay(false)
+                  this.pathStack.pushPathByName(NavigationAddress.STREAM_PAGE, null)
+                })
+
+                Button({ type: ButtonType.Normal, stateEffect: true }) {
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.TV_tv'))
+                      .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                    Text('IPTV')
+                      .fontSize(15)
+                      .margin({ left: 10, right: 12 })
+                      .textOverflow({ overflow: TextOverflow.MARQUEE })
+                  }
+                }
+                .align(Alignment.Start)
+                .padding({ left: 16, right: 16 })
+                .attributeModifier(new ButtonFancyModifier('100%', 60))
+                .backgroundColor(Color.Transparent)
+                .animation({ duration: 300, curve: Curve.Ease })
+                .onClick(() => {
+                  this.sideBarController.closeIfOverlay(false)
+                  this.pathStack.pushPathByName(NavigationAddress.IPTV_SOURCE_PAGE, null)
+                })
+
+                Button({ type: ButtonType.Normal, stateEffect: true }) {
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.folder_badge_ellipsis'))
+                      .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                    Text('SMB')
+                      .fontSize(15)
+                      .margin({ left: 10, right: 12 })
+                      .textOverflow({ overflow: TextOverflow.MARQUEE })
+                  }
+                }
+                .align(Alignment.Start)
+                .padding({ left: 16, right: 16 })
+                .attributeModifier(new ButtonFancyModifier('100%', 60))
+                .backgroundColor(Color.Transparent)
+                .animation({ duration: 300, curve: Curve.Ease })
+                .onClick(() => {
+                  this.sideBarController.closeIfOverlay(false)
+                  this.pathStack.pushPathByName(NavigationAddress.SMB_PAGE, null)
+                })
+
+                Button({ type: ButtonType.Normal, stateEffect: true }) {
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.folder_badge_ellipsis'))
+                      .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                    Text('WebDAV')
+                      .fontSize(15)
+                      .margin({ left: 10, right: 12 })
+                      .textOverflow({ overflow: TextOverflow.MARQUEE })
+                  }
+                }
+                .align(Alignment.Start)
+                .padding({ left: 16, right: 16 })
+                .attributeModifier(new ButtonFancyModifier('100%', 60))
+                .backgroundColor(Color.Transparent)
+                .animation({ duration: 300, curve: Curve.Ease })
+                .onClick(() => {
+                  this.sideBarController.closeIfOverlay(false)
+                  this.pathStack.pushPathByName(NavigationAddress.WEBDAV_PAGE, null)
+                })
+
+                Button({ type: ButtonType.Normal, stateEffect: true }) {
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.folder_badge_ellipsis'))
+                      .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                    Text('FTP')
+                      .fontSize(15)
+                      .margin({ left: 10, right: 12 })
+                      .textOverflow({ overflow: TextOverflow.MARQUEE })
+                  }
+                }
+                .align(Alignment.Start)
+                .padding({ left: 16, right: 16 })
+                .attributeModifier(new ButtonFancyModifier('100%', 60))
+                .backgroundColor(Color.Transparent)
+                .animation({ duration: 300, curve: Curve.Ease })
+                .onClick(() => {
+                  this.sideBarController.closeIfOverlay(false)
+                  this.pathStack.pushPathByName(NavigationAddress.FTP_PAGE, null)
+                })
+
+                Button({ type: ButtonType.Normal, stateEffect: true }) {
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.cloud'))
+                      .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                    Text($r('app.string.huawei_drive'))
+                      .fontSize(15)
+                      .margin({ left: 10, right: 12 })
+                      .textOverflow({ overflow: TextOverflow.MARQUEE })
+                  }
+                }
+                .align(Alignment.Start)
+                .padding({ left: 16, right: 16 })
+                .attributeModifier(new ButtonFancyModifier('100%', 60))
+                .backgroundColor(Color.Transparent)
+                .animation({ duration: 300, curve: Curve.Ease })
+                .onClick(() => {
+                  this.sideBarController.closeIfOverlay(false)
+                  this.pathStack.pushPathByName(NavigationAddress.HUAWEI_DRIVE_PAGE, null)
+                })
+
+              }
+              .backgroundColor($r('app.color.list_item_background'))
+              .width('100%')
+              .borderRadius(16)
+              .padding({ top: 4, bottom: 4 })
+            }
+            .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
+              const height = Number(newValue.height)
+              const contentHeight = height + 12
+              if (Number.isFinite(height) && height > 0 && Math.abs(contentHeight - this.networkContentHeight) > 0.5) {
+                this.networkContentHeight = contentHeight
+              }
+            })
+          }
+          .padding({ left: 8, right: 8, bottom: 12 })
+          .align(Alignment.Top)
+          .scrollBar(BarState.Off)
+          .width('100%')
+          .height('100%')
+          .nestedScroll({
+            scrollForward: NestedScrollMode.PARENT_FIRST,
+            scrollBackward: NestedScrollMode.SELF_FIRST
+          })
+          .edgeEffect(EdgeEffect.None)
+        }
+        .index(this.currentSourceTab)
+        .indicator(false)
+        .height(this.sidebarPageHeight)
+        .width('100%')
+        .onChange((index: number) => {
+          this.currentSourceTab = index
+        })
+      }
+      .width('100%')
+    }
+    .fadingEdge(true)
+    .width('100%')
+    .layoutWeight(1)
+    .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
+      const viewportHeight = Math.max(1, Number(newValue.height) - 2)
+      if (Number.isFinite(viewportHeight) && Math.abs(viewportHeight - this.sidebarViewportHeight) > 0.5) {
+        this.sidebarViewportHeight = viewportHeight
+      }
+    })
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: false })
+    .backgroundColor(
+      Setting.backgroundImageSrc.length > 0 ? Color.Transparent : $r('app.color.start_window_background'))
+    .borderRadius(24)
+    .border({ width: 1, color: $r('app.color.sidebar_card_border') })
   }
 
   private getSelectFileMenus(): IMenuItem[] {

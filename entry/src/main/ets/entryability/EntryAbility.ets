@@ -43,10 +43,14 @@ export default class EntryAbility extends UIAbility {
     VideoOperateUtil.syncBackgroundColorMode(this.context)
     this.startupFileCleanup = FileFolderUtil.cleanInvalidFiles(this.context).then((count: number) => {
       salmonLogger.addLog(TAG, `启动清理失效文件完成，共 ${count} 个`, false)
-    }).catch((error: BusinessError) => {
-      salmonLogger.addLog(TAG, `启动清理失效文件失败: ${error.code}`, true)
+    }).catch((error: Error) => {
+      salmonLogger.addLog(TAG, `启动清理失效文件失败: ${error.message}`, true)
     })
-    VideoFormData.save(this.context, Preferences.getRecentPlay(this.context), true)
+    try {
+      VideoFormData.save(this.context, Preferences.getRecentPlay(this.context, true), true)
+    } catch (_error) {
+      salmonLogger.addLog(TAG, '启动刷新播放历史卡片失败，保留原有快照', true)
+    }
     // Process-wide, not per video: keep teardown diagnostics across core resets.
     MpvLogBridge.start()
     MpvLogBridge.applyDiagnosticsWant(want)

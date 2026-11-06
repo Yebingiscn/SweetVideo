@@ -5,6 +5,8 @@ import { PathUtils } from '../../utils/PathUtils'
 import Preferences from '../../database/Preferences'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import { DialogButtonBar } from './DialogButtonBar'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { salmonLogger } from 'salmonlogger'
 
 @CustomDialog
 export struct MoveFileFolderDialog {
@@ -97,11 +99,14 @@ export struct MoveFileFolderDialog {
           this.controller?.close()
         },
         () => {
-          const updatedFolders =
-            FileFolderUtil.moveFileFolder(PathUtils.appContext!, DataSyncUtil.movingFolderDate,
+          try {
+            const updatedFolders = FileFolderUtil.moveFileFolder(PathUtils.appContext!, DataSyncUtil.movingFolderDate,
               this.selected_parent_date)
-          if (this.onFolderMoved) {
-            this.onFolderMoved(updatedFolders)
+            this.onFolderMoved?.(updatedFolders)
+          } catch (_error) {
+            salmonLogger.addLog('MoveFileFolderDialog', 'Could not move the folder', true)
+            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.library_operation_failed').id))
+            return
           }
           this.controller?.close()
         }

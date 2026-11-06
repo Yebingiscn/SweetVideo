@@ -3,7 +3,6 @@ import { Setting } from '../../utils/ObservedUtil'
 import TimeUtil from '../../utils/TimeUtil'
 import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
 import { salmonLogger } from 'salmonlogger'
-import { uiMaterial } from '@kit.ArkUI'
 
 @ObservedV2
 class SwipingPlayTimeValue {

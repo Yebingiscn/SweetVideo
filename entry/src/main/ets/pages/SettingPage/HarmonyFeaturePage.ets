@@ -186,7 +186,7 @@ export struct HarmonyFeaturePage {
       return
     }
     try {
-      VideoFormData.save(context, Preferences.getRecentPlay(context), true)
+      VideoFormData.save(context, Preferences.getRecentPlay(context, true), true)
       formProvider.openFormManager({
         bundleName: context.applicationInfo.name,
         abilityName: VIDEO_FORM_ABILITY,

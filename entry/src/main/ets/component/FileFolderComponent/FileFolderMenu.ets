@@ -10,6 +10,8 @@ import { PathUtils } from '../../utils/PathUtils'
 import VideoUtils from '../../utils/VideoUtil'
 import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { salmonLogger } from 'salmonlogger'
 
 
 @ComponentV2
@@ -46,15 +48,16 @@ export struct FileFolderMenu {
                 symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")),
                 content: repeatItem.item.name
               })
-              .onClick(async () => {
-                let folders: FileFolder[] = []
-                if (DataSyncUtil.delMultipleList.length > 0) {
-                  folders =
-                    FileFolderUtil.transferVideosToFileFolder(PathUtils.appContext!, DataSyncUtil.delMultipleList,
-                      this.videoListController.folder.date, repeatItem.item.date)
-                } else {
-                  folders = FileFolderUtil.transferVideosToFileFolder(PathUtils.appContext!, [this.video_item!],
+              .onClick(() => {
+                const videos = DataSyncUtil.delMultipleList.length > 0 ? DataSyncUtil.delMultipleList : [this.video_item!]
+                let folders: FileFolder[]
+                try {
+                  folders = FileFolderUtil.transferVideosToFileFolder(PathUtils.appContext!, videos,
                     this.videoListController.folder.date, repeatItem.item.date)
+                } catch (_error) {
+                  salmonLogger.addLog('FileFolderMenu', 'Could not move the selected videos', true)
+                  ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.library_operation_failed').id))
+                  return
                 }
                 this.file_folder_list = folders
                 this.videoListController.videoDataSource.updateData(

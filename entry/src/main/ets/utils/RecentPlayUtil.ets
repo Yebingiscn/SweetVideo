@@ -2,76 +2,81 @@ import { Context } from '@kit.AbilityKit'
 import Preferences from '../database/Preferences'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { PathUtils } from './PathUtils'
+import { salmonLogger } from 'salmonlogger'
+
+const TAG = 'RecentPlayUtil'
 
 // 最近播放类
 export default class RecentPlayUtil {
   public static deque: VideoMetadata[] = []
   private static readonly MAX_SIZE = 30
   private static videoIdMap: Map<string, number> = new Map()
-  private static initialized = false
 
-  static addPlayback(context: Context, item: VideoMetadata, requireSuccess: boolean = false): void {
-    RecentPlayUtil.loadData(context)
-    const previous = [...RecentPlayUtil.deque]
-    if (!RecentPlayUtil.initialized) {
-      RecentPlayUtil.initialized = true
-    }
-    if (item?.uri == null) {
-      return
-    }
-    if (RecentPlayUtil.videoIdMap.has(item.uri)) {
-      const existingIndex = RecentPlayUtil.videoIdMap.get(item.uri)!
-      RecentPlayUtil.deque.splice(existingIndex, 1)
-    }
-    RecentPlayUtil.deque.unshift(item)
-    if (RecentPlayUtil.deque.length > RecentPlayUtil.MAX_SIZE) {
-      const removed = RecentPlayUtil.deque.pop()!
-      RecentPlayUtil.videoIdMap.delete(removed.uri)
-    }
-    RecentPlayUtil.updateMapIndices()
+  static addPlayback(context: Context, item: VideoMetadata, requireSuccess: boolean = false): boolean {
     try {
-      RecentPlayUtil.persistData(context, requireSuccess)
+      if (item?.uri == null) throw new Error('Playback URI is unavailable')
+      // 默认容错只控制如何报告失败，不能把读取失败的空数组用作写回基线。
+      const latest = Preferences.getRecentPlay(context, true)
+      const seen = new Set<string>()
+      const updated = [item, ...latest].filter(video => {
+        if (seen.has(video.uri)) return false
+        seen.add(video.uri)
+        return true
+      }).slice(0, RecentPlayUtil.MAX_SIZE)
+      Preferences.saveRecentPlay(context, updated, true)
+      RecentPlayUtil.publishData(updated)
+      return true
     } catch (_error) {
-      RecentPlayUtil.deque = previous
-      RecentPlayUtil.updateMapIndices()
-      throw new Error('Playback history could not be saved')
+      salmonLogger.addLog(TAG, '更新播放历史失败，保留原有数据', true)
+      if (requireSuccess) throw new Error('Playback history could not be saved')
+      return false
     }
   }
 
   static getRecentPlaybacks(): VideoMetadata[] {
-    RecentPlayUtil.loadData(PathUtils.appContext!)
-    return [...RecentPlayUtil.deque]
+    try {
+      const latest = Preferences.getRecentPlay(PathUtils.appContext!, true)
+      RecentPlayUtil.publishData([...latest])
+      return [...latest]
+    } catch (_error) {
+      // 仅用于展示的回退，不替换最后一次成功快照；写操作始终另行严格读取。
+      salmonLogger.addLog(TAG, '读取播放历史失败，保留最近一次成功快照', true)
+      return [...RecentPlayUtil.deque]
+    }
   }
 
-  public static delData(context: Context, uri: string, requireSuccess: boolean = false) {
-    if (requireSuccess) {
+  public static delData(context: Context, uri: string, requireSuccess: boolean = false): boolean {
+    try {
       const latest = Preferences.getRecentPlay(context, true)
       const retained = latest.filter(item => item.uri !== uri)
-      Preferences.saveRecentPlay(context, retained, true)
-      RecentPlayUtil.deque = retained
-      RecentPlayUtil.updateMapIndices()
-      return
-    }
-    if (RecentPlayUtil.videoIdMap.size === 0) { // 如果为空，则初始化一下
-      RecentPlayUtil.init(context)
-    }
-    if (RecentPlayUtil.videoIdMap.has(uri)) {
-      const index = RecentPlayUtil.videoIdMap.get(uri)!
-      RecentPlayUtil.deque.splice(index, 1)
-      RecentPlayUtil.videoIdMap.delete(uri)
-      // 更新后续元素的索引
-      for (let i = index; i < RecentPlayUtil.deque.length; i++) {
-        RecentPlayUtil.videoIdMap.set(RecentPlayUtil.deque[i].uri, i)
+      if (retained.length !== latest.length) {
+        Preferences.saveRecentPlay(context, retained, true)
       }
-      RecentPlayUtil.persistData(context)
+      RecentPlayUtil.publishData(retained)
+      return true
+    } catch (_error) {
+      salmonLogger.addLog(TAG, '删除播放历史失败，保留原有数据', true)
+      if (requireSuccess) throw new Error('Playback history could not be deleted')
+      return false
     }
   }
 
-  private static init(context: Context) {
-    if (context) {
-      RecentPlayUtil.loadData(context)
-      RecentPlayUtil.initialized = true
+  static clearData(context: Context): boolean {
+    try {
+      // 用户确认清空全部历史，无需用界面快照逐条读改写。
+      const empty: VideoMetadata[] = []
+      Preferences.saveRecentPlay(context, empty, true)
+      RecentPlayUtil.publishData(empty)
+      return true
+    } catch (_error) {
+      salmonLogger.addLog(TAG, '清空播放历史失败，保留原有数据', true)
+      return false
     }
+  }
+
+  private static publishData(items: VideoMetadata[]): void {
+    RecentPlayUtil.deque = items
+    RecentPlayUtil.updateMapIndices()
   }
 
   private static updateMapIndices() {
@@ -79,14 +84,5 @@ export default class RecentPlayUtil {
     RecentPlayUtil.deque.forEach((item, index) => {
       RecentPlayUtil.videoIdMap.set(item.uri, index)
     })
-  }
-
-  private static persistData(context: Context, requireSuccess: boolean = false) {
-    Preferences.saveRecentPlay(context, RecentPlayUtil.deque, requireSuccess)
-  }
-
-  private static loadData(context: Context) {
-    RecentPlayUtil.deque = Preferences.getRecentPlay(context)
-    RecentPlayUtil.updateMapIndices()
   }
 }

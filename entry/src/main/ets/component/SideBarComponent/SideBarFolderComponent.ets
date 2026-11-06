@@ -1,11 +1,6 @@
-import BluRayDirectory from '../../utils/BluRayDirectory'
-import { IMenuItem } from '../../interfaces/IMenuItemInterface'
 import FolderHierarchy from '../../utils/FolderHierarchy'
 import { FileFolderDataSource } from '../../utils/DataUtil'
 import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
-import { RenameDialog } from '../Dialog/RenameDialog'
-import { MoveFileFolderDialog } from '../Dialog/MoveFileFolderDialog'
-import { FolderOpeningEndingDialog } from '../Dialog/FolderOpeningEndingDialog'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import {
   ButtonFancyModifier,
@@ -18,22 +13,17 @@ import { SideBarController } from './SideBar'
 import Preferences from '../../database/Preferences'
 import { SortField } from '../../common/enum/SortField'
 import { FileFolderListBuilder } from '../FileFolderComponent/FileFolderListComponent'
-import { FolderSelectMenuBuilder } from '../FileFolderComponent/FileFolderSelectBuilder'
+import { FolderContextMenu, FolderMenuAction, FolderMenuActions } from '../FileFolderComponent/FileFolderSelectBuilder'
 import { SortMenuComponent } from '../common/SortMenuComponent'
-import { FolderOperator } from '../../database/VideoMetaData'
-import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import DataSyncUtil from '../../utils/DataSyncUtil'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoUtils from '../../utils/VideoUtil'
-import { SafeHeight } from '../../utils/ObservedUtil'
 import FolderSelection from '../../utils/FolderSelection'
-import { InfoConfirmDialog } from '../Dialog/InfoConfirmDialog'
-import { salmonLogger } from 'salmonlogger'
 import { KeyboardShortcuts, LibraryItemFocus, LibraryKeyboard, ShortcutAction } from '../../utils/KeyboardShortcuts'
 
 @ComponentV2
 export struct SideBarFolderComponent {
+  @Consumer() folderMenuActions: FolderMenuActions = new FolderMenuActions()
   @Consumer() libraryKeyboard: LibraryKeyboard = new LibraryKeyboard()
   @Param sideBarController: SideBarController = new SideBarController()
   @Param videoListController: VideoListController = new VideoListController()
@@ -41,34 +31,41 @@ export struct SideBarFolderComponent {
   @Param file_folder_list: FileFolder[] = []
   @Param sideBarScroller: Scroller = new Scroller()
   @Param currentSourceTab: number = 0
-  @Event onPlayDisc: (item: VideoMetadata, list: VideoMetadata[]) => Promise<void> = async () => {}
   @BuilderParam importActions: () => void
   @Local expandedFolderDates: Set<string> = new Set()
   @Local collapsedFolderDates: Set<string> = new Set()
   @Local folderSelectionMode: boolean = false
   @Local selectedFolderDates: Set<string> = new Set()
-  @Local folderDeleting: boolean = false
   @Local folderSortField: SortField | '' = ''
   @Local folderSortAsc: boolean = true
   @Local folderPinyinSort: boolean = true
-  folderOpeningEndingDialogController: CustomDialogController = new CustomDialogController({
-    builder: FolderOpeningEndingDialog({
-      onConfirm: (folderDate: string, startTime: number, endTime: number) => {
-        this.updateFolderOpeningEndingTimes(folderDate, startTime, endTime)
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
-  private folderDeleteDialogController: CustomDialogController | undefined = undefined
+  @Local importActionsHeight: number = 180
+  @Local folderToolbarHeight: number = 74
   private folderSortRequestId: number = 0
 
+  @Computed
+  get sidebarContentHeight(): number {
+    const count = this.visibleTreeFolders.length
+    // 原文件树固定行高44，组内上下各4，行间距2；仅统计，不展开虚拟节点测量。
+    const treeHeight = count * 44 + (count > 0 ? 8 + (count - 1) * 2 : 0)
+    const toolbarHeight = this.folderSelectionMode && this.currentSourceTab === 0 ? this.folderToolbarHeight : 0
+    return this.importActionsHeight + 32 + treeHeight + 12 + toolbarHeight
+  }
+
+  @Computed
+  get visibleTreeFolders(): FileFolder[] {
+    return FolderHierarchy.flatten(this.fileFolderSource.data, this.expandedFolderDates)
+  }
+
+  @Event onFolderTreeIndicesChange: (indices: Map<string, number>) => void = () => {
+  }
+  @Event onContentHeightChange: (height: number) => void = () => {
+  }
   @Event scrollToFolderDateChange: (date: string) => void = () => {
   }
-
   @Event searchValueClear: () => boolean = () => false
-
   @Event onDeletingChange: (deleting: boolean) => void = () => {
   }
-
   @Event fileFolderListChange: (folders: FileFolder[]) => void = () => {
   }
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
@@ -76,57 +73,42 @@ export struct SideBarFolderComponent {
       onFolderAdded: (folders: FileFolder[]) => {
         this.fileFolderListChange(folders)
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow,
+    }),
+    cornerRadius: 20,
+    shadow: DefaultDialogShadow,
     onDidDisappear: () => this.libraryKeyboard.reset()
   })
-  editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
-    builder: RenameDialog({
-      title: $r('app.string.rename_new_folder'),
-      renameTarget: 'folder',
-      onConfirm: async (newFolderName: string) => {
-        await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
-          DataSyncUtil.editingFolder!, newFolderName, this.fileFolderSource)
-        const updatedFolders = Preferences.getFileFolder(PathUtils.appContext!) as FileFolder[]
-        this.fileFolderListChange(updatedFolders)
-        this.fileFolderSource.updateData(updatedFolders)
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow,
-    onDidDisappear: () => this.libraryKeyboard.reset()
-  })
-  moveFileFolderDialogController: CustomDialogController = new CustomDialogController({
-    builder: MoveFileFolderDialog({
-      onFolderMoved: (folders: FileFolder[]) => {
-        this.fileFolderListChange(folders)
-        this.fileFolderSource.updateData(folders)
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
-
   aboutToAppear(): void {
     this.libraryKeyboard.onFolderAction = (action: ShortcutAction, date: string): void => {
-      if (this.folderDeleting || this.videoListController.directoryTransitioning) return
+      if (this.folderMenuActions.deleting || this.videoListController.directoryTransitioning) {
+        return
+      }
       const folder = this.file_folder_list.find(item => item.date === date)
       if (action === ShortcutAction.NEW_FOLDER) {
         this.addFileFolderNameDialogController.open()
       } else if (action === ShortcutAction.SELECT_ALL) {
         this.videoListController.closeMultipleChoose()
+        this.videoListController.directoryFolderSelection = undefined
         this.folderSelectionMode = true
         this.selectedFolderDates = new Set(FolderSelection.selectable(this.file_folder_list).map(item => item.date))
       } else if (action === ShortcutAction.ESCAPE) {
         this.closeFolderSelection()
       } else if (action === ShortcutAction.RENAME) {
-        if (this.folderSelectionMode && this.selectedFolderDates.size !== 1) return
-        const target = this.folderSelectionMode ? this.file_folder_list.find(item => this.selectedFolderDates.has(item.date)) : folder
-        if (!target || target.name === '首页') return
-        DataSyncUtil.editingFolder = target
-        this.editFileFolderNameDialogController.open()
+        if (this.folderSelectionMode && this.selectedFolderDates.size !== 1) {
+          return
+        }
+        const target =
+          this.folderSelectionMode ? this.file_folder_list.find(item => this.selectedFolderDates.has(item.date)) :
+            folder
+        if (!target || target.name === '首页') {
+          return
+        }
+        this.folderMenuActions.run(FolderMenuAction.EDIT, target)
       } else if (action === ShortcutAction.DELETE) {
-        if (this.folderSelectionMode) this.confirmFolderSelectionDelete()
-        else if (folder && folder.name !== '首页') {
-          const previous = this.selectedFolderDates
-          this.selectedFolderDates = new Set([folder.date])
+        if (this.folderSelectionMode) {
           this.confirmFolderSelectionDelete()
-          this.selectedFolderDates = previous
+        } else if (folder && folder.name !== '首页') {
+          this.folderMenuActions.confirmDelete([folder.date], () => this.closeFolderSelection())
         }
       }
     }
@@ -140,11 +122,12 @@ export struct SideBarFolderComponent {
     this.collapsedFolderDates = new Set(Preferences.getCollapsedFolderDates(PathUtils.appContext!))
 
     this.recomputeExpandedFolderDates()
+    this.publishFolderTreeIndices()
+    this.onContentHeightChange(this.sidebarContentHeight)
   }
 
   aboutToDisappear(): void {
     this.folderSortRequestId++
-    this.folderDeleteDialogController?.close()
   }
 
   @Monitor('file_folder_list')
@@ -157,11 +140,28 @@ export struct SideBarFolderComponent {
     this.recomputeExpandedFolderDates()
   }
 
+  @Monitor('videoListController.directoryFolderSelection')
+  onDirectoryFolderSelectionChanged(): void {
+    if (this.videoListController.directoryFolderSelection && this.folderSelectionMode) {
+      this.closeFolderSelection()
+    }
+  }
+
   @Monitor('sideBarController.isShow', 'currentSourceTab')
   onFolderSelectionContextChanged(): void {
     if (!this.sideBarController.isShow || this.currentSourceTab !== 0) {
       this.closeFolderSelection()
     }
+  }
+
+  @Monitor('visibleTreeFolders', 'folderSelectionMode', 'currentSourceTab')
+  onFolderTreeIndicesChanged(): void {
+    this.publishFolderTreeIndices()
+  }
+
+  @Monitor('sidebarContentHeight')
+  onSidebarContentHeightChanged(): void {
+    this.onContentHeightChange(this.sidebarContentHeight)
   }
 
   @Builder
@@ -207,98 +207,14 @@ export struct SideBarFolderComponent {
     }.width('100%').padding({ left: 16, right: 16, bottom: 8 })
   }
 
-  private discMenus(folder: FileFolder): IMenuItem[] {
-    return folder.video_list.filter((item: VideoMetadata) => BluRayDirectory.isEntry(item.uri))
-      .map((item: VideoMetadata): IMenuItem => ({
-        icon: $r('sys.symbol.play'),
-        content: ToolsUtil.getStringResource($r('app.string.play_bluray').id) + ' · ' + item.title,
-        onAction: async () => { await this.onPlayDisc(item, folder.video_list) }
-      }))
-  }
-
   @Builder
   FileFolderSelectMenu(folder: FileFolder) {
-    if (this.folderSelectionMode) {
-      FolderSelectMenuBuilder([{
-        icon: $r('sys.symbol.xmark'), content: $r('app.string.cancel'),
-        onAction: () => {
-          if (!this.folderDeleting) {
-            this.closeFolderSelection()
-          }
+    FolderContextMenu(folder, this.folderMenuActions, this.folderSelectionMode,
+      () => this.startFolderSelection(folder), () => {
+        if (!this.folderMenuActions.deleting) {
+          this.closeFolderSelection()
         }
-      }])
-    } else if (folder.name !== '首页') {
-      FolderSelectMenuBuilder([
-        ...this.discMenus(folder),
-        {
-          icon: $r('sys.symbol.checkmark_square'), content: $r('app.string.multiple_choice'),
-          onAction: () => {
-            this.startFolderSelection(folder)
-          }
-        },
-        {
-          icon: $r('sys.symbol.time_lapse'),
-          content: $r('app.string.menu_intro_outro'),
-          onAction: () => {
-            this.openFolderOpeningEndingDialog(folder)
-          },
-        },
-        {
-          icon: $r("sys.symbol.trash_fill"),
-          content: $r('app.string.delete'),
-          onAction: async () => {
-            const newFolders = await FileFolderUtil.deleteFileFolderRecursive(PathUtils.appContext!, folder)
-            this.videoListController.closeMultipleChoose()
-            this.fileFolderListChange(newFolders)
-            let newFolder: FileFolder | undefined
-            if (!newFolders.some(item => item.date === this.videoListController.folder?.date)) {
-              newFolder = newFolders[0]
-            } else {
-              newFolder = this.videoListController.folder
-            }
-            this.videoListController.folder = newFolder
-            if (newFolder) {
-              this.scrollToFolderDateChange(newFolder.date)
-            }
-            VideoUtils.refresh(this.videoListController, this.fileFolderSource, newFolder)
-          },
-        },
-        {
-          icon: $r('sys.symbol.rename'),
-          content: $r('app.string.edit'),
-          shortcut: 'F2',
-          onAction: () => {
-            DataSyncUtil.editingFolder = folder
-            this.editFileFolderNameDialogController.open()
-          },
-        },
-        {
-          icon: $r('sys.symbol.arrow_right_folder_circle'),
-          content: $r('app.string.move_folder'),
-          onAction: () => {
-            DataSyncUtil.movingFolderDate = folder.date
-            this.moveFileFolderDialogController.open()
-          },
-        },
-      ])
-    } else {
-      FolderSelectMenuBuilder([
-        ...this.discMenus(folder),
-        {
-          icon: $r('sys.symbol.checkmark_square'), content: $r('app.string.multiple_choice'),
-          onAction: () => {
-            this.startFolderSelection(folder)
-          }
-        },
-        {
-          icon: $r('sys.symbol.time_lapse'),
-          content: $r('app.string.menu_intro_outro'),
-          onAction: () => {
-            this.openFolderOpeningEndingDialog(folder)
-          },
-        },
-      ])
-    }
+      }, this.folderMenuActions.playDisc)
   }
 
   @Builder
@@ -339,171 +255,188 @@ export struct SideBarFolderComponent {
   }
 
   build() {
-    Column() {
+    List({ space: 0, scroller: this.sideBarScroller }) {
       if (this.folderSelectionMode && this.currentSourceTab === 0) {
-        this.FolderSelectionToolbarBuilder()
+        ListItem() {
+          this.FolderSelectionToolbarBuilder()
+        }
+        .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
+          const height = Number(newValue.height)
+          if (Number.isFinite(height) && height > 0 && Math.abs(height - this.folderToolbarHeight) > 0.5) {
+            this.folderToolbarHeight = height
+          }
+        })
       }
-      Scroll(this.sideBarScroller) {
+      ListItem() {
         Column() {
-          Column() {
-            this.importActions()
-            Button({ type: ButtonType.Normal, stateEffect: true }) {
-              Row() {
-                SymbolGlyph($r('sys.symbol.folder_badge_plus'))
-                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                Text($r('app.string.add_folder'))
-                  .fontSize(15)
-                  .margin({ left: 10, right: 12 })
-                  .textOverflow({ overflow: TextOverflow.MARQUEE })
-              }
+          this.importActions()
+          Button({ type: ButtonType.Normal, stateEffect: true }) {
+            Row() {
+              SymbolGlyph($r('sys.symbol.folder_badge_plus'))
+                .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+              Text($r('app.string.add_folder'))
+                .fontSize(15)
+                .margin({ left: 10, right: 12 })
+                .textOverflow({ overflow: TextOverflow.MARQUEE })
             }
-            .align(Alignment.Start)
-            .padding({ left: 16, right: 16 })
-            .attributeModifier(new ButtonFancyModifier('100%', 60))
-            .backgroundColor(Color.Transparent)
-            .animation({ duration: 300, curve: Curve.Ease })
-            .onClick(() => {
-              this.addFileFolderNameDialogController.open()
+          }
+          .align(Alignment.Start)
+          .padding({ left: 16, right: 16 })
+          .attributeModifier(new ButtonFancyModifier('100%', 60))
+          .backgroundColor(Color.Transparent)
+          .animation({ duration: 300, curve: Curve.Ease })
+          .onClick(() => {
+            this.addFileFolderNameDialogController.open()
+          })
+        }
+        .justifyContent(FlexAlign.Start)
+        .backgroundColor($r('app.color.list_item_background'))
+        .borderRadius(16)
+        .width('100%')
+      }
+      .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
+        const height = Number(newValue.height)
+        if (Number.isFinite(height) && height > 0 && Math.abs(height - this.importActionsHeight) > 0.5) {
+          this.importActionsHeight = height
+        }
+      })
+
+      ListItem() {
+        // 文件夹标题行 + 排序
+        Row() {
+          Text($r('app.string.folder'))
+            .fontSize(14)
+            .fontColor($r('sys.color.font_tertiary'))
+            .fontWeight(FontWeight.Medium)
+            .margin({ left: 4 })
+            .textOverflow({ overflow: TextOverflow.MARQUEE })
+          Blank()
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
+              .fontSize(16)
+              .fontColor([$r('sys.color.font_tertiary')])
+          }.attributeModifier(new ButtonFancyModifier(28, 28))
+          .backgroundColor(Color.Transparent)
+          .bindMenu(this.FolderSortMenuBuilder,
+            {
+              backgroundBlurStyle: BlurStyle.Regular,
+              hapticFeedbackMode: HapticFeedbackMode.ENABLED
+            })
+          .margin({ right: 4 })
+        }
+        .width('100%')
+        .height(32)
+        .alignItems(VerticalAlign.Center)
+        .padding({ left: 16, right: 16 })
+      }
+
+      Repeat<FileFolder>(this.visibleTreeFolders)
+        .each((repeatItem: RepeatItem<FileFolder>) => {
+          ListItem() {
+            FileFolderListBuilder({
+              folder: repeatItem.item,
+              videoListController: this.videoListController,
+              fileFolderSource: this.fileFolderSource,
+              expandedFolderDates: this.expandedFolderDates,
+              depth: FileFolderUtil.getFolderDepth(PathUtils.appContext!, repeatItem.item.date,
+                this.fileFolderSource.data),
+              hasChildren: this.fileFolderSource.data.some(
+                folder => folder.parent_date === repeatItem.item.date),
+              isExpanded: this.expandedFolderDates.has(repeatItem.item.date),
+              selectionMode: this.folderSelectionMode,
+              selected: this.selectedFolderDates.has(repeatItem.item.date),
+              selectable: repeatItem.item.name !== '首页',
+              onToggleExpand: (folderDate: string) => {
+                const newExpandedSet = new Set(this.expandedFolderDates)
+                const newCollapsedSet = new Set(this.collapsedFolderDates)
+                if (newExpandedSet.has(folderDate)) {
+                  newExpandedSet.delete(folderDate)
+                  newCollapsedSet.add(folderDate)
+                } else {
+                  newExpandedSet.add(folderDate)
+                  newCollapsedSet.delete(folderDate)
+                }
+                this.expandedFolderDates = newExpandedSet
+                this.collapsedFolderDates = newCollapsedSet
+                Preferences.saveCollapsedFolderDates(PathUtils.appContext!,
+                  Array.from(this.collapsedFolderDates))
+              }
             })
           }
-          .justifyContent(FlexAlign.Start)
-          .backgroundColor($r('app.color.list_item_background'))
-          .borderRadius(16)
-          .shadow({
-            radius: 4,
-            color: $r('app.color.shadow_color'),
-            offsetX: 0,
-            offsetY: 1
+          .onClick(() => {
+            this.activateFolder(repeatItem.item)
           })
-
-          // 文件夹标题行 + 排序
-          Row() {
-            Text($r('app.string.folder'))
-              .fontSize(14)
-              .fontColor($r('sys.color.font_tertiary'))
-              .fontWeight(FontWeight.Medium)
-              .margin({ left: 4 })
-              .textOverflow({ overflow: TextOverflow.MARQUEE })
-            Blank()
-            Button({ type: ButtonType.Circle, stateEffect: true }) {
-              SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
-                .fontSize(16)
-                .fontColor([$r('sys.color.font_tertiary')])
-            }
-            .width(28)
-            .height(28)
-            .backgroundColor(Color.Transparent)
-            .bindMenu(this.FolderSortMenuBuilder,
-              {
-                backgroundBlurStyle: BlurStyle.Regular,
-                hapticFeedbackMode: HapticFeedbackMode.ENABLED
-              })
-            .margin({ right: 4 })
-          }
+          .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, 'sidebar-folder', repeatItem.item.date,
+            () => this.activateFolder(repeatItem.item)))
+          .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.LongPress)
+          .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.RightClick)
           .width('100%')
-          .height(32)
-          .alignItems(VerticalAlign.Center)
-          .padding({ left: 16, right: 16 })
-
-          // 文件夹列表
-          List({ space: 2 }) {
-            Repeat<FileFolder>(this.getFlattenedTreeFolders())
-              .each((repeatItem: RepeatItem<FileFolder>) => {
-                ListItem() {
-                  FileFolderListBuilder({
-                    folder: repeatItem.item,
-                    videoListController: this.videoListController,
-                    fileFolderSource: this.fileFolderSource,
-                    expandedFolderDates: this.expandedFolderDates,
-                    depth: FileFolderUtil.getFolderDepth(PathUtils.appContext!, repeatItem.item.date,
-                      this.fileFolderSource.data),
-                    hasChildren: this.fileFolderSource.data.some(
-                      folder => folder.parent_date === repeatItem.item.date),
-                    isExpanded: this.expandedFolderDates.has(repeatItem.item.date),
-                    selectionMode: this.folderSelectionMode,
-                    selected: this.selectedFolderDates.has(repeatItem.item.date),
-                    selectable: repeatItem.item.name !== '首页',
-                    onToggleExpand: (folderDate: string) => {
-                      const newExpandedSet = new Set(this.expandedFolderDates)
-                      const newCollapsedSet = new Set(this.collapsedFolderDates)
-                      if (newExpandedSet.has(folderDate)) {
-                        newExpandedSet.delete(folderDate)
-                        newCollapsedSet.add(folderDate)
-                      } else {
-                        newExpandedSet.add(folderDate)
-                        newCollapsedSet.delete(folderDate)
-                      }
-                      this.expandedFolderDates = newExpandedSet
-                      this.collapsedFolderDates = newCollapsedSet
-                      Preferences.saveCollapsedFolderDates(PathUtils.appContext!,
-                        Array.from(this.collapsedFolderDates))
-                    }
-                  })
-                }
-                .onClick(() => {
-                  this.activateFolder(repeatItem.item)
-                })
-                .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, 'sidebar-folder', repeatItem.item.date,
-                  () => this.activateFolder(repeatItem.item)))
-                .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.LongPress)
-                .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.RightClick)
-              })
-              .key((item: FileFolder) => item.date)
-              .virtualScroll()
-          }
-          .shadow({
-            radius: 4,
-            color: $r('app.color.shadow_color'),
-            offsetX: 0,
-            offsetY: 1
-          })
-          .scrollBar(BarState.Off)
-          .borderRadius(12)
-          .width('100%')
-          .height('auto')
-          .align(Alignment.Start)
           .padding({
             left: 8,
             right: 8,
-            top: 4,
-            bottom: 4
+            top: repeatItem.index === 0 ? 4 : 0,
+            bottom: repeatItem.index === this.visibleTreeFolders.length - 1 ? 4 : 2
           })
           .backgroundColor($r('app.color.list_item_background'))
-          .nestedScroll({
-            scrollForward: NestedScrollMode.PARENT_FIRST,
-            scrollBackward: NestedScrollMode.SELF_FIRST
+          .borderRadius({
+            topLeft: repeatItem.index === 0 ? 12 : 0,
+            topRight: repeatItem.index === 0 ? 12 : 0,
+            bottomLeft: repeatItem.index === this.visibleTreeFolders.length - 1 ? 12 : 0,
+            bottomRight: repeatItem.index === this.visibleTreeFolders.length - 1 ? 12 : 0
           })
-          .edgeEffect(EdgeEffect.None)
-        }
-        .width('100%')
-      }
-      .fadingEdge(true)
-      .padding({ left: 16, right: 16, bottom: SafeHeight.bottomSafeHeight })
-      .align(Alignment.Top)
-      .edgeEffect(EdgeEffect.Spring)
-      .scrollBar(BarState.Off)
-      .width('100%')
-      .layoutWeight(1)
+        })
+        .key((item: FileFolder) => item.date)
+        .virtualScroll()
     }
     .width('100%')
     .height('100%')
+    .padding({ left: 8, right: 8, bottom: 12 })
+    .nestedScroll({
+      scrollForward: NestedScrollMode.PARENT_FIRST,
+      scrollBackward: NestedScrollMode.SELF_FIRST
+    })
+    .edgeEffect(EdgeEffect.None)
+    .scrollBar(BarState.Off)
     .onKeyEvent((event: KeyEvent): boolean => {
-      if (!this.sideBarController.isShow || this.currentSourceTab !== 0 || this.folderDeleting) return false
+      if (!this.sideBarController.isShow || this.currentSourceTab !== 0 || this.folderMenuActions.deleting) {
+        return false
+      }
       const action = KeyboardShortcuts.home(event)
       if (action === ShortcutAction.SELECT_ALL) {
-        if (this.libraryKeyboard.accept(action)) this.libraryKeyboard.onFolderAction?.(action, this.libraryKeyboard.focusDate)
+        if (this.libraryKeyboard.accept(action)) {
+          this.libraryKeyboard.onFolderAction?.(action,
+            this.libraryKeyboard.focusDate)
+        }
         return true
       }
       if (this.folderSelectionMode && action === ShortcutAction.DELETE) {
-        if (this.libraryKeyboard.accept(action)) this.confirmFolderSelectionDelete()
+        if (this.libraryKeyboard.accept(action)) {
+          this.confirmFolderSelectionDelete()
+        }
         return true
       }
       if (this.folderSelectionMode && action === ShortcutAction.ESCAPE) {
-        if (this.libraryKeyboard.accept(action)) this.closeFolderSelection()
+        if (this.libraryKeyboard.accept(action)) {
+          this.closeFolderSelection()
+        }
         return true
       }
       return false
     })
+  }
+
+  private publishFolderTreeIndices(): void {
+    const indices = new Map<string, number>()
+    if (this.currentSourceTab !== 0) {
+      this.onFolderTreeIndicesChange(indices)
+      return
+    }
+    // 导入操作和文件夹标题各占一项，多选工具栏出现时再增加一项。
+    const firstFolderIndex = 2 + (this.folderSelectionMode && this.currentSourceTab === 0 ? 1 : 0)
+    this.visibleTreeFolders.forEach((folder: FileFolder, index: number) => {
+      indices.set(folder.date, firstFolderIndex + index)
+    })
+    this.onFolderTreeIndicesChange(indices)
   }
 
   private closeFolderSelection(): void {
@@ -512,16 +445,23 @@ export struct SideBarFolderComponent {
   }
 
   private activateFolder(folder: FileFolder): void {
-    if (this.folderDeleting || this.videoListController.directoryTransitioning) return
+    if (this.folderMenuActions.deleting || this.videoListController.directoryTransitioning) {
+      return
+    }
     if (this.folderSelectionMode) {
       this.toggleFolderSelection(folder)
       return
     }
     this.searchValueClear()
-    if (this.videoListController.folder?.date === folder.date && !this.videoListController.directoryOverview) return
+    if (this.videoListController.folder?.date === folder.date && !this.videoListController.directoryOverview) {
+      return
+    }
     const currentFolder = Preferences.getFileFolder(PathUtils.appContext!).find(item => item.date === folder.date)
-    if (!currentFolder) return
+    if (!currentFolder) {
+      return
+    }
     let videos = currentFolder.video_list
+    this.videoListController.directoryFolderSelection = undefined
     this.videoListController.videoDataSource.updateData(videos)
     this.videoListController.directoryOverview = false
     this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder)
@@ -531,16 +471,17 @@ export struct SideBarFolderComponent {
   }
 
   private startFolderSelection(folder: FileFolder): void {
-    if (this.folderDeleting || this.videoListController.directoryTransitioning) {
+    if (this.folderMenuActions.deleting || this.videoListController.directoryTransitioning) {
       return
     }
     this.videoListController.closeMultipleChoose()
+    this.videoListController.directoryFolderSelection = undefined
     this.folderSelectionMode = true
     this.selectedFolderDates = new Set(folder.name === '首页' ? [] : [folder.date])
   }
 
   private toggleFolderSelection(folder: FileFolder): void {
-    if (this.folderDeleting || folder.name === '首页') {
+    if (this.folderMenuActions.deleting || folder.name === '首页') {
       return
     }
     const selected = new Set(this.selectedFolderDates)
@@ -558,7 +499,7 @@ export struct SideBarFolderComponent {
   }
 
   private toggleAllFolderSelection(): void {
-    if (this.folderDeleting) {
+    if (this.folderMenuActions.deleting) {
       return
     }
     this.selectedFolderDates = this.allFoldersSelected() ? new Set() :
@@ -566,52 +507,12 @@ export struct SideBarFolderComponent {
   }
 
   private confirmFolderSelectionDelete(): void {
-    if (this.folderDeleting || this.selectedFolderDates.size === 0) {
-      return
-    }
-    const selected = Array.from(this.selectedFolderDates)
-    const plan = FolderSelection.deletionPlan(Preferences.getFileFolder(PathUtils.appContext!), selected)
-    if (plan.dates.size === 0) {
-      return
-    }
-    this.folderDeleteDialogController = new CustomDialogController({
-      builder: InfoConfirmDialog({
-        textInfo: $r('app.string.folder_batch_delete_confirm', plan.dates.size, plan.videoCount),
-        confirm: () => {
-          void this.deleteSelectedFolders(selected)
-        }
-      }), cornerRadius: 20, shadow: DefaultDialogShadow,
-      onDidDisappear: () => this.libraryKeyboard.reset()
-    })
-    this.folderDeleteDialogController.open()
+    this.folderMenuActions.confirmDelete(Array.from(this.selectedFolderDates), () => this.closeFolderSelection())
   }
 
-  private async deleteSelectedFolders(selected: string[]): Promise<void> {
-    if (this.folderDeleting) {
-      return
-    }
-    this.folderDeleting = true
-    this.onDeletingChange(true)
-    try {
-      const folders = await FileFolderUtil.deleteFileFoldersRecursive(PathUtils.appContext!, selected,
-        this.fileFolderSource)
-      const current = folders.find(folder => folder.date === this.videoListController.folder?.date) ??
-        folders.find(folder => folder.name === '首页') ?? folders[0]
-      this.searchValueClear()
-      this.fileFolderListChange(folders)
-      if (current) {
-        const refreshed = VideoUtils.refresh(this.videoListController, this.fileFolderSource, current)
-        this.fileFolderListChange(refreshed)
-        this.scrollToFolderDateChange(current.date)
-      }
-      this.closeFolderSelection()
-    } catch (error) {
-      salmonLogger.addLog('FolderBatchDelete', 'delete folders failed: ' + (error as Error).message, true)
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_batch_delete_failed').id))
-    } finally {
-      this.folderDeleting = false
-      this.onDeletingChange(false)
-    }
+  @Monitor('folderMenuActions.deleting')
+  onFolderDeletingChanged(): void {
+    this.onDeletingChange(this.folderMenuActions.deleting)
   }
 
   private recomputeExpandedFolderDates() {
@@ -623,37 +524,6 @@ export struct SideBarFolderComponent {
       }
     }
     this.expandedFolderDates = newSet
-  }
-
-  private getFlattenedTreeFolders(): FileFolder[] {
-    return FolderHierarchy.flatten(this.fileFolderSource.data, this.expandedFolderDates)
-  }
-
-  private openFolderOpeningEndingDialog(folder: FileFolder): void {
-    if (folder.video_list.length === 0) {
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_no_video').id))
-      return
-    }
-    DataSyncUtil.editingFolder = folder
-    this.folderOpeningEndingDialogController.open()
-  }
-
-  private updateFolderOpeningEndingTimes(folderDate: string, startTime: number, endTime: number): void {
-    const updatedFolders = FolderOperator.updateFolderOpeningEndingTimes(folderDate, startTime, endTime)
-    const updatedFolder = updatedFolders.find(folder => folder.date === folderDate)
-    if (!updatedFolder) {
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_not_exist_set_failed').id))
-      return
-    }
-    this.fileFolderSource.updateData(updatedFolders)
-    this.fileFolderListChange(updatedFolders)
-    if (this.videoListController.folder?.date === folderDate) {
-      const visibleVideoDates = new Set(this.videoListController.videoDataSource.getAllData().map(video => video.date))
-      const visibleVideos = updatedFolder.video_list.filter(video => visibleVideoDates.has(video.date))
-      this.videoListController.videoDataSource.updateData(visibleVideos)
-      this.videoListController.updateData(this.videoListController.videoDataSource, updatedFolder)
-    }
-    ToolsUtil.showToast(`已更新 ${updatedFolder.video_list.length} 个视频的片头片尾时间`)
   }
 
   private handleFolderSort(field: SortField, defaultAsc: boolean) {

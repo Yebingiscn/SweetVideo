@@ -1,4 +1,3 @@
-import { MpvPlaybackEffects } from '../../controller/MpvController/MpvPlaybackEffects'
 import { UsbAudioSession } from '../../utils/UsbAudioSession'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem'
@@ -6,6 +5,7 @@ import { SettingsSegmentButtonItem } from '../../component/SettingComponent/Sett
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
 import {
+  ButtonFancyModifier,
   SettingsItemModifier,
   SettingsTitleModifier,
   SymbolGlyphFancyModifier
@@ -27,14 +27,16 @@ export struct EngineSettingPage {
   private listScroller: Scroller = new Scroller()
   @Local private usbNames: string[] = [ToolsUtil.getStringResource($r('app.string.usb_auto_select').id)]
   private usbIds: string[] = ['']
+  @Local private confEnabled: boolean = false
   @Local private confVisible: boolean = false
   @Local private confDraft: string = ''
   @Local private confBusy: boolean = false
-  @Local private confError: string = ''
 
   aboutToAppear(): void {
     try {
+      this.confEnabled = MpvConfigStore.enabled()
     } catch (_error) {
+      this.confEnabled = false
     }
     try {
       const devices = UsbAudioSession.devices()
@@ -66,7 +68,7 @@ export struct EngineSettingPage {
             }
           })
         }
-
+        
         ListItem() {
           Column({ space: 4 }) {
             this.ConfToggle()
@@ -77,9 +79,6 @@ export struct EngineSettingPage {
                 this.openConf()
               }
             })
-            Text($r('app.string.mpv_conf_next_core'))
-              .fontSize(12).fontColor($r('sys.color.font_secondary')).width('100%')
-              .padding({ left: 16, right: 16, bottom: 12 })
           }
         }
 
@@ -170,7 +169,8 @@ export struct EngineSettingPage {
                 this.saveUsb()
               }
             })
-            Text('自动优先硬件音量，不可用时使用数字音量。自动／数字音量允许 PCM 格式转换，不能保证位完美；原始电平不调节音量。DSD 直出仅支持硬件音量。下次打开媒体生效。')
+            Text(
+              '自动优先硬件音量，不可用时使用数字音量。自动／数字音量允许 PCM 格式转换，不能保证位完美；原始电平不调节音量。DSD 直出仅支持硬件音量。下次打开媒体生效。')
               .fontSize(12).fontColor($r('sys.color.font_secondary'))
               .padding({ left: 16, right: 16, bottom: 12 })
             SettingsMenuItem({
@@ -204,49 +204,6 @@ export struct EngineSettingPage {
             onButtonClick: (tabSelectedIndex: number) => {
               Setting.mpvGpuApi = tabSelectedIndex as MpvGpuApi
               Preferences.saveMpvGpuApi(PathUtils.appContext!, Setting.mpvGpuApi)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsSegmentButtonItem({
-            symbol: $r('sys.symbol.wand_and_stars'),
-            message: ToolsUtil.getStringResource($r('app.string.mpv_quality_boost').id),
-            tag: 'VIP',
-            tips: MpvPlaybackEffects.getShaderModeNames(),
-            tabSelectedIndex: Setting.mpvShaderMode,
-            itemEnabled: userData.isVip,
-            onButtonClick: (tabSelectedIndex: number) => {
-              Setting.mpvShaderMode = tabSelectedIndex
-              Preferences.saveMpvShaderMode(PathUtils.appContext!, tabSelectedIndex)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsToggleItem({
-            symbol: $r('sys.symbol.hdr'),
-            message: ToolsUtil.getStringResource($r('app.string.sdr_to_hdr').id),
-            tag: 'VIP',
-            enable: Setting.mpvSdrToHdr,
-            itemEnabled: userData.isVip,
-            onChange: (checked: boolean) => {
-              Setting.mpvSdrToHdr = checked
-              Preferences.saveMpvSdrToHdr(PathUtils.appContext!, checked)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsToggleItem({
-            symbol: $r('sys.symbol.camera_master_ai'),
-            message: ToolsUtil.getStringResource($r('app.string.super_resolution').id),
-            tag: 'VIP',
-            enable: Setting.superResolutionState,
-            itemEnabled: userData.isVip,
-            onChange: (checked: boolean) => {
-              Setting.superResolutionState = checked
-              Preferences.saveSuperResolutionState(PathUtils.appContext!, Setting.superResolutionState)
             }
           })
         }
@@ -342,13 +299,13 @@ export struct EngineSettingPage {
   }
 
   private saveUsb(): void {
-    Preferences.saveMpvUsb(PathUtils.appContext!, Setting.mpvUsbExclusive, Setting.mpvUsbDsdMode, Setting.mpvUsbDevice, Setting.mpvUsbVolumeMode)
+    Preferences.saveMpvUsb(PathUtils.appContext!, Setting.mpvUsbExclusive, Setting.mpvUsbDsdMode, Setting.mpvUsbDevice,
+      Setting.mpvUsbVolumeMode)
   }
 
   private openConf(): void {
     try {
       this.confDraft = MpvConfigStore.read()
-      this.confError = ''
       this.confVisible = true
     } catch (_error) {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.mpv_conf_read_failed').id))
@@ -360,7 +317,6 @@ export struct EngineSettingPage {
       return
     }
     this.confBusy = true
-    this.confError = ''
     try {
       const options = new picker.DocumentSelectOptions()
       options.maxSelectNumber = 1
@@ -373,7 +329,7 @@ export struct EngineSettingPage {
         }
       }
     } catch (_error) {
-      this.confError = ToolsUtil.getStringResource($r('app.string.mpv_conf_import_failed').id)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.mpv_conf_import_failed').id))
     } finally {
       this.confBusy = false
     }
@@ -384,14 +340,13 @@ export struct EngineSettingPage {
       return
     }
     this.confBusy = true
-    this.confError = ''
     try {
       await MpvConfigStore.save(this.confDraft)
       this.confVisible = false
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.mpv_conf_saved').id))
     } catch (error) {
-      this.confError = error instanceof Error ? error.message :
-        ToolsUtil.getStringResource($r('app.string.mpv_conf_save_failed').id)
+      ToolsUtil.showToast(error instanceof Error ? error.message :
+        ToolsUtil.getStringResource($r('app.string.mpv_conf_save_failed').id))
     } finally {
       this.confBusy = false
     }
@@ -410,23 +365,37 @@ export struct EngineSettingPage {
         .maxLength(MpvConfigStore.MAX_BYTES)
         .enabled(!this.confBusy)
         .onChange((value: string) => {
-          this.confDraft = value;
-          this.confError = ''
+          this.confDraft = value
         })
-      if (this.confError.length > 0) {
-        Text(this.confError).fontSize(12).fontColor($r('sys.color.font_emphasize')).width('100%')
-      }
       Row({ space: 12 }) {
-        Button($r('app.string.mpv_conf_import')).layoutWeight(1).enabled(!this.confBusy)
+        Button($r('app.string.mpv_conf_import'))
+          .attributeModifier(new ButtonFancyModifier('', 44))
+          .backgroundColor($r('app.color.main_color'))
+          .fontColor(Color.White)
+          .layoutWeight(1)
+          .enabled(!this.confBusy)
           .onClick(() => {
             this.importConf()
           })
-        Button($r('app.string.mpv_conf_save')).layoutWeight(1).enabled(!this.confBusy)
+        Button($r('app.string.mpv_conf_save'))
+          .attributeModifier(new ButtonFancyModifier('', 44))
+          .backgroundColor($r('app.color.main_color'))
+          .fontColor(Color.White)
+          .layoutWeight(1)
+          .enabled(!this.confBusy)
           .onClick(() => {
             this.saveConf()
           })
       }.width('100%')
-    }.padding(16).width('100%').height('100%')
+    }
+    .padding({
+      left: 16,
+      right: 16,
+      top: 16,
+      bottom: SafeHeight.bottomSafeHeight + 16
+    })
+    .width('100%')
+    .height('100%')
   }
 
   @Builder
@@ -436,18 +405,25 @@ export struct EngineSettingPage {
         .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
       Text($r('app.string.mpv_conf_title'))
         .attributeModifier(new SettingsTitleModifier()).layoutWeight(1)
-      Toggle({ type: ToggleType.Switch, isOn: $$this.confEnabled })
+      Toggle({ type: ToggleType.Switch, isOn: this.confEnabled })
         .selectedColor($r('app.color.main_color'))
         .width(45)
         .height(27)
         .flexShrink(0)
         .onChange((enabled: boolean) => {
+          if (enabled === this.confEnabled) {
+            return
+          }
+          const previous = this.confEnabled
+          this.confEnabled = enabled
           try {
             MpvConfigStore.setEnabled(enabled)
-            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.mpv_conf_next_core').id))
           } catch (_error) {
+            this.confEnabled = previous
             ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.mpv_conf_invalid').id))
+            return
           }
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.mpv_conf_next_core').id))
         })
     }.width('100%').height(55).attributeModifier(new SettingsItemModifier())
   }

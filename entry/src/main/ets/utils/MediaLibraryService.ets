@@ -193,7 +193,7 @@ export default class MediaLibraryService {
       const targetVideoMetaData = findResult[0]
 
       if (targetVideoMetaData) {
-        Preferences.savePlaybackMetadata(context, target_data.date, true, updateVideo)
+        Preferences.savePlaybackMetadata(context, target_data.date, updateVideo)
       } else {
         // External and network playback also need an up-to-date recent-play position.
         const updatedVideo = Preferences.copyPlaybackMetadata(target_data)
