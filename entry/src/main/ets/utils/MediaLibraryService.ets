@@ -29,8 +29,6 @@ interface MediaListIndex {
 }
 
 export default class MediaLibraryService {
-  private static queryCache: WeakMap<VideoMetadata[], MediaListIndex> = new WeakMap()
-
   public static videoSourcePath = new Map<number, string>([
     [VideoSource.SWEET_VIDEO_DOWNLOAD_FILE, '/storage/Users/currentUser/'],
     [VideoSource.DOCUMENT_SELECT_OPTION, 'file://docs/storage/Users'],
@@ -38,6 +36,67 @@ export default class MediaLibraryService {
     [VideoSource.PRIVACY_SPACE, '/data/storage/el2'],
     [VideoSource.EXTERNAL_DEVICE, 'file://docs/storage/External']
   ])
+  private static trashMoves: Map<string, Promise<boolean>> = new Map()
+  private static queryCache: WeakMap<VideoMetadata[], MediaListIndex> = new WeakMap()
+
+  static renameVideo(context: Context, video: VideoMetadata, title: string): void {
+    const matches = (item: VideoMetadata): boolean => item.date === video.date && item.uri === video.uri
+    const privateUri = video.uri.startsWith(PathUtils.videoPath) ||
+      (video.uri.startsWith('file://') && video.uri === PathUtils.videoUri(video.date))
+    if (PrivacySpaceUtil.getPrivacyMode() || privateUri) {
+      const videos = Preferences.getVideoMetaDataEncryption(context, true)
+      const index = videos.findIndex(matches)
+      if (index < 0 || videos.some((item, i) => i !== index && item.title === title)) {
+        throw new Error('Private video title could not be changed')
+      }
+      const target = videos[index]
+      if (target.title !== title) {
+        const renamed = Preferences.copyPlaybackMetadata(target)
+        renamed.title = title
+        const updated = [...videos]
+        updated[index] = renamed
+        Preferences.saveVideoMetaDataEncryption(context, updated, true)
+      }
+      return
+    }
+
+    const found = Preferences.findVideoByDate(context, video.date, true)
+    const local = found[0]
+    let hasSavedRecord = false
+    if (local && matches(local)) {
+      if (found[1].some(item => !matches(item) && item.title === title)) {
+        throw new Error('Video title already exists in this folder')
+      }
+      if (local.title !== title) {
+        Preferences.savePlaybackMetadata(context, video.date, item => {
+          item.title = title
+        })
+      }
+      hasSavedRecord = true
+    } else {
+      const streams = Preferences.getNetworkStreams(context, true)
+      const index = streams.findIndex(matches)
+      if (index >= 0) {
+        const stream = streams[index]
+        if (stream.title !== title) {
+          const renamed = Preferences.copyPlaybackMetadata(stream)
+          renamed.title = title
+          const updated = [...streams]
+          updated[index] = renamed
+          Preferences.saveNetworkStreams(context, updated, true)
+        }
+        hasSavedRecord = true
+      }
+    }
+    try {
+      RecentPlayUtil.updateExistingTitle(context, video, title)
+    } catch (_error) {
+      if (!hasSavedRecord) {
+        throw new Error('Recent playback title could not be saved')
+      }
+      salmonLogger.addLog(TAG, 'Could not update the renamed video in recent playback', true)
+    }
+  }
 
   static saveData(context: Context, target_data: VideoMetadata, options: SaveOptions) {
     salmonLogger.addLog(TAG,
@@ -76,16 +135,19 @@ export default class MediaLibraryService {
     }
     const audioChange = options.externalAudioFile !== undefined || options.externalAudioName !== undefined ||
       options.externalAudioSelected !== undefined || options.externalAudioOffsetMs !== undefined
-    const rangeChange = options.blurayTitleId !== undefined || options.pointA !== undefined || options.pointB !== undefined ||
-      options.startTime !== undefined || options.endTime !== undefined
+    const rangeChange =
+      options.blurayTitleId !== undefined || options.pointA !== undefined || options.pointB !== undefined ||
+        options.startTime !== undefined || options.endTime !== undefined
     const audioTargets: VideoMetadata[] = []
     const audioSnapshots: SaveOptions[] = []
     const updateVideo = (video: VideoMetadata) => {
       if (audioChange) {
         audioTargets.push(video)
         audioSnapshots.push({
-          externalAudioFile: video.external_audio_file, externalAudioName: video.external_audio_name,
-          externalAudioSelected: video.external_audio_selected, externalAudioOffsetMs: video.external_audio_offset_ms
+          externalAudioFile: video.external_audio_file,
+          externalAudioName: video.external_audio_name,
+          externalAudioSelected: video.external_audio_selected,
+          externalAudioOffsetMs: video.external_audio_offset_ms
         })
       }
       if (options.playTime !== undefined) {
@@ -143,10 +205,18 @@ export default class MediaLibraryService {
           video.audio_track_id = options.audioTrackId
         }
       }
-      if (options.externalAudioFile !== undefined) video.external_audio_file = options.externalAudioFile
-      if (options.externalAudioName !== undefined) video.external_audio_name = options.externalAudioName
-      if (options.externalAudioSelected !== undefined) video.external_audio_selected = options.externalAudioSelected
-      if (options.externalAudioOffsetMs !== undefined) video.external_audio_offset_ms = options.externalAudioOffsetMs
+      if (options.externalAudioFile !== undefined) {
+        video.external_audio_file = options.externalAudioFile
+      }
+      if (options.externalAudioName !== undefined) {
+        video.external_audio_name = options.externalAudioName
+      }
+      if (options.externalAudioSelected !== undefined) {
+        video.external_audio_selected = options.externalAudioSelected
+      }
+      if (options.externalAudioOffsetMs !== undefined) {
+        video.external_audio_offset_ms = options.externalAudioOffsetMs
+      }
       if (options.hdrType !== undefined) {
         video.hdr_type = options.hdrType
       }
@@ -183,7 +253,9 @@ export default class MediaLibraryService {
           updateVideo(target_data)
           salmonLogger.addLog(TAG, '隐私空间数据更新完成', false)
         } else {
-          if (audioChange || rangeChange) throw new Error('Video metadata no longer exists')
+          if (audioChange || rangeChange) {
+            throw new Error('Video metadata no longer exists')
+          }
           salmonLogger.addLog(TAG, '未在隐私空间中找到目标视频数据', true)
         }
         return
@@ -203,19 +275,26 @@ export default class MediaLibraryService {
       if (audioChange) {
         const streams = Preferences.getNetworkStreams(context)
         const stream = streams.find((item: VideoMetadata) => item.date === target_data.date)
-        if (stream) { updateVideo(stream); Preferences.saveNetworkStreams(context, streams, !targetVideoMetaData) }
+        if (stream) {
+          updateVideo(stream);
+          Preferences.saveNetworkStreams(context, streams, !targetVideoMetaData)
+        }
         const recent = Preferences.getRecentPlay(context)
         const recentItem = recent.find((item: VideoMetadata) => item.date === target_data.date)
         if (recentItem) {
           try {
             updateVideo(recentItem)
-            Preferences.saveRecentPlay(context, recent, !targetVideoMetaData && !stream)
+            Preferences.saveRecentPlay(context, recent,!targetVideoMetaData && !stream)
           } catch (_error) {
-            if (!targetVideoMetaData && !stream) throw new Error('Recent audio metadata could not be saved')
+            if (!targetVideoMetaData && !stream) {
+              throw new Error('Recent audio metadata could not be saved')
+            }
             salmonLogger.addLog(TAG, '更新最近播放中的外挂音频关联失败', true)
           }
         }
-        if (!targetVideoMetaData && !stream && !recentItem) throw new Error('Video metadata no longer exists')
+        if (!targetVideoMetaData && !stream && !recentItem) {
+          throw new Error('Video metadata no longer exists')
+        }
       }
       if (rangeChange) {
         try {
@@ -235,7 +314,10 @@ export default class MediaLibraryService {
         } catch (error) {
           // The canonical title has already been committed. Do not keep playing the
           // old title and later save its position into the newly selected title.
-          if (options.blurayTitleId === undefined || !targetVideoMetaData) throw new Error('Recent playback could not be saved')
+          if (options.blurayTitleId === undefined || !targetVideoMetaData) {
+            throw new Error(
+              'Recent playback could not be saved')
+          }
           salmonLogger.addLog(TAG, '蓝光标题已保存，最近播放副本更新失败', true)
         }
       }
@@ -245,11 +327,12 @@ export default class MediaLibraryService {
       if (options.playTime !== undefined) {
         const canonicalPosition = Preferences.findVideoByDate(context, target_data.date)[0]?.last_play
         salmonLogger.addLog(TAG,
-          `播放记录更新确认: videoId=${target_data.date}, positionMs=${save_time}, currentMs=${target_data.last_play}, canonicalMs=${canonicalPosition ?? 'external'}`,
+          `播放记录更新确认: videoId=${target_data.date}, positionMs=${save_time}, currentMs=${target_data.last_play}, canonicalMs=${canonicalPosition ??
+            'external'}`,
           false)
       }
     } catch (_error) {
-      for (let index = audioTargets.length - 1;index >= 0;index--) {
+      for (let index = audioTargets.length - 1; index >= 0; index--) {
         const target = audioTargets[index]
         const previous = audioSnapshots[index]
         target.external_audio_file = previous.externalAudioFile
@@ -259,25 +342,6 @@ export default class MediaLibraryService {
       }
       salmonLogger.addLog(TAG, `播放记录更新失败: videoId=${target_data.date}`, true)
       throw new Error('Video metadata could not be saved')
-    }
-  }
-
-  // 网络串流不在文件夹里，按最新串流记录应用本次变更，避免旧播放对象覆盖其他字段。
-  private static saveExternalRecentPlay(context: Context, target_data: VideoMetadata,
-    update: (video: VideoMetadata) => void) {
-    try {
-      const streams = Preferences.getNetworkStreams(context)
-      const targetStream = streams.find(stream => stream.date === target_data.date)
-      if (!targetStream) {
-        return
-      }
-      const savedStream = Preferences.copyPlaybackMetadata(targetStream)
-      update(savedStream)
-      const updated = streams.map(stream => stream.date === target_data.date ? savedStream : stream)
-      Preferences.saveNetworkStreams(context, updated, true)
-    } catch (error) {
-      salmonLogger.addLog(TAG, '保存串流播放记录失败', true)
-      throw new Error('Stream playback metadata could not be saved')
     }
   }
 
@@ -311,7 +375,9 @@ export default class MediaLibraryService {
       if (res) {
         fs.unlink(PathUtils.videoPath + videoMetaData.date, async (unlinkErr) => {
           if (unlinkErr) {
-            ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.delete_video_failed_detail').id, videoMetaData.title, unlinkErr.message))
+            ToolsUtil.showToast(
+              ToolsUtil.getStringResourceArgs2($r('app.string.delete_video_failed_detail').id, videoMetaData.title,
+                unlinkErr.message))
           }
           Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, videoMetaDataEncryption)
         })
@@ -328,14 +394,18 @@ export default class MediaLibraryService {
     let cached = MediaLibraryService.queryCache.get(list)
     if (!cached || cached.length !== list.length || cached.indices.size > list.length) {
       const indices = new Map<string, number>()
-      for (let i = 0; i < list.length; i++) indices.set(list[i].date, i)
+      for (let i = 0; i < list.length; i++) {
+        indices.set(list[i].date, i)
+      }
       cached = { length: list.length, indices: indices }
       MediaLibraryService.queryCache.set(list, cached)
       const index = indices.get(item)
       return index === undefined ? undefined : list[index]
     }
     const index = cached.indices.get(item)
-    if (index !== undefined && list[index]?.date === item) return list[index]
+    if (index !== undefined && list[index]?.date === item) {
+      return list[index]
+    }
     // 数组可能原地排序或替换条目；返回当前位置的对象，避免命中旧对象。
     for (let i = list.length - 1; i >= 0; i--) {
       if (list[i].date === item) {
@@ -373,7 +443,9 @@ export default class MediaLibraryService {
     const lowerValue = trimmedValue.toLowerCase()
     return list.filter(item => {
       if (item.title.toLowerCase().includes(lowerValue) || item.artist?.toLowerCase().includes(lowerValue) ||
-        item.album?.toLowerCase().includes(lowerValue)) return true
+        item.album?.toLowerCase().includes(lowerValue)) {
+        return true
+      }
       return ToolsUtil.fileNameFromUri(item.uri).toLowerCase().includes(lowerValue)
     })
   }
@@ -396,7 +468,8 @@ export default class MediaLibraryService {
       } else {
         salmonLogger.addLog(TAG, 'delete failed: ' + error.code + ':' + error.message, true)
       }
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.delete_video_failed_detail').id, title, String(err)))
+      ToolsUtil.showToast(
+        ToolsUtil.getStringResourceArgs2($r('app.string.delete_video_failed_detail').id, title, String(err)))
     }
   }
 
@@ -426,7 +499,9 @@ export default class MediaLibraryService {
   }
 
   static saveVideoTime(play_time: number, nowPlaying: VideoMetadata, context: Context) {
-    if (!Number.isFinite(play_time) || play_time < 0) return
+    if (!Number.isFinite(play_time) || play_time < 0) {
+      return
+    }
     MediaLibraryService.saveData(context, nowPlaying, { playTime: play_time })
     if (Setting.recentPlay && !PrivacySpaceUtil.getPrivacyMode() &&
       !MediaLibraryService.isPathFromSource(nowPlaying.uri, VideoSource.PRIVACY_SPACE)) {
@@ -482,7 +557,8 @@ export default class MediaLibraryService {
     // Only explicit UI changes are persisted. Exit/switch and failed detection
     // must not turn a temporary fallback into a remembered off / missing track.
     // Style/offset edits also must not manufacture a selection from auto mode.
-    const subtitleMode = selectionChanged ? SubtitleUtil.normalizeSubtitleMode(subtitleSelected) : nowPlaying.subtitle_mode
+    const subtitleMode =
+      selectionChanged ? SubtitleUtil.normalizeSubtitleMode(subtitleSelected) : nowPlaying.subtitle_mode
     const subtitleVisible = selectionChanged ? subtitleVisibility === Visibility.Visible : nowPlaying.subtitle_visible
     const subtitleAIAsrShown = selectionChanged ? isAIAsrShown : nowPlaying.subtitle_ai_asr_shown
     const subtitle3DModeValue = SubtitleUtil.normalizeSubtitle3DMode(subtitle3DMode)
@@ -490,11 +566,11 @@ export default class MediaLibraryService {
     const subtitleTrackId = selectionChanged ? subtitleTrackSelected : nowPlaying.subtitle_track_id
     const hasPreferenceChanged =
       nowPlaying.subtitle_mode !== subtitleMode ||
-      nowPlaying.subtitle_visible !== subtitleVisible ||
-      nowPlaying.subtitle_ai_asr_shown !== subtitleAIAsrShown ||
-      nowPlaying.subtitle_3d_mode !== subtitle3DModeValue ||
-      nowPlaying.subtitle_offset_millis !== subtitleOffsetMillis ||
-      nowPlaying.subtitle_track_id !== subtitleTrackId
+        nowPlaying.subtitle_visible !== subtitleVisible ||
+        nowPlaying.subtitle_ai_asr_shown !== subtitleAIAsrShown ||
+        nowPlaying.subtitle_3d_mode !== subtitle3DModeValue ||
+        nowPlaying.subtitle_offset_millis !== subtitleOffsetMillis ||
+        nowPlaying.subtitle_track_id !== subtitleTrackId
 
     if (!hasPreferenceChanged) {
       return
@@ -544,7 +620,25 @@ export default class MediaLibraryService {
     MediaLibraryService.saveData(appContext, nowPlaying, { audioTrackId })
   }
 
-  static async deleteVideoResource(item: VideoMetadata, deleteType: DeleteType,
+  static canMoveVideoToTrash(uri: string): boolean {
+    return MediaLibraryService.trashSource(uri) !== 'unsupported' && !BluRayDirectory.isEntry(uri) &&
+      canIUse('SystemCapability.FileManagement.FileManagerService.Core')
+  }
+
+  static moveVideoToTrash(uri: string): Promise<boolean> {
+    const pending = MediaLibraryService.trashMoves.get(uri)
+    if (pending) {
+      return pending
+    }
+
+    const task = MediaLibraryService.moveDocumentToTrash(uri).finally(() => {
+      MediaLibraryService.trashMoves.delete(uri)
+    })
+    MediaLibraryService.trashMoves.set(uri, task)
+    return task
+  }
+
+  static async deleteVideoResource(item: VideoMetadata, deleteType: DeleteType.SOFT | DeleteType.HARD,
     requireSuccess: boolean = false): Promise<void> {
     if (!item.date) {
       return
@@ -574,7 +668,9 @@ export default class MediaLibraryService {
       cleanupFailed = true
       salmonLogger.addLog(TAG, `删除视频封面失败: ${error.message}`, true)
     })
-    if (requireSuccess && cleanupFailed) throw new Error('Video resource cleanup incomplete')
+    if (requireSuccess && cleanupFailed) {
+      throw new Error('Video resource cleanup incomplete')
+    }
     // Removing an index alone would corrupt a multi-file disc; only remove its library entry.
     if (BluRayDirectory.isEntry(item.uri) && deleteType !== DeleteType.SOFT) {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.bluray_source_preserved').id))
@@ -587,19 +683,10 @@ export default class MediaLibraryService {
       } catch (err) {
         salmonLogger.addLog(TAG, 'remove file failed: ' + (err as Error).message, true)
       }
-    } else if (deleteType === DeleteType.RECENT) {
-      if (canIUse('SystemCapability.FileManagement.FileManagerService.Core')) {
-        try {
-          await fileManagerService.deleteToTrash(fileUri.getUriFromPath(item.uri))
-        } catch (error) {
-          salmonLogger.addLog(TAG, "test delete failed, errCode:" + error.code + ", errMessage:" + error.message, true)
-          ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.move_to_recycle_failed').id, error.code, error.message))
-        }
-      }
     }
   }
 
-  static async deleteVideoFiles(items: VideoMetadata[], deleteType: DeleteType): Promise<void> {
+  static async deleteVideoFiles(items: VideoMetadata[], deleteType: DeleteType.SOFT | DeleteType.HARD): Promise<void> {
     for (const item of items) {
       try {
         await MediaLibraryService.deleteVideoResource(item, deleteType)
@@ -618,5 +705,68 @@ export default class MediaLibraryService {
     const normalizedPath = path.replace(/\\/g, '/')
     const normalizedPrefix = prefix.replace(/\\/g, '/')
     return normalizedPath.startsWith(normalizedPrefix)
+  }
+
+  private static trashSource(uri: string): string {
+    if (MediaLibraryService.isPathFromSource(uri, VideoSource.EXTERNAL_DEVICE)) {
+      return 'external-document'
+    }
+    if (uri.startsWith('file://docs/')) {
+      return 'document'
+    }
+    if (MediaLibraryService.isPathFromSource(uri, VideoSource.SWEET_VIDEO_DOWNLOAD_FILE)) {
+      return 'public-path'
+    }
+    return 'unsupported'
+  }
+
+  private static async moveDocumentToTrash(uri: string): Promise<boolean> {
+    const source = MediaLibraryService.trashSource(uri)
+    if (source === 'unsupported' || BluRayDirectory.isEntry(uri)) {
+      salmonLogger.addLog(TAG, `回收失败 source=${source} stage=unsupported`, true)
+      return false
+    }
+
+    let stage = 'resolve-uri'
+    try {
+      // 文档选择器返回的 URI 保留原样，仅转换应用存量的公共目录路径。
+      const target = source === 'public-path' ? fileUri.getUriFromPath(uri) : uri
+      if (!target.startsWith('file://docs/')) {
+        salmonLogger.addLog(TAG, `回收失败 source=${source} stage=${stage} target=non-document`, true)
+        return false
+      }
+      stage = 'delete-to-trash'
+      if (canIUse("SystemCapability.FileManagement.FileManagerService.Core")) {
+        await fileManagerService.deleteToTrash(target)
+        salmonLogger.addLog(TAG, `已移到回收站 source=${source}`, false)
+      } else {
+        salmonLogger.addLog(TAG, `回收失败 source=${source} stage=unsupported-device`, true)
+        return false
+      }
+      return true
+    } catch (error) {
+      const code = (error as BusinessError).code ?? 'unknown'
+      salmonLogger.addLog(TAG, `回收失败 source=${source} stage=${stage} code=${code}`, true)
+      return false
+    }
+  }
+
+  // 网络串流不在文件夹里，按最新串流记录应用本次变更，避免旧播放对象覆盖其他字段。
+  private static saveExternalRecentPlay(context: Context, target_data: VideoMetadata,
+    update: (video: VideoMetadata) => void) {
+    try {
+      const streams = Preferences.getNetworkStreams(context)
+      const targetStream = streams.find(stream => stream.date === target_data.date)
+      if (!targetStream) {
+        return
+      }
+      const savedStream = Preferences.copyPlaybackMetadata(targetStream)
+      update(savedStream)
+      const updated = streams.map(stream => stream.date === target_data.date ? savedStream : stream)
+      Preferences.saveNetworkStreams(context, updated, true)
+    } catch (error) {
+      salmonLogger.addLog(TAG, '保存串流播放记录失败', true)
+      throw new Error('Stream playback metadata could not be saved')
+    }
   }
 }

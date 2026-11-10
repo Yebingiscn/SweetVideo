@@ -138,7 +138,8 @@ export struct PrivacySpace { // 隐私空间页
         }
         this.passwd = passwd
         ToolsUtil.savePwd(PathUtils.appContext!, passwd)
-        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id))
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id),
+          ToolsUtil.TOAST_LONG_MS)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -154,17 +155,17 @@ export struct PrivacySpace { // 隐私空间页
       onImportVideo: async () => {
         this.isPresent = false
         const target = this.privateFolders.find(folder => folder.date === this.currentFolderDate) ?? null
-        await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "video"), target)
+        await this.toMetaData(await SelectFileUtil.selectFromFileManager("video"), target)
       },
       onImportAlbum: async () => {
         this.isPresent = false
         const target = this.privateFolders.find(folder => folder.date === this.currentFolderDate) ?? null
-        await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "album"), target)
+        await this.toMetaData(await SelectFileUtil.selectFromFileManager("album"), target)
       },
       onImportMusic: async () => {
         this.isPresent = false
         const target = this.privateFolders.find(folder => folder.date === this.currentFolderDate) ?? null
-        await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "audio"), target)
+        await this.toMetaData(await SelectFileUtil.selectFromFileManager("audio"), target)
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })

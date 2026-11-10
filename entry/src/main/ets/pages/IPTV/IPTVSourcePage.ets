@@ -299,7 +299,8 @@ export struct IPTVSourcePage {
         Preferences.saveIPTVSources(PathUtils.appContext!, sources)
         this.sources = [...sources]
       }
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.refresh_failed_reason').id, error instanceof Error ? error.message : String(error)))
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.refresh_failed_reason').id,
+        error instanceof Error ? error.message : String(error)), ToolsUtil.TOAST_LONG_MS)
     } finally {
       const latestIds = new Set(this.refreshingIds)
       latestIds.delete(source.id)

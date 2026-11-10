@@ -5,6 +5,7 @@ import { XAnimation } from '../../utils/AnimationUtil'
 @ComponentV2
 export struct LockVideoBarComponent {
   @Param buttonsOnLeft: boolean = false
+  @Param foldHoverPlayback: boolean = false
   @Require @Param player: PlayerControllerInterface
   @Event onLockClick: () => void = () => {
   }
@@ -41,7 +42,7 @@ export struct LockVideoBarComponent {
       })
     }
     .position({
-      bottom: this.player.screenHeight / 2 - 40,
+      bottom: this.foldHoverPlayback ? '32%' : this.player.screenHeight / 2 - 40,
       left: this.buttonsOnLeft ? 40 : this.player.screenWidth - 80
     })
     .transition(TransitionEffect.translate({ x: this.buttonsOnLeft ? -80 : 80 })

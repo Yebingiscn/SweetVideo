@@ -11,6 +11,10 @@ export struct BatchVideoDeleteDialog {
   @State videoList: VideoMetadata[] = []
   @State deleteOption: 'soft' | 'hard' | 'recent' = 'soft'
 
+  aboutToAppear(): void {
+    this.deleteOption = 'soft'
+  }
+
   build() {
     Column({ space: 20 }) {
       Text($r('app.string.delete_confirm'))
@@ -72,12 +76,8 @@ export struct BatchVideoDeleteDialog {
   }
 
   private getMoveToRecentVisibility(): boolean {
-    for (let i = 0; i < this.videoList.length; i++) {
-      if (MediaLibraryService.isPathFromSource(this.videoList[i].uri, VideoSource.PHOTO_SELECT_OPTION)) {
-        return false
-      }
-    }
-    return true
+    return this.videoList.length > 0 &&
+      this.videoList.every(item => MediaLibraryService.canMoveVideoToTrash(item.uri))
   }
 
   private getDeleteCountText(): ResourceStr {

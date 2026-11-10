@@ -33,6 +33,20 @@ export default class RecentPlayUtil {
     }
   }
 
+  static updateExistingTitle(context: Context, video: VideoMetadata, title: string): void {
+    const latest = Preferences.getRecentPlay(context, true)
+    const index = latest.findIndex(item => item.date === video.date && item.uri === video.uri)
+    if (index < 0 || latest[index].title === title) {
+      return
+    }
+    const updated = [...latest]
+    const renamed = Preferences.copyPlaybackMetadata(latest[index])
+    renamed.title = title
+    updated[index] = renamed
+    Preferences.saveRecentPlay(context, updated, true)
+    RecentPlayUtil.publishData(updated)
+  }
+
   static getRecentPlaybacks(): VideoMetadata[] {
     try {
       const latest = Preferences.getRecentPlay(PathUtils.appContext!, true)

@@ -4,7 +4,6 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import SubtitleUtil from './SubtitleUtil'
 import SubtitleLanguageUtil from './SubtitleLanguageUtil'
 import { Setting } from './ObservedUtil'
-import { deviceInfo } from '@kit.BasicServicesKit'
 import { AICaptionController } from '@kit.SpeechKit'
 import { salmonLogger } from 'salmonlogger'
 import ToolsUtil from './ToolsUtil'
@@ -201,10 +200,6 @@ export class SubtitleManager {
   private canEnableAICaption(): boolean {
     try {
       if (canIUse('SystemCapability.AI.AICaption')) {
-        // API 23–25 没有检测接口，继续使用原流程，并由 onError 处理失败。
-        if (!deviceInfo.apiAvailable('26.0.0')) {
-          return true
-        }
         const supported = new AICaptionController().isCapabilitySupported()
         salmonLogger.addLog(TAG, `AI字幕设备能力检测: supported=${supported}`)
         if (supported) {

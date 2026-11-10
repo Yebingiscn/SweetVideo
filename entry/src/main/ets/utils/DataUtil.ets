@@ -142,9 +142,20 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
   }
 
   async deleteItem(deleteType: DeleteType, item: VideoMetadata): Promise<void> {
-    this.deleteData(this.data.findIndex(i => i.date === item.date))
-    await MediaLibraryService.deleteVideoResource(item, deleteType)
-    if (deleteType == DeleteType.RECENT) {
+    if (!this.data.some(i => i.date === item.date && i.uri === item.uri)) {
+      return
+    }
+    const recycle = deleteType === DeleteType.RECENT
+    if (recycle && !await MediaLibraryService.moveVideoToTrash(item.uri)) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.move_to_recycle_failed').id))
+      return
+    }
+    const index = this.data.findIndex(i => i.date === item.date && i.uri === item.uri)
+    if (index >= 0) {
+      this.deleteData(index)
+    }
+    await MediaLibraryService.deleteVideoResource(item, deleteType === DeleteType.RECENT ? DeleteType.SOFT : deleteType)
+    if (recycle) {
       ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.moved_to_recycle').id, item.title))
     }
   }

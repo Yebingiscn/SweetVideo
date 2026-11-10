@@ -34,7 +34,7 @@
     },
     {
       "name": "mpv_conf_desc",
-      "value": "使用标准 mpv.conf 语法（UTF-8，最多 64 KB），支持注释和配置档。自定义值覆盖普通初始化默认值；输出、解码、窗口绑定和播放中的界面控制仍以应用为准。保存后请开启自定义 conf；关闭可恢复默认配置。"
+      "value": "使用标准 mpv.conf 语法（UTF-8，最多 64 KB），支持注释和配置档。自定义值覆盖普通初始化默认值；输出、解码、窗口绑定和播放中的界面控制仍以应用为准。保存后请开启自定义 conf。清空后保存，或关闭开关，可恢复默认配置。"
     },
     {
       "name": "mpv_conf_import",
@@ -73,7 +73,6 @@
     {"value":"Chapters","name":"hicar_chapters"},
     {"value":"HiCar layout","name":"hicar_layout"},
     {"value":"Automatically enabled when HiCar is connected. Turn on to preview larger controls on the left.","name":"hicar_layout_tip"},
-    {"value":"Media sources","name":"hicar_media_sources"},
     {"value":"More controls","name":"hicar_more_controls"},
     {"value":"Next","name":"hicar_next"},
     {"value":"Pause","name":"hicar_pause"},
@@ -133,10 +132,6 @@
     {
       "name": "directory_disable",
       "value": "Disable directory view"
-    },
-    {
-      "name": "directory_back",
-      "value": "Go up one level"
     },
     {
       "name": "directory_empty",
@@ -1024,18 +1019,6 @@
       "value": "MPV GPU backend (Buffer only, not recommended)"
     },
     {
-      "name": "mpv_quality_boost",
-      "value": "MPV image enhancement (Buffer/SW only)"
-    },
-    {
-      "name": "sdr_to_hdr",
-      "value": "SDR to HDR (Buffer/SW only)"
-    },
-    {
-      "name": "super_resolution",
-      "value": "Video super resolution"
-    },
-    {
       "name": "decode_support_dv_p5",
       "value": "Supports Dolby P5, slightly slower"
     },
@@ -1058,50 +1041,6 @@
     {
       "name": "lang_english",
       "value": "English"
-    },
-    {
-      "name": "color_warm_white",
-      "value": "Soft white"
-    },
-    {
-      "name": "color_pure_white",
-      "value": "Pure white"
-    },
-    {
-      "name": "color_warm_yellow",
-      "value": "Warm yellow"
-    },
-    {
-      "name": "color_cyan",
-      "value": "Cyan"
-    },
-    {
-      "name": "color_light_green",
-      "value": "Light green"
-    },
-    {
-      "name": "color_pink",
-      "value": "Pink"
-    },
-    {
-      "name": "color_black",
-      "value": "Black"
-    },
-    {
-      "name": "color_dark_gray",
-      "value": "Dark gray"
-    },
-    {
-      "name": "color_white",
-      "value": "White"
-    },
-    {
-      "name": "color_dark_blue",
-      "value": "Dark blue"
-    },
-    {
-      "name": "color_dark_red",
-      "value": "Dark red"
     },
     {
       "name": "auto_select_subtitle_language",
@@ -1312,10 +1251,6 @@
       "value": "Adjust USB volume in the audio track panel"
     },
     {
-      "name": "usb_device_volume",
-      "value": "USB device volume"
-    },
-    {
       "name": "loudness",
       "value": "Loudness"
     },
@@ -1396,24 +1331,12 @@
       "value": "Set intro time: %s"
     },
     {
-      "name": "success_set_intro_time",
-      "value": "Intro time set to: "
-    },
-    {
       "name": "set_outro_time",
       "value": "Set outro time: %s"
     },
     {
-      "name": "success_set_outro_time",
-      "value": "Outro time set to: "
-    },
-    {
       "name": "cancel_op_ed_time",
       "value": "Clear intro / outro time"
-    },
-    {
-      "name": "cancel_op_ed_time_success",
-      "value": "Intro / outro time cleared"
     },
     {
       "name": "stop_ab_loop",
@@ -1428,16 +1351,8 @@
       "value": "Set point A: %s"
     },
     {
-      "name": "success_set_point_a_time",
-      "value": "Point A set to: "
-    },
-    {
       "name": "set_point_b_time",
       "value": "Set point B: %s"
-    },
-    {
-      "name": "success_set_point_b_time",
-      "value": "Point B set to: "
     },
     {
       "name": "cancel_ab_time",
@@ -1502,10 +1417,6 @@
     {
       "name": "ai_subtitle_settings_hint",
       "value": "These defaults are separate from regular subtitle styles and apply the next time you enable AI subtitles. Chinese audio supports Chinese captions only; English audio supports Chinese, English or bilingual captions."
-    },
-    {
-      "name": "ai_subtitle_options_api_required",
-      "value": "Language and size require HarmonyOS 6.1.1 (API 24) or later. This system supports the panel background setting."
     },
     {
       "name": "ai_subtitle_source_language",
@@ -2984,10 +2895,6 @@
       "value": "This address does not support WebDAV directory browsing"
     },
     {
-      "name": "webdav_unsupported_xml",
-      "value": "The WebDAV directory contains an unsupported XML declaration"
-    },
-    {
       "name": "webdav_invalid_xml",
       "value": "The WebDAV XML directory returned by the server is invalid"
     },
@@ -3084,10 +2991,6 @@
       "value": "Failed to delete the video: %s, reason: %s"
     },
     {
-      "name": "file_reauth_required",
-      "value": "The file needs to be re-authorized before playback can continue. Tap OK to authorize."
-    },
-    {
       "name": "delete_failed_reason",
       "value": "Delete failed: %s"
     },
@@ -3122,14 +3025,6 @@
     {
       "name": "danmaku_texture_release_failed",
       "value": "Failed to release the danmaku texture"
-    },
-    {
-      "name": "danmaku_texture_limit",
-      "value": "Danmaku textures exceed the limit"
-    },
-    {
-      "name": "danmaku_texture_cache_full",
-      "value": "The danmaku texture cache is full"
     },
     {
       "name": "danmaku_texture_upload_failed",
@@ -3184,10 +3079,6 @@
       "value": "Network playback request cancelled"
     },
     {
-      "name": "webdav_playback_not_ready",
-      "value": "The WebDAV playback connection is not ready yet"
-    },
-    {
       "name": "usb_not_authorized",
       "value": "USB device authorization was not granted"
     },
@@ -3232,10 +3123,6 @@
       "value": "The folder name sort task failed"
     },
     {
-      "name": "webdav_invalid_directory_format",
-      "value": "The WebDAV directory format returned by the server is invalid"
-    },
-    {
       "name": "huawei_oauth_failed",
       "value": "Huawei OAuth request failed (HTTP %d)"
     },
@@ -3246,10 +3133,6 @@
     {
       "name": "cannot_read_video_file",
       "value": "Cannot read the video file"
-    },
-    {
-      "name": "system_exception",
-      "value": "System error"
     },
     {
       "name": "no_previous_item",
@@ -3460,10 +3343,6 @@
       "value": "Cover search is unavailable. Try again or switch to search by name."
     },
     {
-      "name": "hoa_needs_harmony7",
-      "value": "HOA space rendering requires HarmonyOS 7 or later"
-    },
-    {
       "name": "audio_effect_applied",
       "value": "Audio effects applied"
     },
@@ -3637,7 +3516,11 @@
     },
     {
       "name": "move_to_recycle_failed",
-      "value": "The video shortcut was deleted, but moving it to Recently Deleted failed: errCode:%s, errMessage:%s"
+      "value": "Could not move the video to Recently Deleted. It remains in the list."
+    },
+    {
+      "name": "move_to_recycle_batch_result",
+      "value": "Moved to Recently Deleted: %s. Failed and kept in the list: %s."
     },
     {
       "name": "avplayer_cannot_play",

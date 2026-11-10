@@ -8,7 +8,6 @@ import { FileFolder } from '../interfaces/FileFolderInterface'
 import ToolsUtil from './ToolsUtil'
 import { image } from '@kit.ImageKit'
 import PermissionUtil from './PermissionUtil'
-import { VideoSource } from '../common/enum/VideoSource'
 import { salmonLogger } from 'salmonlogger'
 import { SUPPORT_AUDIO_FORMAT, SUPPORT_VIDEO_FORMAT } from '../common/Constants'
 import Preferences from '../database/Preferences'
@@ -17,10 +16,9 @@ import lazy { ConcurrencyManagerUtil } from './FileProcessorUtil'
 import { PathUtils } from './PathUtils'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
 import { extractVideoFileInfoInTaskPool } from './TaskpoolUtil'
-import { Available, SuppressWarnings, SuppressWarningsType, systemDateTime } from '@kit.BasicServicesKit'
+import { SuppressWarnings, SuppressWarningsType, systemDateTime } from '@kit.BasicServicesKit'
 import lazy FFmpegThumbnailUtil from './FFmpegThumbnailUtil'
 import type { FFmpegMediaProbe } from './FFmpegThumbnailUtil'
-import MediaLibraryService from './MediaLibraryService'
 import lazy MediaExportUtil from './MediaExportUtil'
 import MediaImportBatch from './MediaImportBatch'
 import lazy ImageStorage from './ImageStorage'
@@ -51,37 +49,20 @@ export default class SelectFileUtil {
   private static downloadUriPromise: Promise<string> | undefined = undefined
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
-  static async selectFromFileManager(uri?: string,
-    mode: 'video' | 'audio' | 'album' = 'video'): Promise<string[]> {
+  static async selectFromFileManager(mode: 'video' | 'audio' | 'album' = 'video'): Promise<string[]> {
+    if (mode === 'album') {
+      return SelectFileUtil.selectVideosFromAlbum()
+    }
     const documentSelectOptions = new picker.DocumentSelectOptions()
-    if (uri) {
-      documentSelectOptions.defaultFilePathUri = uri
-    }
-    // 根据模式设置文件过滤器
-    switch (mode) {
-      case 'video':
-        documentSelectOptions.fileSuffixFilters = ToolsUtil.localizeSuffixFilter(SUPPORT_VIDEO_FORMAT, $r('app.string.filter_video'))
-        break
-      case 'audio':
-        documentSelectOptions.fileSuffixFilters = ToolsUtil.localizeSuffixFilter(SUPPORT_AUDIO_FORMAT, $r('app.string.filter_audio'))
-        break
-      default:
-        documentSelectOptions.fileSuffixFilters = ToolsUtil.localizeSuffixFilter(SUPPORT_VIDEO_FORMAT, $r('app.string.filter_video'))
-        break
-    }
-    // 如果没有指定uri，根据模式设置合并模式
-    if (!uri) {
-      switch (mode) {
-        case 'video':
-          // 聚合视频视图会忽略后缀筛选；普通文件视图才能选择 M4S 等系统未归类的视频文件。
-          documentSelectOptions.mergeMode = picker.MergeTypeMode.DEFAULT
-          break
-        case 'audio':
-          documentSelectOptions.mergeMode = picker.MergeTypeMode.AUDIO
-          break
-        case 'album':
-          return SelectFileUtil.selectVideosFromAlbum()
-      }
+    if (mode === 'audio') {
+      documentSelectOptions.fileSuffixFilters =
+        ToolsUtil.localizeSuffixFilter(SUPPORT_AUDIO_FORMAT, $r('app.string.filter_audio'))
+      documentSelectOptions.mergeMode = picker.MergeTypeMode.AUDIO
+    } else {
+      documentSelectOptions.fileSuffixFilters =
+        ToolsUtil.localizeSuffixFilter(SUPPORT_VIDEO_FORMAT, $r('app.string.filter_video'))
+      // 聚合视频视图会忽略后缀筛选；普通文件视图才能选择 M4S 等系统未归类的视频文件。
+      documentSelectOptions.mergeMode = picker.MergeTypeMode.DEFAULT
     }
     const documentViewPicker = new picker.DocumentViewPicker(PathUtils.appContext!)
     try {
@@ -102,7 +83,6 @@ export default class SelectFileUtil {
     }
   }
 
-  @Available({ minApiVersion: 'HarmonyOS 26.0.0' })
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static async selectMediaFolders(): Promise<MediaFolderImport[]> {
     const documentSelectOptions = new picker.DocumentSelectOptions()
@@ -138,7 +118,8 @@ export default class SelectFileUtil {
       return disc.indexUri
     } catch (_) {
       // Selecting index.bdmv alone may grant no access to sibling playlist/stream files.
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.bluray_access_error').id))
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.bluray_access_error').id),
+        ToolsUtil.TOAST_LONG_MS)
       return undefined
     }
   }
@@ -187,9 +168,11 @@ export default class SelectFileUtil {
       }
       targetFile = fs.openSync(documentSaveResult[0], fs.OpenMode.READ_WRITE)
       await fs.copyFile(sourceFile.fd, targetFile.fd)
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.export_success_detail').id, targetFile?.name ?? '', targetFile?.path ?? ''))
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.export_success_detail').id,
+        targetFile?.name ?? '', targetFile?.path ?? ''), ToolsUtil.TOAST_LONG_MS)
     } catch (error) {
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.export_failed_reason').id, String(error)))
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.export_failed_reason').id, String(error)),
+        ToolsUtil.TOAST_LONG_MS)
     } finally {
       SelectFileUtil.closeFileSafely(sourceFile, '导出源文件')
       SelectFileUtil.closeFileSafely(targetFile, '导出目标文件')
@@ -317,17 +300,14 @@ export default class SelectFileUtil {
   // 检查文件是否存在
   static async isFileExist(uri: string, showToast: boolean) {
     await PermissionUtil.activatePermission(uri)
-    if (MediaLibraryService.isPathFromSource(uri, VideoSource.EXTERNAL_DEVICE)) {
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.file_reauth_required').id))
-      await SelectFileUtil.selectFromFileManager(uri)
-    }
     let file: fs.File | undefined
     try {
       file = await fs.open(String(uri))
       return true
     } catch (e) {
       if (showToast) {
-        ToolsUtil.showToast(uri + ' ' + ToolsUtil.getStringResource($r('app.string.file_invalid_reimport').id))
+        ToolsUtil.showToast(uri + ' ' + ToolsUtil.getStringResource($r('app.string.file_invalid_reimport').id),
+          ToolsUtil.TOAST_LONG_MS)
         salmonLogger.addLog('file error', 'file error: ' + e.code + ':' + e.message, true)
       }
       return false

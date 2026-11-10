@@ -50,35 +50,23 @@ export struct CrashPage {
   build() {
     HdsNavDestination() {
       Column() {
-        if (deviceInfo.apiAvailable('26.0.0')) {
-          CapsuleSegmentButtonV2({
-            items: this.segmentItems,
-            selectedIndex: this.currentTabIndex,
-            itemSelectedFontColor: this.itemSelectedFontColor,
-            itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
-            onItemClicked: (index: number) => {
-              this.currentTabIndex = index
-            },
-            backgroundSystemMaterial: new uiMaterial.ImmersiveMaterial({
-              style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
-              colorInvert: true,
-              interactive: true,
-              lightEffect: {}
-            })
+        CapsuleSegmentButtonV2({
+          items: this.segmentItems,
+          selectedIndex: this.currentTabIndex,
+          itemSelectedFontColor: this.itemSelectedFontColor,
+          itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+          onItemClicked: (index: number) => {
+            this.currentTabIndex = index
+          },
+          backgroundSystemMaterial: new uiMaterial.ImmersiveMaterial({
+            style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
+            colorInvert: true,
+            interactive: true,
+            lightEffect: {}
           })
-            .margin({ top: 8, bottom: 8 })
-        } else {
-          CapsuleSegmentButtonV2({
-            items: this.segmentItems,
-            selectedIndex: this.currentTabIndex,
-            itemSelectedFontColor: this.itemSelectedFontColor,
-            itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
-            onItemClicked: (index: number) => {
-              this.currentTabIndex = index
-            },
-          })
-        }
-
+        })
+          .margin({ top: 8, bottom: 8 })
+        
         Swiper() {
           Column() {
             Row({ space: 8 }) {

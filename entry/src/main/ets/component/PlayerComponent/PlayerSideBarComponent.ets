@@ -1,7 +1,7 @@
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PlayerSideBarSource } from '../../utils/DataUtil'
 import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
-import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
+import { ImageFancyModifier, MenuFancyModifier } from '../../common/AttributeModifierConfig'
 import { CoverLayoutMode } from '../../common/enum/DisplayMode'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
@@ -10,7 +10,7 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
 import { RepeatModeButtonComponent } from './RepeatModeButtonComponent'
 import { HiCar } from '../../utils/HiCarUtil'
-import { ColorMetrics, LengthMetrics } from '@kit.ArkUI'
+import { ColorMetrics, LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 
 @ComponentV2
 export struct PlayerSideBarComponent {
@@ -28,6 +28,9 @@ export struct PlayerSideBarComponent {
   @Event onItemClick: (_item: VideoMetadata) => void = () => {
   }
 
+  @Event onItemRename: (item: VideoMetadata) => void = () => {
+  }
+
   aboutToAppear(): void {
     this.playerSideBarSource = new PlayerSideBarSource(this.player.videoMetaDataList)
     this._sideBarStatusTmp = this.sideBarStatusTmp
@@ -42,6 +45,28 @@ export struct PlayerSideBarComponent {
   @Monitor('sideBarStatus')
   onSideBarStatusMonitor() {
     this._sideBarStatus = this.sideBarStatus
+  }
+
+  @Monitor('player', 'player.videoMetaDataList')
+  onPlaylistChanged(): void {
+    if (this._sideBarStatusTmp === Visibility.Visible) {
+      this.playerSideBarSource.updateData(this.player.videoMetaDataList)
+    }
+  }
+
+  @Builder
+  PlaylistItemMenu(item: VideoMetadata) {
+    Menu() {
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
+        content: $r('app.string.rename')
+      })
+        .onClick(() => {
+          if (this._sideBarStatusTmp === Visibility.Visible) {
+            this.onItemRename(item)
+          }
+        })
+    }.attributeModifier(new MenuFancyModifier())
   }
 
   build() {
@@ -65,6 +90,7 @@ export struct PlayerSideBarComponent {
               })
             }
             .borderRadius(16)
+            .bindContextMenu(this.PlaylistItemMenu(repeatItem.item), ResponseType.LongPress)
             .focusable(true)
             .focusOnTouch(true)
             .focusBox({ strokeColor: ColorMetrics.resourceColor($r('app.color.main_color')),
@@ -158,7 +184,7 @@ export function VideoItemBuilder(videoItemValue: VideoItemValue) {
       .attributeModifier(new ImageFancyModifier(12, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 85 : 110,
         Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 110 : 85))
     Column() {
-      Text(VideoInfoUtil.getVideoTitle(videoItemValue.item?.title))
+      Text(VideoInfoUtil.getVideoTitle(videoItemValue.item?.title, videoItemValue.item?.format ?? ''))
         .fontSize(16)
         .fontWeight(FontWeight.Bold)
         .maxLines(2)

@@ -180,7 +180,8 @@ export struct EngineSettingPage {
               selected: Setting.mpvUsbDsdMode,
               onChange: (index: number) => {
                 if (index > 0 && !Setting.mpvUsbDevice) {
-                  ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.dsd_select_device').id))
+                  ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.dsd_select_device').id),
+                    ToolsUtil.TOAST_LONG_MS)
                   return
                 }
                 Setting.mpvUsbDsdMode = index
@@ -329,7 +330,8 @@ export struct EngineSettingPage {
         }
       }
     } catch (_error) {
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.mpv_conf_import_failed').id))
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.mpv_conf_import_failed').id),
+        ToolsUtil.TOAST_LONG_MS)
     } finally {
       this.confBusy = false
     }
@@ -346,7 +348,7 @@ export struct EngineSettingPage {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.mpv_conf_saved').id))
     } catch (error) {
       ToolsUtil.showToast(error instanceof Error ? error.message :
-        ToolsUtil.getStringResource($r('app.string.mpv_conf_save_failed').id))
+        ToolsUtil.getStringResource($r('app.string.mpv_conf_save_failed').id), ToolsUtil.TOAST_LONG_MS)
     } finally {
       this.confBusy = false
     }
@@ -420,10 +422,12 @@ export struct EngineSettingPage {
             MpvConfigStore.setEnabled(enabled)
           } catch (_error) {
             this.confEnabled = previous
-            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.mpv_conf_invalid').id))
+            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.mpv_conf_invalid').id),
+              ToolsUtil.TOAST_LONG_MS)
             return
           }
-          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.mpv_conf_next_core').id))
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.mpv_conf_next_core').id),
+            ToolsUtil.TOAST_LONG_MS)
         })
     }.width('100%').height(55).attributeModifier(new SettingsItemModifier())
   }

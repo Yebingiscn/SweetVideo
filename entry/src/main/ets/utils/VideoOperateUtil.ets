@@ -432,7 +432,8 @@ export default class VideoOperateUtil {
       const isBeyondEnd = end_time != null && end_time > 0 && last_play >= end_time
       if (isBeforeStart || isAlmostComplete || isBeyondEnd) {
         if (showToast) {
-          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_intro').id))
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_intro').id),
+            ToolsUtil.TOAST_SHORT_MS)
         }
         return VideoStartTimeMode.SEEK_TO_START_TIME
       }
@@ -440,7 +441,8 @@ export default class VideoOperateUtil {
     // 条件2：若有有效播放记录（且未接近结尾），则跳转到上次播放位置
     if (last_play !== 0 && last_play < time * 0.95 && Setting.jumpToHistoryTimeStatus) {
       if (showToast) {
-        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.jumped_to_last_position').id))
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.jumped_to_last_position').id),
+          ToolsUtil.TOAST_SHORT_MS)
       }
       return VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME
     }
@@ -454,7 +456,8 @@ export default class VideoOperateUtil {
         const fileExt = parts.length > 0 ? parts[parts.length - 1].toLowerCase() : ''
         if (fileExt !== '' && !SUPPORT_AUDIO_FORMAT.includes(fileExt)) {
           if (showToast) {
-            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_unified_intro').id))
+            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_unified_intro').id),
+              ToolsUtil.TOAST_SHORT_MS)
           }
           return VideoStartTimeMode.SEEK_TO_INTRO_TIME
         }

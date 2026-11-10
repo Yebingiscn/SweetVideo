@@ -2,14 +2,13 @@ import { taskpool } from '@kit.ArkTS'
 import { deviceInfo } from '@kit.BasicServicesKit'
 import lazy { visualSearchTask } from './VisualSearchTask'
 import { VisualSearchResult } from './GlobalSearchModel'
-import ToolsUtil from './ToolsUtil.ets'
+import ToolsUtil from './ToolsUtil'
 
 export class VisualSearchService {
   private static runner: taskpool.SequenceRunner = new taskpool.SequenceRunner(taskpool.Priority.LOW)
 
   static isSupported(): boolean {
-    return deviceInfo.sdkApiVersion >= 26 &&
-      ['phone', 'tablet', '2in1'].includes(deviceInfo.deviceType) &&
+    return ['phone', 'tablet', '2in1'].includes(deviceInfo.deviceType) &&
       canIUse('SystemCapability.AI.Vision.VisionBase')
   }
 
@@ -18,9 +17,13 @@ export class VisualSearchService {
     if (!VisualSearchService.isSupported()) {
       throw new Error(ToolsUtil.getStringResource($r('app.string.visual_search_unsupported').id))
     }
-    const task = new taskpool.Task(visualSearchTask, paths, manifestPath, query)
-    task.onReceiveData(onProgress)
-    // One queue across page instances prevents overlapping init/insert/search/release.
-    return await VisualSearchService.runner.execute(task) as VisualSearchResult
+    try {
+      const task = new taskpool.Task(visualSearchTask, paths, manifestPath, query)
+      task.onReceiveData(onProgress)
+      // One queue across page instances prevents overlapping init/insert/search/release.
+      return await VisualSearchService.runner.execute(task) as VisualSearchResult
+    } catch (error) {
+      throw error instanceof Error ? error : new Error(String(error))
+    }
   }
 }

@@ -79,7 +79,9 @@ export struct VideoView {
         VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         this.videoListController.closeMultipleChoose()
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow,
+    }),
+    cornerRadius: 20,
+    shadow: DefaultDialogShadow,
     onDidDisappear: () => this.libraryKeyboard.reset()
   })
   @Local currentSortField: SortField | '' = ''
@@ -94,6 +96,28 @@ export struct VideoView {
   private searchBarFolderKey: string = ''
   private readonly FOLDER_TAB_MIN_WIDTH: number = 64
   private readonly FOLDER_TAB_HEIGHT: number = 32
+
+  @Computed
+  get showStandardToolbarActions(): boolean {
+    return !this.is_edit && (!HiCar.enabled || this.availableWidth >= 400)
+  }
+
+  @Computed
+  get allSelectionItemsSelected(): boolean {
+    if (this.videoListController.directoryFolderSelection) {
+      return this.videoListController.allDirectoryFoldersSelected
+    }
+    const count = this.videoListController.videoMetaDataList.length
+    return count > 0 && this.delMultipleList.length === count
+  }
+
+  private get toolbarHiddenTranslationY(): number {
+    const scale = !HiCar.enabled && this.sideBarController.isShow ? HomeSidebarLayout.contentScaleWhenOpen : 1
+    const scaleInset = this.availableHeight * (1 - scale) / 2
+    // 抵消父级居中缩放带来的顶部位移，保留原有 20vp 的底部阴影避让。
+    return -(SafeHeight.topSafeHeight + 100 + scaleInset / scale)
+  }
+
   @Event onSearchValueChange: (v: string) => void = () => {
   }
 
@@ -142,17 +166,25 @@ export struct VideoView {
   aboutToAppear(): void {
     this.libraryKeyboard.onSearch = (): void => {
       this.searchBarHidden = false
-      this.getUIContext().getFocusController().requestFocus('home-search')
+      try {
+        this.getUIContext().getFocusController().requestFocus('home-search')
+      } catch (error) {
+      }
     }
     this.libraryKeyboard.onSelectAll = (): void => {
       const videos = this.videoListController.videoDataSource.data
-      if (videos.length === 0 || (this.videoListController.directoryMode && this.videoListController.directoryOverview)) return
+      if (videos.length === 0 ||
+        (this.videoListController.directoryMode && this.videoListController.directoryOverview)) {
+        return
+      }
       this.videoListController.multipleChooseState = Visibility.Visible
       this.delMultipleList = [...videos]
       DataSyncUtil.delMultipleList = this.delMultipleList
     }
     this.libraryKeyboard.onDeleteVideos = (): void => {
-      if (this.delMultipleList.length > 0) this.batchDelConfirmDialog.open()
+      if (this.delMultipleList.length > 0) {
+        this.batchDelConfirmDialog.open()
+      }
     }
     this.viewAlive = true
     this._searchValue = this.searchValue
@@ -284,18 +316,6 @@ export struct VideoView {
     })
   }
 
-  private get toolbarHiddenTranslationY(): number {
-    const scale = !HiCar.enabled && this.sideBarController.isShow ? HomeSidebarLayout.contentScaleWhenOpen : 1
-    const scaleInset = this.availableHeight * (1 - scale) / 2
-    // 抵消父级居中缩放带来的顶部位移，保留原有 20vp 的底部阴影避让。
-    return -(SafeHeight.topSafeHeight + 100 + scaleInset / scale)
-  }
-
-  @Computed
-  get showStandardToolbarActions(): boolean {
-    return !this.is_edit && (!HiCar.enabled || this.availableWidth >= 400)
-  }
-
   @Builder
   TopToolBarBuilder() {
     Column() {
@@ -383,7 +403,9 @@ export struct VideoView {
             this.libraryKeyboard.editing = true
             this.passwd = Preferences.getPassword(PathUtils.appContext!)
           },
-          onSearchBlur: () => { this.libraryKeyboard.editing = false }
+          onSearchBlur: () => {
+            this.libraryKeyboard.editing = false
+          }
         })
 
         if (this.showStandardToolbarActions) {
@@ -399,7 +421,6 @@ export struct VideoView {
             })
           .attributeModifier(new LightMaterialModifier())
           .transition(XAnimation.getAnimation('right', 0, false))
-
         }
 
         if (this.videoListController.directoryFolderSelection ||
@@ -447,7 +468,9 @@ export struct VideoView {
           .backgroundColor(Color.Transparent)
           .padding({ left: 4, right: 4 })
           .onKeyEvent((event: KeyEvent): boolean => {
-            if (KeyboardShortcuts.activate(event)) this.libraryKeyboard.directoryNavigation = true
+            if (KeyboardShortcuts.activate(event)) {
+              this.libraryKeyboard.directoryNavigation = true
+            }
             return false
           })
           .onClick(() => {
@@ -468,7 +491,9 @@ export struct VideoView {
                   .padding({ left: 4, right: 4 })
                   .constraintSize({ maxWidth: 160 })
                   .onKeyEvent((event: KeyEvent): boolean => {
-                    if (KeyboardShortcuts.activate(event)) this.libraryKeyboard.directoryNavigation = true
+                    if (KeyboardShortcuts.activate(event)) {
+                      this.libraryKeyboard.directoryNavigation = true
+                    }
                     return false
                   })
                   .onClick(() => {
@@ -557,15 +582,6 @@ export struct VideoView {
       ],
       onPinyinSortChange: (value: boolean): void => this.handlePinyinSortChange(value)
     })
-  }
-
-  @Computed
-  get allSelectionItemsSelected(): boolean {
-    if (this.videoListController.directoryFolderSelection) {
-      return this.videoListController.allDirectoryFoldersSelected
-    }
-    const count = this.videoListController.videoMetaDataList.length
-    return count > 0 && this.delMultipleList.length === count
   }
 
   @Builder
@@ -790,6 +806,7 @@ export struct VideoView {
       await ToolsUtil.routerWhere(this.pathStack, target, videoList)
       return
     }
-    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.invalid_file_reimport').id))
+    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.invalid_file_reimport').id),
+      ToolsUtil.TOAST_LONG_MS)
   }
 }

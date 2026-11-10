@@ -321,50 +321,40 @@ export struct SubtitleSettingPage {
       })
     }
 
-    if (deviceInfo.apiAvailable(24)) {
-      ListItem() {
-        SettingsMenuItem({
-          symbol: $r('sys.symbol.textformat_size_square'),
-          message: $r('app.string.ai_subtitle_source_language'),
-          list: this.aiSourceLanguages,
-          selected: Setting.aiSubtitleSourceLanguage === 'en' ? 1 : 0,
-          onChange: (index: number) => {
-            Setting.aiSubtitleSourceLanguage = index === 1 ? 'en' : 'zh'
-            this.saveAISettings()
-          }
-        })
-      }
-
-      // Select 的选项在组件首次创建时生成，切换源语言时用不同分支重建，避免保留非法选项。
-      if (Setting.aiSubtitleSourceLanguage === 'en') {
-        this.AITargetLanguageMenu(true)
-      } else {
-        this.AITargetLanguageMenu(false)
-      }
-
-      ListItem() {
-        SettingsMenuItem({
-          symbol: $r('sys.symbol.title_size'),
-          message: $r('app.string.font_size'),
-          list: this.aiFontSizes,
-          selected: Setting.aiSubtitleFontSize - 1,
-          onChange: (index: number) => {
-            Setting.aiSubtitleFontSize = index + 1
-            this.saveAISettings()
-          }
-        })
-      }
-
-      this.ColorPalette(3)
-    } else {
-      ListItem() {
-        Text($r('app.string.ai_subtitle_options_api_required'))
-          .fontSize(12)
-          .fontColor($r('sys.color.font_secondary'))
-          .width('100%')
-          .padding({ left: 16, right: 16, bottom: 8 })
-      }
+    ListItem() {
+      SettingsMenuItem({
+        symbol: $r('sys.symbol.textformat_size_square'),
+        message: $r('app.string.ai_subtitle_source_language'),
+        list: this.aiSourceLanguages,
+        selected: Setting.aiSubtitleSourceLanguage === 'en' ? 1 : 0,
+        onChange: (index: number) => {
+          Setting.aiSubtitleSourceLanguage = index === 1 ? 'en' : 'zh'
+          this.saveAISettings()
+        }
+      })
     }
+
+    // Select 的选项在组件首次创建时生成，切换源语言时用不同分支重建，避免保留非法选项。
+    if (Setting.aiSubtitleSourceLanguage === 'en') {
+      this.AITargetLanguageMenu(true)
+    } else {
+      this.AITargetLanguageMenu(false)
+    }
+
+    ListItem() {
+      SettingsMenuItem({
+        symbol: $r('sys.symbol.title_size'),
+        message: $r('app.string.font_size'),
+        list: this.aiFontSizes,
+        selected: Setting.aiSubtitleFontSize - 1,
+        onChange: (index: number) => {
+          Setting.aiSubtitleFontSize = index + 1
+          this.saveAISettings()
+        }
+      })
+    }
+
+    this.ColorPalette(3)
 
     ListItem() {
       SettingsMenuItem({
@@ -479,8 +469,8 @@ export struct SubtitleSettingPage {
 
   @Builder
   private ColorPalette(target: number) {
-    // Syscap/API 版本不代表设备提供此组件；2in1/TV 不创建条目，也不触碰延迟导入。
-    if (this.isColorPickerDeviceSupported() && deviceInfo.apiAvailable('26.0.0')) {
+    // 仅在支持取色器的设备上创建条目并触发延迟导入。
+    if (this.isColorPickerDeviceSupported()) {
       ListItem() {
         Row({ space: 12 }) {
           Text(this.getColorTitle(target))
@@ -490,18 +480,16 @@ export struct SubtitleSettingPage {
           Text(this.getSelectedColor(target))
             .fontSize(13)
             .fontColor($r('sys.color.font_secondary'))
-          if (deviceInfo.apiAvailable('26.0.0')) {
-            HdsColorPicker({
-              initialColor: this.getSelectedColor(target),
-              initialFavoriteColors: this.favoriteColors,
-              onColorSelected: (color: string) => {
-                this.selectColor(target, color)
-              },
-              onFavoriteColorsUpdate: (colors: string[]) => {
-                this.favoriteColors = colors
-              }
-            })
-          }
+          HdsColorPicker({
+            initialColor: this.getSelectedColor(target),
+            initialFavoriteColors: this.favoriteColors,
+            onColorSelected: (color: string) => {
+              this.selectColor(target, color)
+            },
+            onFavoriteColorsUpdate: (colors: string[]) => {
+              this.favoriteColors = colors
+            }
+          })
         }
         .width('100%')
         .padding(16)

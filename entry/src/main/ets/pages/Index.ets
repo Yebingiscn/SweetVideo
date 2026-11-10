@@ -30,7 +30,6 @@ import { PrivacyAuthMode } from '../common/enum/PrivacyAuthMode'
 import { userAuth } from '@kit.UserAuthenticationKit'
 import DataSyncUtil from '../utils/DataSyncUtil'
 import HomeSidebarLayout from '../utils/HomeSidebarLayout'
-import HiCarLayout from '../utils/HiCarLayout'
 import { HiCar, HiCarState } from '../utils/HiCarUtil'
 import FileFolderUtil from '../utils/FileFolderUtil'
 import FolderHierarchy from '../utils/FolderHierarchy'
@@ -96,7 +95,6 @@ struct Index {
   @Local isSizeInitialized: boolean = false
   @Local homeSidebarWidth: number = HomeSidebarLayout.minWidth
   @Local carState: HiCarState = HiCar
-  @Local showHiCarSources: boolean = false
   @Provider() file_folder_list: FileFolder[] = []
   @Local searchValue: string = ''
   @Local contentWidth: number = 0
@@ -265,11 +263,7 @@ struct Index {
   SweetContent() {
     HdsNavigation(this.pathStack) {
       SideBarContainer(this.sideBarController.mode) {
-        if (HiCar.enabled) {
-          this.HiCarSidebar()
-        } else {
-          this.HomeSources()
-        }
+        this.HomeSources()
 
         Stack() {
           VideoView({
@@ -285,8 +279,8 @@ struct Index {
               this.scrollToFolderDate = v
             }
           }).scale({
-            x: !HiCar.enabled && this.sideBarController.isShow ? HomeSidebarLayout.contentScaleWhenOpen : 1,
-            y: !HiCar.enabled && this.sideBarController.isShow ? HomeSidebarLayout.contentScaleWhenOpen : 1
+            x: this.sideBarController.isShow ? HomeSidebarLayout.contentScaleWhenOpen : 1,
+            y: this.sideBarController.isShow ? HomeSidebarLayout.contentScaleWhenOpen : 1
           }).animation({ duration: 300, curve: Curve.Ease })
           if (this.loading) {
             ImportProgressBuilder({
@@ -345,7 +339,7 @@ struct Index {
       .maxSideBarWidth(HomeSidebarLayout.maxWidth)
       // 480 vp 只用于嵌入布局；覆盖模式不能把窄窗口的内容撑宽。
       .minContentWidth(this.isSizeInitialized && this.sideBarController.mode === SideBarContainerType.Embed ?
-        (HiCar.enabled ? 320 : HomeSidebarLayout.minContentWidth) : 0)
+        HomeSidebarLayout.minContentWidth : 0)
       .padding(HiCar.enabled ? {
         left: HiCar.leftInset,
         right: HiCar.rightInset,
@@ -741,9 +735,14 @@ struct Index {
     void this.applySavedFolderSort()
   }
 
-  @Monitor('carState.enabled', 'carState.leftInset', 'carState.rightInset')
-  onHiCarLayoutChange(): void {
+  @Monitor('carState.enabled')
+  onHiCarModeChange(): void {
     this.isSizeInitialized = false
+    this.onHiCarLayoutChange()
+  }
+
+  @Monitor('carState.leftInset', 'carState.rightInset')
+  onHiCarLayoutChange(): void {
     this.updateHomeLayout()
     this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
   }
@@ -782,80 +781,6 @@ struct Index {
         this.totalItems = totalItems
       }
     })
-  }
-
-  @Builder
-  HiCarSidebar() {
-    List({ space: 12 }) {
-      ListItem() {
-        Flex({ wrap: FlexWrap.Wrap }) {
-          Button({ type: ButtonType.Circle }) {
-            SymbolGlyph($r('sys.symbol.clock')).fontSize(28).fontColor([$r('app.color.text_color')])
-          }
-          .width(56)
-          .height(56)
-          .backgroundColor($r('app.color.list_item_background'))
-          .margin({ right: 8, bottom: 8 })
-          .accessibilityText($r('app.string.recent_play'))
-          .onClick(() => this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null))
-
-          Button({ type: ButtonType.Circle }) {
-            SymbolGlyph($r('sys.symbol.gearshape')).fontSize(28).fontColor([$r('app.color.text_color')])
-          }
-          .width(56)
-          .height(56)
-          .backgroundColor($r('app.color.list_item_background'))
-          .accessibilityText($r('app.string.setting'))
-          .onClick(() => this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null))
-        }
-      }
-
-      Repeat(FileFolderUtil.flattenTree(this.file_folder_list))
-        .each((folder: RepeatItem<FileFolder>) => {
-          ListItem() {
-            Button(folder.item.name, { type: ButtonType.Normal })
-              .fontSize(22)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(folder.item.date === this.videoListController.folder?.date ?
-                $r('sys.color.white') : $r('app.color.text_color'))
-              .backgroundColor(folder.item.date === this.videoListController.folder?.date ?
-                $r('app.color.main_color') : $r('app.color.list_item_background'))
-              .borderRadius(16)
-              .height(64)
-              .width('100%')
-              .onClick(() => {
-                this.switchToFolder(folder.index)
-                if (this.videoListController.directoryMode) {
-                  this.videoListController.requestDirectory(folder.item.date)
-                }
-                this.sideBarController.closeIfOverlay(false)
-              })
-          }
-        })
-        .key((folder: FileFolder) => folder.date)
-        .virtualScroll()
-      // 导入、网络源等低频操作复用现有侧栏，避免功能入口丢失。
-      ListItem() {
-        Button($r('app.string.hicar_media_sources'))
-          .fontSize(20)
-          .height(56)
-          .width('100%')
-          .fontColor($r('app.color.text_color'))
-          .backgroundColor($r('app.color.list_item_background'))
-          .onClick(() => this.showHiCarSources = true)
-          .bindSheet(this.showHiCarSources, this.HomeSources, {
-            detents: [SheetSize.LARGE],
-            showClose: true,
-            backgroundColor: $r('app.color.start_window_background'),
-            onWillDismiss: () => this.showHiCarSources = false
-          })
-      }
-    }
-    .padding(16)
-    .height('100%')
-    .width('100%')
-    .backgroundColor($r('app.color.start_window_background'))
-    .scrollBar(BarState.Off)
   }
 
   private handleHomeShortcut(event: KeyEvent): boolean {
@@ -1286,15 +1211,17 @@ struct Index {
     if (width <= 0) {
       return
     }
-    this.homeSidebarWidth = HiCar.enabled ? HiCarLayout.sidebarWidth(width) : HomeSidebarLayout.getWidth(width)
-    const embedded = HiCar.enabled ? HiCarLayout.isEmbedded(width) : HomeSidebarLayout.isEmbedded(width)
+    this.homeSidebarWidth = HomeSidebarLayout.getWidth(width)
+    const embedded = HomeSidebarLayout.isEmbedded(width)
     const mode = embedded ? SideBarContainerType.Embed : SideBarContainerType.Overlay
     if (!this.isSizeInitialized || this.sideBarController.mode !== mode) {
       this.sideBarController.mode = mode
-      const visible = embedded && (HiCar.enabled || Preferences.getEmbedSidebarVisible(PathUtils.appContext!))
+      // 进入车载时默认收起；车载窗口改变宽度时保留用户手动选择。
+      const visible = HiCar.enabled ? this.isSizeInitialized && this.sideBarController.visibility === Visibility.Visible :
+        embedded && Preferences.getEmbedSidebarVisible(PathUtils.appContext!)
       this.sideBarController.visibility = visible ? Visibility.Visible : Visibility.Hidden
       this.sideBarController.isShow = visible
-      this.sideBarController.overlay = false
+      this.sideBarController.overlay = visible && !embedded
     }
     this.isSizeInitialized = true
   }
@@ -1372,7 +1299,7 @@ struct Index {
     this.scrollToFolderDate = result.currentFolder!.date
     // 整体列表包含头部等条目，按可见目录的真实位置定位，不再估算像素。
     const sidebarIndex = this.sidebarFolderIndices.get(result.currentFolder!.date)
-    if (!HiCar.enabled && sidebarIndex !== undefined) {
+    if (sidebarIndex !== undefined) {
       // 先卷起头部，确保 List 的整个测量视口都处于可见范围内。
       try {
         this.sidebarHeaderScroller.scrollEdge(Edge.Bottom)

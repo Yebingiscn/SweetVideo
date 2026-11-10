@@ -8,7 +8,6 @@ import { PathUtils } from '../utils/PathUtils';
 import Preferences from './Preferences';
 import PreferencesUtil from './PreferencesUtil';
 import MediaLibraryService from '../utils/MediaLibraryService';
-import ToolsUtil from '../utils/ToolsUtil';
 
 export class VideoMetaDataOperator {
   static getVideoMetaDataByFolderName(folderName: string): VideoMetadata[] {
@@ -34,14 +33,21 @@ export class VideoMetaDataOperator {
 
   static async deleteItem(videoListController: VideoListController, fileFolderSource: FileFolderDataSource,
     deleteType: DeleteType, deleteItem: VideoMetadata) {
+    const context = PathUtils.appContext!
+    if (deleteType === DeleteType.RECENT) {
+      const folder = FolderOperator.getFolderByDate(videoListController.folder?.date ?? '')
+      const item = folder?.video_list.find(video => video.date === deleteItem.date && video.uri === deleteItem.uri)
+      if (!folder || !item) {
+        throw new Error('Video no longer exists in the folder')
+      }
+      await FileFolderUtil.recycleVideos(context, videoListController, fileFolderSource, folder.date, [item])
+      return
+    }
     // 元数据写入失败时，不先移除列表项、删除附件或处理原文件。
-    if (!FileFolderUtil.delVideoInFileFolder(PathUtils.appContext!, videoListController, fileFolderSource, deleteItem)) {
+    if (!FileFolderUtil.delVideoInFileFolder(context, videoListController, fileFolderSource, deleteItem)) {
       throw new Error('Video no longer exists in the folder')
     }
     await MediaLibraryService.deleteVideoResource(deleteItem, deleteType)
-    if (deleteType === DeleteType.RECENT) {
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.moved_to_recycle').id, deleteItem.title))
-    }
   }
 }
 

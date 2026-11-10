@@ -21,9 +21,7 @@ export struct VideoDeleteDialog {
   aboutToAppear(): void {
     this.permanentDeleteVisibility = this.getPermanentDeleteVisibility()
     this.moveToRecentVisibility = this.getMoveToRecentVisibility()
-    if (this.moveToRecentVisibility) {
-      this.deleteOption = 'recent'
-    }
+    this.deleteOption = this.moveToRecentVisibility ? 'recent' : 'soft'
   }
 
   build() {
@@ -75,6 +73,6 @@ export struct VideoDeleteDialog {
   }
 
   private getMoveToRecentVisibility(): boolean {
-    return !MediaLibraryService.isPathFromSource(this.uri, VideoSource.PHOTO_SELECT_OPTION)
+    return MediaLibraryService.canMoveVideoToTrash(this.uri)
   }
 }

@@ -1,4 +1,3 @@
-import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { FileFolderDataSource } from '../../utils/DataUtil'
 import { AddNetworkStreamDialog } from '../Dialog/AddNetworkStreamDialog'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
@@ -25,6 +24,7 @@ import NavigationAddress from '../../common/NavigationCommon'
 import Preferences from '../../database/Preferences'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { HiCar } from '../../utils/HiCarUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import TimeUtil from '../../utils/TimeUtil'
@@ -32,7 +32,6 @@ import VideoUtils from '../../utils/VideoUtil'
 import { userData, userLoginBuilder } from '../common/UserLoginComponent'
 import { FolderSelectMenuBuilder } from '../FileFolderComponent/FileFolderSelectBuilder'
 import { SideBarFolderComponent } from './SideBarFolderComponent'
-import { deviceInfo } from '@kit.BasicServicesKit'
 import { LibraryKeyboard } from '../../utils/KeyboardShortcuts'
 
 @ComponentV2
@@ -88,15 +87,12 @@ export struct SideBarContentComponent {
 
   aboutToAppear(): void {
     this.libraryKeyboard.onImport = async (folders: boolean): Promise<void> => {
-      if (folders && !deviceInfo.apiAvailable('26.0.0')) {
-        return
-      }
       this.sideBarController.closeIfOverlay(false)
       if (folders) {
         await this.importMediaFolders()
       } else {
         await this.toMetaData(
-          await SelectFileUtil.selectFromFileManager(undefined, 'video'), this.videoListController.folder)
+          await SelectFileUtil.selectFromFileManager('video'), this.videoListController.folder)
       }
     }
     try {
@@ -188,8 +184,9 @@ export struct SideBarContentComponent {
     .padding({
       left: 12,
       right: 12,
-      top: SafeHeight.topSafeHeight + 12,
-      bottom: SafeHeight.bottomSafeHeight
+      // HiCar 的系统区域已在首页容器避让，侧栏只留自身边距。
+      top: HiCar.enabled ? 12 : SafeHeight.topSafeHeight + 12,
+      bottom: HiCar.enabled ? 0 : SafeHeight.bottomSafeHeight
     })
     .backgroundColor(Color.Transparent)
     .enabled(!this.folderDeleting)
@@ -237,7 +234,6 @@ export struct SideBarContentComponent {
       .alignItems(VerticalAlign.Bottom)
       .width('100%')
       .justifyContent(FlexAlign.Start)
-      .margin({ top: 12 })
       .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
       .onClick(() => {
         ToolsUtil.startVibration()
@@ -325,40 +321,26 @@ export struct SideBarContentComponent {
       .borderRadius(16)
 
       // 本地/网络切换 - CapsuleSegmentButtonV2
-      if (deviceInfo.apiAvailable('26.0.0')) {
-        CapsuleSegmentButtonV2({
-          items: this.segmentItems,
-          selectedIndex: this.currentSourceTab,
-          itemSelectedFontColor: this.itemSelectedFontColor,
-          itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
-          enableStateAnimation: true,
-          onItemClicked: (index: number) => {
-            this.currentSourceTab = index
-          },
-          backgroundSystemMaterial: new uiMaterial.ImmersiveMaterial({
-            style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
-            colorInvert: true,
-            interactive: true,
-            lightEffect: {}
-          })
+      CapsuleSegmentButtonV2({
+        items: this.segmentItems,
+        selectedIndex: this.currentSourceTab,
+        itemSelectedFontColor: this.itemSelectedFontColor,
+        itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+        enableStateAnimation: true,
+        onItemClicked: (index: number) => {
+          this.currentSourceTab = index
+        },
+        backgroundSystemMaterial: new uiMaterial.ImmersiveMaterial({
+          style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
+          colorInvert: true,
+          interactive: true,
+          lightEffect: {}
         })
-          .margin({ top: 10, bottom: 6 })
-      } else {
-        CapsuleSegmentButtonV2({
-          items: this.segmentItems,
-          selectedIndex: this.currentSourceTab,
-          itemSelectedFontColor: this.itemSelectedFontColor,
-          itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
-          enableStateAnimation: true,
-          onItemClicked: (index: number) => {
-            this.currentSourceTab = index
-          },
-        })
-          .margin({ top: 10, bottom: 6 })
-      }
+      })
+        .margin({ top: 10, bottom: 6 })
     }
     .width('100%')
-    .padding({ left: 12, right: 12 })
+    .padding({ left: 12, right: 12, top: 12 })
   }
 
   @Builder
@@ -552,6 +534,7 @@ export struct SideBarContentComponent {
       }
       .width('100%')
     }
+    .align(Alignment.Top)
     .fadingEdge(true)
     .width('100%')
     .layoutWeight(1)
@@ -570,14 +553,14 @@ export struct SideBarContentComponent {
   }
 
   private getSelectFileMenus(): IMenuItem[] {
-    const menus: IMenuItem[] = [
+    return [
       {
         icon: $r("sys.symbol.resolution_video"),
         content: $r('app.string.import_from_videos'),
         shortcut: 'Ctrl+O',
         onAction: async () => {
           this.sideBarController.closeIfOverlay(false)
-          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "video"),
+          await this.toMetaData(await SelectFileUtil.selectFromFileManager("video"),
             this.videoListController.folder)
         },
       },
@@ -595,7 +578,7 @@ export struct SideBarContentComponent {
         content: $r('app.string.import_from_album'),
         onAction: async () => {
           this.sideBarController.closeIfOverlay(false)
-          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "album"),
+          await this.toMetaData(await SelectFileUtil.selectFromFileManager("album"),
             this.videoListController.folder)
         },
       },
@@ -604,13 +587,11 @@ export struct SideBarContentComponent {
         content: $r('app.string.import_from_music'),
         onAction: async () => {
           this.sideBarController.closeIfOverlay(false)
-          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "audio"),
+          await this.toMetaData(await SelectFileUtil.selectFromFileManager("audio"),
             this.videoListController.folder)
         },
       },
-    ]
-    if (deviceInfo.apiAvailable('26.0.0')) {
-      menus.push({
+      {
         icon: $r('sys.symbol.folder'),
         content: $r('app.string.import_from_folder'),
         shortcut: 'Ctrl+Shift+O',
@@ -618,37 +599,34 @@ export struct SideBarContentComponent {
           this.sideBarController.closeIfOverlay(false)
           await this.importMediaFolders()
         },
-      })
-    }
-    return menus
+      },
+    ]
   }
 
   private async importMediaFolders(): Promise<void> {
-    if (deviceInfo.apiAvailable('26.0.0')) {
-      const imports = await SelectFileUtil.selectMediaFolders()
-      if (imports.length === 0) {
-        return
+    const imports = await SelectFileUtil.selectMediaFolders()
+    if (imports.length === 0) {
+      return
+    }
+    let emptyFolderCount = 0
+    for (const folderImport of imports) {
+      if (folderImport.files.length === 0) {
+        emptyFolderCount++
+        continue
       }
-      let emptyFolderCount = 0
-      for (const folderImport of imports) {
-        if (folderImport.files.length === 0) {
-          emptyFolderCount++
-          continue
-        }
-        const folderName =
-          folderImport.name === '首页' ? ToolsUtil.getStringResource($r('app.string.home_folder_import').id) :
-            folderImport.name
-        await this.toMetaData(folderImport.files, undefined, folderImport.uri, folderName)
-      }
-      const currentFolderDate = this.videoListController.folder?.date
-      const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)
-      const currentFolder =
-        latestFolders.find((folder: FileFolder) => folder.date === currentFolderDate) ?? latestFolders[0]
-      const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, currentFolder)
-      this.fileFolderListChange(updatedFolders)
-      if (emptyFolderCount === imports.length) {
-        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_no_importable_media').id))
-      }
+      const folderName =
+        folderImport.name === '首页' ? ToolsUtil.getStringResource($r('app.string.home_folder_import').id) :
+          folderImport.name
+      await this.toMetaData(folderImport.files, undefined, folderImport.uri, folderName)
+    }
+    const currentFolderDate = this.videoListController.folder?.date
+    const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)
+    const currentFolder =
+      latestFolders.find((folder: FileFolder) => folder.date === currentFolderDate) ?? latestFolders[0]
+    const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, currentFolder)
+    this.fileFolderListChange(updatedFolders)
+    if (emptyFolderCount === imports.length) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_no_importable_media').id))
     }
   }
 }

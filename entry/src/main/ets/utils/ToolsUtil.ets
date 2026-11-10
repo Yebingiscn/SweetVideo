@@ -46,7 +46,10 @@ export default class ToolsUtil {
     return isVip
   }
 
-  static showToast(text: string, duration: number = 3500) {
+  static readonly TOAST_SHORT_MS: number = 1500
+  static readonly TOAST_LONG_MS: number = 3500
+
+  static showToast(text: string, duration: number = 2000) {
     try {
       const show = (action: PromptAction): void => {
         action.showToast({
@@ -264,7 +267,8 @@ export default class ToolsUtil {
   // 保存密码
   static savePwd(context: Context, passwd: string) {
     Preferences.savePassword(context, passwd)
-    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id))
+    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id),
+      ToolsUtil.TOAST_LONG_MS)
   }
 
   // 点击视频跳转到播放器

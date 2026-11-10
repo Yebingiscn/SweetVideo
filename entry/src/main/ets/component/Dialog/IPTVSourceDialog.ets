@@ -14,7 +14,6 @@ import PermissionUtil from '../../utils/PermissionUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { salmonLogger } from 'salmonlogger'
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
-import { deviceInfo } from '@kit.BasicServicesKit'
 
 @CustomDialog
 export struct IPTVSourceDialog {
@@ -91,37 +90,23 @@ export struct IPTVSourceDialog {
           .fontWeight(FontWeight.Bold)
           .width('100%')
 
-        if (deviceInfo.apiAvailable('26.0.0')) {
-          CapsuleSegmentButtonV2({
-            items: this.segmentItems,
-            selectedIndex: this.sourceType === 'url' ? 0 : 1,
-            itemSelectedFontColor: this.itemSelectedFontColor,
-            itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
-            onItemClicked: (index: number) => {
-              this.switchType(index === 0 ? 'url' : 'file')
-            },
-            backgroundSystemMaterial: new uiMaterial.ImmersiveMaterial({
-              style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
-              colorInvert: true,
-              interactive: true,
-              lightEffect: {}
-            })
+        CapsuleSegmentButtonV2({
+          items: this.segmentItems,
+          selectedIndex: this.sourceType === 'url' ? 0 : 1,
+          itemSelectedFontColor: this.itemSelectedFontColor,
+          itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+          onItemClicked: (index: number) => {
+            this.switchType(index === 0 ? 'url' : 'file')
+          },
+          backgroundSystemMaterial: new uiMaterial.ImmersiveMaterial({
+            style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
+            colorInvert: true,
+            interactive: true,
+            lightEffect: {}
           })
-            .width('100%')
-        } else {
-          CapsuleSegmentButtonV2({
-            items: this.segmentItems,
-            selectedIndex: this.sourceType === 'url' ? 0 : 1,
-            itemSelectedFontColor: this.itemSelectedFontColor,
-            itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
-            onItemClicked: (index: number) => {
-              this.switchType(index === 0 ? 'url' : 'file')
-            },
-          })
-            .width('100%')
-        }
-
-
+        })
+          .width('100%')
+        
         TextInput({ placeholder: $r('app.string.iptv_source_name'), text: this.sourceName })
           .height(44)
           .borderRadius(16)
@@ -173,7 +158,10 @@ export struct IPTVSourceDialog {
         TextArea({ placeholder: $r('app.string.stream_headers_hint'), text: this.headersText })
           .height(96)
           .borderRadius(16)
-          .onChange((value: string) => { this.headersText = value; this.invalidatePreparedSource() })
+          .onChange((value: string) => {
+            this.headersText = value;
+            this.invalidatePreparedSource()
+          })
 
         TextInput({ placeholder: $r('app.string.epg_url_optional'), text: this.epgUrl })
           .height(44)

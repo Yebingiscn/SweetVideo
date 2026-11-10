@@ -1,4 +1,4 @@
-import { MenuFancyModifier } from '../../common/AttributeModifierConfig'
+import { LightMaterialModifier, MenuFancyModifier } from '../../common/AttributeModifierConfig'
 import { SortField } from '../../common/enum/SortField'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { SymbolGlyphModifier } from '@kit.ArkUI'

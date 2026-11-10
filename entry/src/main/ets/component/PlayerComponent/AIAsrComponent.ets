@@ -12,12 +12,16 @@ export struct AISubtitleComponent {
   @Prop showControl: boolean = false
   @Prop screenHeight: number = 0
   @Prop screenWidth: number = 0
-  onPrepared: () => void = () => {}
-  onError: () => void = () => {}
   private active: boolean = false
   private failed: boolean = false
   private captionOption?: AICaptionOptions
   private controller: AICaptionController = new AICaptionController()
+
+  onPrepared: () => void = () => {
+  }
+
+  onError: () => void = () => {
+  }
 
   aboutToAppear(): void {
     this.active = true
@@ -33,19 +37,23 @@ export struct AISubtitleComponent {
       this.captionOption = {
         initialOpacity: AICaptionSettings.getInitialOpacity(settings.backgroundOpacity, deviceInfo.deviceType),
         onPrepared: () => {
-          if (!this.active || this.failed) { return }
+          if (!this.active || this.failed) {
+            return
+          }
           salmonLogger.addLog(TAG, '流心 ASREngine准备就绪', true)
           this.onPrepared()
         },
         onError: (error: BusinessError) => {
-          if (!this.active || this.failed) { return }
+          if (!this.active || this.failed) {
+            return
+          }
           this.failed = true
           salmonLogger.addLog(TAG, `流心 ASREngine错误。错误码: ${error.code}, 消息: ${error.message}`, true)
           this.onError()
         }
       }
-      // 这些是初始化默认值；API 23 不传新字段，重新开启 AI 字幕时读取最新设置。
-      if (deviceInfo.apiAvailable(24)) {
+      // 初始化时读取当前设置，重新开启 AI 字幕时会重新读取。
+      if (canIUse('SystemCapability.AI.AICaption')) {
         this.captionOption.sourceLanguage = settings.sourceLanguage
         this.captionOption.targetLanguage = settings.targetLanguage
         this.captionOption.fontSize = settings.fontSize as AICaptionFontSize

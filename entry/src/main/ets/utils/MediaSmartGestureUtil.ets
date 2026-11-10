@@ -5,7 +5,7 @@ import {
   SmartGestureController,
   UIContext
 } from '@kit.ArkUI'
-import { Available, deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { Available, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { salmonLogger } from 'salmonlogger'
 import { Setting } from './ObservedUtil'
 
@@ -21,7 +21,7 @@ export interface MediaSmartGestureHandlers {
 }
 
 // The visible playback surface remains a target even when the controls are unmounted.
-// Apply the API 26 attribute behind a runtime guard, not unconditionally in build().
+// Check ArkUI capability before applying the shortcut attribute.
 export class MediaSmartGestureModifier implements AttributeModifier<CommonAttribute> {
   private enabled: boolean
 
@@ -57,40 +57,34 @@ export class MediaSmartGestureSession {
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static isSupported(): boolean {
-    return deviceInfo.sdkApiVersion >= 26 && canIUse('SystemCapability.ArkUI.ArkUI.Full')
+    return canIUse('SystemCapability.ArkUI.ArkUI.Full')
   }
 
   static setAppForeground(foreground: boolean): void {
-    if (deviceInfo.apiAvailable('26.0.0')) {
-      MediaSmartGestureSession.appForeground = foreground
-      const session = MediaSmartGestureSession.activeSession
-      if (foreground) {
-        session?.startMonitoring()
-      } else {
-        session?.stopMonitoring()
-      }
+    MediaSmartGestureSession.appForeground = foreground
+    const session = MediaSmartGestureSession.activeSession
+    if (foreground) {
+      session?.startMonitoring()
+    } else {
+      session?.stopMonitoring()
     }
   }
 
   show(uiContext: UIContext): void {
-    if (deviceInfo.apiAvailable('26.0.0')) {
-      if (MediaSmartGestureSession.activeSession !== this) {
-        MediaSmartGestureSession.activeSession?.hide()
-        MediaSmartGestureSession.activeSession = this
-      }
-      this.uiContext = uiContext
-      this.startMonitoring()
+    if (MediaSmartGestureSession.activeSession !== this) {
+      MediaSmartGestureSession.activeSession?.hide()
+      MediaSmartGestureSession.activeSession = this
     }
+    this.uiContext = uiContext
+    this.startMonitoring()
   }
 
   hide(): void {
-    if (deviceInfo.apiAvailable('26.0.0')) {
-      this.stopMonitoring()
-      if (MediaSmartGestureSession.activeSession === this) {
-        MediaSmartGestureSession.activeSession = undefined
-      }
-      this.uiContext = undefined
+    this.stopMonitoring()
+    if (MediaSmartGestureSession.activeSession === this) {
+      MediaSmartGestureSession.activeSession = undefined
     }
+    this.uiContext = undefined
   }
 
   @Available({ minApiVersion: 'HarmonyOS 26.0.0' })
@@ -139,7 +133,6 @@ export class MediaSmartGestureSession {
     }
   }
 
-  // Only registered after isSupported(); API 23-25 never execute this callback.
   @SuppressWarnings({ rules: [SuppressWarningsType.COMPATIBILITY] })
   private readonly monitorCallback = (proposal: BaseGestureHandlingProposal): GestureHandlingResolution => {
     if (MediaSmartGestureSession.activeSession !== this || !this.monitorRegistered ||

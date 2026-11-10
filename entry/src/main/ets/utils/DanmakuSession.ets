@@ -143,7 +143,8 @@ export class DanmakuSession {
       if (!cancelled()) {
         // Do not expose a picked file URI or raw platform errors in logs/toasts.
         salmonLogger.addLog('Danmaku', '本地弹幕导入失败', true)
-        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.danmaku_import_failed_format').id))
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.danmaku_import_failed_format').id),
+          ToolsUtil.TOAST_LONG_MS)
       }
     } finally {
       if (generation === this.generation) {

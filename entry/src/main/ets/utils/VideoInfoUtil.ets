@@ -293,12 +293,13 @@ export default class VideoInfoUtil {
     return speed ? speed.toFixed(2).replace(/\.?0+$/, '') + 'x' : '1x'
   }
 
-  static getVideoTitle(title: string | undefined) {
+  static getVideoTitle(title: string | undefined, format?: string): string {
     if (!title) {
       return ''
     }
     const dotIndex = title.lastIndexOf('.')
-    return dotIndex > 0 ? title.slice(0, dotIndex) : title
+    const isExtension = format === undefined || title.slice(dotIndex + 1).toLowerCase() === format.toLowerCase()
+    return dotIndex > 0 && isExtension ? title.slice(0, dotIndex) : title
   }
 
   static getVideoSpeedTextList() {

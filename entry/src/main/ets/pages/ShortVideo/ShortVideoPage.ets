@@ -1,8 +1,12 @@
-import { PlaybackRangeDialog, PlaybackRangeMode, PlaybackRangeValues } from '../../component/PlayerComponent/PlaybackRangeDialog'
+import {
+  PlaybackRangeDialog,
+  PlaybackRangeMode,
+  PlaybackRangeValues
+} from '../../component/PlayerComponent/PlaybackRangeDialog'
 import { playbackPolicyMarkers } from '../../component/PlayerComponent/PlaybackPolicyMarkers'
 import MediaLibraryService from '../../utils/MediaLibraryService'
 import { BaseGestureHandlingProposal, PageSwitchActionProposal, window } from '@kit.ArkUI'
-import { Available, BusinessError, deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { BusinessError, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { ShortVideoItem } from '../../component/ShortVideo/ShortVideoItem'
 import NavigationAddress, { PlayerEngine, PlayerParams, ShortVideoParams } from '../../common/NavigationCommon'
 import { ShortVideoPlayerManager } from '../../controller/ShortVideo/ShortVideoPlayerManager'
@@ -45,7 +49,16 @@ export struct ShortVideoPage {
   @Local isSwiperAnimating: boolean = false
   private skipHistory: boolean = false
   private disposed: boolean = false
-  @Available({ minApiVersion: 'HarmonyOS 26.0.0' }) private smartGestures: MediaSmartGestureSession =
+  private disposeTask: Promise<void> | undefined = undefined
+  private switchingToMpv: boolean = false
+  private swiperController: SwiperController = new SwiperController()
+  private showControlTimer: number = 0
+  private isSpeedMenuOpen: boolean = false
+  private isPolicyMenuOpen: boolean = false
+  private isTimerDialogOpen: boolean = false
+  private isRangeDialogOpen: boolean = false
+  private isProgressSeeking: boolean = false
+  private smartGestures: MediaSmartGestureSession =
     new MediaSmartGestureSession({
       canHandle: (): boolean => this.ready && !this.disposed && this.items.length > 0 &&
         !PiPWindowUtil.pipOpenState && !this.isSwiperAnimating && !this.isSpeedMenuOpen &&
@@ -56,15 +69,6 @@ export struct ShortVideoPage {
       },
       onSlide: (): BaseGestureHandlingProposal | undefined => this.createSmartSwipeProposal()
     })
-  private disposeTask: Promise<void> | undefined = undefined
-  private switchingToMpv: boolean = false
-  private swiperController: SwiperController = new SwiperController()
-  private showControlTimer: number = 0
-  private isSpeedMenuOpen: boolean = false
-  private isPolicyMenuOpen: boolean = false
-  private isTimerDialogOpen: boolean = false
-  private isRangeDialogOpen: boolean = false
-  private isProgressSeeking: boolean = false
   private smartTapPending: boolean = false
   private pageParams: ShortVideoParams | undefined = undefined
   private sleepTimerDialog: CustomDialogController = new CustomDialogController({
@@ -76,18 +80,27 @@ export struct ShortVideoPage {
           ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.timer_minutes_range').id))
           return
         }
-        if (this.disposed || this.manager.isClosing) { return }
+        if (this.disposed || this.manager.isClosing) {
+          return
+        }
         this.manager.policy.sleepTimer.start(minutes * 60000)
         ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.timer_set_minutes').id, minutes))
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow,
-    onWillAppear: () => { this.isTimerDialogOpen = true; this.clearShowControlTimer() },
-    onDidDisappear: () => { this.isTimerDialogOpen = false; if (!this.disposed) { this.showControls() } }
+    }),
+    cornerRadius: 20,
+    shadow: DefaultDialogShadow,
+    onWillAppear: () => {
+      this.isTimerDialogOpen = true;
+      this.clearShowControlTimer()
+    },
+    onDidDisappear: () => {
+      this.isTimerDialogOpen = false;
+      if (!this.disposed) {
+        this.showControls()
+      }
+    }
   })
-
   private rangeMode: PlaybackRangeMode = 'ab'
-  private rangeMediaKey: string = ''
-  private rangeDuration: number = 0
   private rangeEditorDialog: CustomDialogController = new CustomDialogController({
     builder: PlaybackRangeDialog({
       options: {
@@ -101,10 +114,22 @@ export struct ShortVideoPage {
         onSave: (start: number, end: number): boolean => this.saveEditedRange(start, end),
         onClear: (): boolean => this.saveEditedRange(0, 0)
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow,
-    onWillAppear: () => { this.isRangeDialogOpen = true; this.clearShowControlTimer() },
-    onDidDisappear: () => { this.isRangeDialogOpen = false; if (!this.disposed) { this.showControls() } }
+    }),
+    cornerRadius: 20,
+    shadow: DefaultDialogShadow,
+    onWillAppear: () => {
+      this.isRangeDialogOpen = true;
+      this.clearShowControlTimer()
+    },
+    onDidDisappear: () => {
+      this.isRangeDialogOpen = false;
+      if (!this.disposed) {
+        this.showControls()
+      }
+    }
   })
+  private rangeMediaKey: string = ''
+  private rangeDuration: number = 0
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   aboutToAppear(): void {
@@ -152,7 +177,9 @@ export struct ShortVideoPage {
       onStartTimer: (durationMs: number) => this.manager.policy.sleepTimer.start(durationMs),
       onCancelTimer: () => this.manager.policy.sleepTimer.cancel(),
       onEndCurrent: () => this.manager.policy.stopAfterCurrent(),
-      onCustomTimer: (): void => { this.sleepTimerDialog.open() },
+      onCustomTimer: (): void => {
+        this.sleepTimerDialog.open()
+      },
       onSetPointA: () => this.saveAbPoint('A'),
       onSetPointB: () => this.saveAbPoint('B'),
       onClearAbLoop: () => this.saveAbPoint('clear'),
@@ -198,8 +225,16 @@ export struct ShortVideoPage {
         .bindMenu(this.PlaybackSpeedMenuBuilder, {
           placement: Placement.TopRight,
           showInSubWindow: false,
-          onAppear: () => { this.isSpeedMenuOpen = true; this.clearShowControlTimer() },
-          onDisappear: () => { this.isSpeedMenuOpen = false; if (!this.disposed) { this.showControls() } }
+          onAppear: () => {
+            this.isSpeedMenuOpen = true;
+            this.clearShowControlTimer()
+          },
+          onDisappear: () => {
+            this.isSpeedMenuOpen = false;
+            if (!this.disposed) {
+              this.showControls()
+            }
+          }
         })
 
         RepeatModeButtonComponent({
@@ -221,8 +256,16 @@ export struct ShortVideoPage {
         .bindMenu(this.PlaybackPolicyMenuBuilder, {
           placement: Placement.TopRight,
           showInSubWindow: false,
-          onAppear: () => { this.isPolicyMenuOpen = true; this.clearShowControlTimer() },
-          onDisappear: () => { this.isPolicyMenuOpen = false; if (!this.disposed) { this.showControls() } }
+          onAppear: () => {
+            this.isPolicyMenuOpen = true;
+            this.clearShowControlTimer()
+          },
+          onDisappear: () => {
+            this.isPolicyMenuOpen = false;
+            if (!this.disposed) {
+              this.showControls()
+            }
+          }
         })
 
         Button({ type: ButtonType.Circle, stateEffect: false }) {
@@ -408,9 +451,7 @@ export struct ShortVideoPage {
       this.showControls()
     })
     .onHidden(() => {
-      if (deviceInfo.apiAvailable('26.0.0')) {
-        this.smartGestures.hide()
-      }
+      this.smartGestures.hide()
       this.isSwiperAnimating = false
       this.isProgressSeeking = false
       this.manager.saveCurrentHistory()
@@ -423,9 +464,7 @@ export struct ShortVideoPage {
         this.manager.policy.sleepTimer.checkDeadline()) {
         return
       }
-      if (deviceInfo.apiAvailable('26.0.0')) {
-        this.smartGestures.show(this.getUIContext())
-      }
+      this.smartGestures.show(this.getUIContext())
       if (PiPWindowUtil.pipOpenState) {
         await PiPWindowUtil.stopPip()
       }
@@ -435,9 +474,7 @@ export struct ShortVideoPage {
     })
     .onWillDisappear(() => {
       this.manager.beginClosing()
-      if (deviceInfo.apiAvailable('26.0.0')) {
-        this.smartGestures.hide()
-      }
+      this.smartGestures.hide()
       this.manager.saveCurrentHistory()
       if (!Setting.allowBackgroundPlay && !PiPWindowUtil.pipOpenState) {
         this.manager.pauseAll()
@@ -488,12 +525,16 @@ export struct ShortVideoPage {
   }
 
   private showControls(): void {
-    if (this.disposed || this.manager.isClosing) { return }
+    if (this.disposed || this.manager.isClosing) {
+      return
+    }
     this.clearShowControlTimer()
     this.updateShowControl(true)
     this.showControlTimer = setTimeout(() => {
       this.showControlTimer = 0
-      if (this.isPolicyMenuOpen || this.isTimerDialogOpen || this.isRangeDialogOpen || this.isSpeedMenuOpen) { return }
+      if (this.isPolicyMenuOpen || this.isTimerDialogOpen || this.isRangeDialogOpen || this.isSpeedMenuOpen) {
+        return
+      }
       this.updateShowControl(false)
     }, AUTO_HIDE_SHOW_CONTROL_TIME)
   }
@@ -564,9 +605,7 @@ export struct ShortVideoPage {
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   private async releasePage(): Promise<void> {
-    if (deviceInfo.apiAvailable('26.0.0')) {
-      this.smartGestures.hide()
-    }
+    this.smartGestures.hide()
     KnockShareUtil.clearShareProvider(KNOCK_SHARE_VIDEO_PLAYER_OWNER)
     try {
       await this.manager.releaseAll()
@@ -589,7 +628,9 @@ export struct ShortVideoPage {
   }
 
   private closePage(): void {
-    if (this.disposed || this.switchingToMpv) { return }
+    if (this.disposed || this.switchingToMpv) {
+      return
+    }
     try {
       MediaLibraryService.saveLastPlayVideoIndex(this.items, this.items[this.currentIndex]?.date)
     } catch (error) {
@@ -602,7 +643,9 @@ export struct ShortVideoPage {
     }).then((): void => {
       if (this.pathStack.size() - 1 === routeIndex &&
         this.pathStack.getAllPathName()[routeIndex] === NavigationAddress.SHORT_VIDEO &&
-        this.readShortVideoParams() === params) { this.pathStack.pop() }
+        this.readShortVideoParams() === params) {
+        this.pathStack.pop()
+      }
     })
   }
 
@@ -622,15 +665,20 @@ export struct ShortVideoPage {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.ab_loop_save_failed').id))
     }
   }
+
   private currentRangeMediaKey(): string {
     const media = this.manager.nowPlaying
     return media ? media.date + '|' + media.uri : ''
   }
 
   private openRangeEditor(mode: PlaybackRangeMode): void {
-    if (this.disposed || this.manager.isClosing) { return }
+    if (this.disposed || this.manager.isClosing) {
+      return
+    }
     this.manager.policy.refresh()
-    if (this.manager.policy.sleepTimer.checkDeadline() || this.disposed || this.manager.isClosing) { return }
+    if (this.manager.policy.sleepTimer.checkDeadline() || this.disposed || this.manager.isClosing) {
+      return
+    }
     this.rangeMode = mode
     this.rangeMediaKey = this.currentRangeMediaKey()
     this.rangeDuration = this.manager.policy.abLoop.durationMs
@@ -638,7 +686,9 @@ export struct ShortVideoPage {
   }
 
   private saveEditedRange(start: number, end: number): boolean {
-    if (this.disposed || this.manager.isClosing || this.rangeMediaKey !== this.currentRangeMediaKey()) { return false }
+    if (this.disposed || this.manager.isClosing || this.rangeMediaKey !== this.currentRangeMediaKey()) {
+      return false
+    }
     try {
       return this.rangeMode === 'ab' ? this.manager.policy.saveAbRange(PathUtils.appContext!, start, end) :
         this.manager.policy.saveOpeningEnding(PathUtils.appContext!, start, end)
@@ -660,5 +710,4 @@ export struct ShortVideoPage {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.range_save_failed').id))
     }
   }
-
 }

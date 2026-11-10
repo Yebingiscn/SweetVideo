@@ -7,6 +7,7 @@ import HiCarLayout from '../../utils/HiCarLayout'
 @ComponentV2
 export struct VideoLayoutComponent {
   @Require @Param player: PlayerControllerInterface
+  @Param foldHoverPlayback: boolean = false
   @BuilderParam VideoTop: () => void
   @BuilderParam VideoButtons: () => void
   @BuilderParam VideoSlider: () => void
@@ -18,7 +19,7 @@ export struct VideoLayoutComponent {
         this.VideoTop()
       }
       .width('100%')
-      .height(HiCar.enabled ? 64 : (this.isPortrait() ? 90 : 80))
+      .height(HiCar.enabled || this.foldHoverPlayback ? 64 : (this.isPortrait() ? 90 : 80))
       .linearGradient(this.getTopGradient())
       .padding(this.getTopPadding())
       .transition(XAnimation.getAnimation('up', 0, false))
@@ -26,7 +27,7 @@ export struct VideoLayoutComponent {
       .alignItems(VerticalAlign.Center)
 
       // 中间空白区域（自动填充）
-      Blank()
+      Blank().hitTestBehavior(HitTestMode.None)
 
       // 底栏
       this.buildBottomBar()
@@ -36,6 +37,7 @@ export struct VideoLayoutComponent {
     } : 0)
     .width('100%')
     .height('100%')
+    .hitTestBehavior(HitTestMode.None)
     .justifyContent(FlexAlign.Start)
     .alignItems(HiCar.enabled ? HorizontalAlign.Start : HorizontalAlign.Center)
   }
@@ -57,7 +59,7 @@ export struct VideoLayoutComponent {
     }
     .width('100%')
     .alignItems(HiCar.enabled ? HorizontalAlign.Start : HorizontalAlign.Center)
-    .height(HiCar.enabled ? 'auto' : (this.isPortrait() ? 180 : 'auto'))
+    .height(HiCar.enabled || this.foldHoverPlayback ? 'auto' : (this.isPortrait() ? 180 : 'auto'))
     .linearGradient(this.getBottomGradient())
     .padding(HiCar.enabled ? { left: 8, bottom: 4 } :
       { bottom: SafeHeight.bottomSafeHeight == 0 ? 20 : SafeHeight.bottomSafeHeight })
@@ -95,7 +97,7 @@ export struct VideoLayoutComponent {
     return {
       left: HiCar.enabled ? 8 : (this.isPortrait() ? 20 : 35),
       right: HiCar.enabled ? 8 : 20,
-      top: HiCar.enabled ? 0 : SafeHeight.topSafeHeight,
+      top: HiCar.enabled || this.foldHoverPlayback ? 0 : SafeHeight.topSafeHeight,
     }
   }
 }

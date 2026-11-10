@@ -1,7 +1,7 @@
 import { CommonModifier, uiMaterial } from '@kit.ArkUI';
 import { ShadowFancy } from '../interfaces/ShadowFancyInterface';
 import { hdsEffect } from '@kit.UIDesignKit';
-import { deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit';
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit';
 import { MaterialCapability } from './MaterialCapability';
 
 export class SettingsItemModifier extends CommonModifier {
@@ -144,17 +144,13 @@ export class HdsGL {
 
 export class LightMaterialModifier implements AttributeModifier<CommonAttribute> {
   applyNormalAttribute(instance: CommonAttribute): void {
-    if (deviceInfo.apiAvailable('26.0.0')) {
-      if (MaterialCapability.arkUISupported && MaterialCapability.hdsSupported) {
-        instance.systemMaterial(new uiMaterial.ImmersiveMaterial({
-          style: uiMaterial.ImmersiveStyle.THIN,
-          applyShadow: true,
-          interactive: true,
-          lightEffect: {},
-        }))
-      } else {
-        instance.backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
-      }
+    if (MaterialCapability.arkUISupported && MaterialCapability.hdsSupported) {
+      instance.systemMaterial(new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.THIN,
+        applyShadow: true,
+        interactive: true,
+        lightEffect: {},
+      }))
     } else {
       instance.backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
     }

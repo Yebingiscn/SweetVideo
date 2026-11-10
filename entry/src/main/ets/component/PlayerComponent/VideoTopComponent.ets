@@ -7,6 +7,7 @@ import { HiCar } from '../../utils/HiCarUtil'
 @ComponentV2
 export struct VideoTopComponent {
   @Require @Param player: PlayerControllerInterface
+  @Param titleOverride: string | undefined = undefined
   @Param isAnySubtitleActive: boolean = false
   @Param lockRotation: boolean = false
   @Param keyboardSubtitleMenuVisible: boolean = false
@@ -22,7 +23,7 @@ export struct VideoTopComponent {
   }
 
   private get displayTitle(): string {
-    return VideoInfoUtil.getVideoTitle(this.player.nowPlaying?.title)
+    return VideoInfoUtil.getVideoTitle(this.titleOverride ?? this.player.nowPlaying?.title, this.player.nowPlaying?.format ?? '')
   }
 
   @Event onKeyboardSubtitleMenuChange: (visible: boolean) => void = () => {

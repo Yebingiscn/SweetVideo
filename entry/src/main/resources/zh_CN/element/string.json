@@ -34,7 +34,7 @@
     },
     {
       "name": "mpv_conf_desc",
-      "value": "使用标准 mpv.conf 语法（UTF-8，最多 64 KB），支持注释和配置档。自定义值覆盖普通初始化默认值；输出、解码、窗口绑定和播放中的界面控制仍以应用为准。保存后请开启自定义 conf；关闭可恢复默认配置。"
+      "value": "使用标准 mpv.conf 语法（UTF-8，最多 64 KB），支持注释和配置档。自定义值覆盖普通初始化默认值；输出、解码、窗口绑定和播放中的界面控制仍以应用为准。保存后请开启自定义 conf。清空后保存，或关闭开关，可恢复默认配置。"
     },
     {
       "name": "mpv_conf_import",
@@ -73,7 +73,6 @@
     {"value":"章节","name":"hicar_chapters"},
     {"value":"HiCar 车载布局","name":"hicar_layout"},
     {"value":"连接 HiCar 时自动启用，也可手动开启预览。放大触控区域，将常用操作集中在左侧。","name":"hicar_layout_tip"},
-    {"value":"媒体来源","name":"hicar_media_sources"},
     {"value":"更多播放操作","name":"hicar_more_controls"},
     {"value":"下一首","name":"hicar_next"},
     {"value":"暂停","name":"hicar_pause"},
@@ -133,10 +132,6 @@
     {
       "name": "directory_disable",
       "value": "关闭目录视图"
-    },
-    {
-      "name": "directory_back",
-      "value": "返回上一级"
     },
     {
       "name": "directory_empty",
@@ -1039,18 +1034,6 @@
       "value": "MPV GPU 后端（仅 Buffer，不推荐改）"
     },
     {
-      "name": "mpv_quality_boost",
-      "value": "MPV 画质增强（仅 Buffer/软解）"
-    },
-    {
-      "name": "sdr_to_hdr",
-      "value": "SDR 转 HDR（仅 Buffer/软解）"
-    },
-    {
-      "name": "super_resolution",
-      "value": "视频超分辨率"
-    },
-    {
       "name": "decode_support_dv_p5",
       "value": "支持杜比P5，性能稍差"
     },
@@ -1073,50 +1056,6 @@
     {
       "name": "lang_english",
       "value": "英语"
-    },
-    {
-      "name": "color_warm_white",
-      "value": "柔白"
-    },
-    {
-      "name": "color_pure_white",
-      "value": "纯白"
-    },
-    {
-      "name": "color_warm_yellow",
-      "value": "暖黄"
-    },
-    {
-      "name": "color_cyan",
-      "value": "青色"
-    },
-    {
-      "name": "color_light_green",
-      "value": "浅绿"
-    },
-    {
-      "name": "color_pink",
-      "value": "粉红"
-    },
-    {
-      "name": "color_black",
-      "value": "黑色"
-    },
-    {
-      "name": "color_dark_gray",
-      "value": "深灰"
-    },
-    {
-      "name": "color_white",
-      "value": "白色"
-    },
-    {
-      "name": "color_dark_blue",
-      "value": "深蓝"
-    },
-    {
-      "name": "color_dark_red",
-      "value": "深红"
     },
     {
       "name": "auto_select_subtitle_language",
@@ -1327,10 +1266,6 @@
       "value": "请在音轨面板调节 USB 音量"
     },
     {
-      "name": "usb_device_volume",
-      "value": "USB 设备音量"
-    },
-    {
       "name": "loudness",
       "value": "响度"
     },
@@ -1411,24 +1346,12 @@
       "value": "设置片头时间：%s"
     },
     {
-      "name": "success_set_intro_time",
-      "value": "成功设置片头时间为:"
-    },
-    {
       "name": "set_outro_time",
       "value": "设置片尾时间：%s"
     },
     {
-      "name": "success_set_outro_time",
-      "value": "成功设置片尾时间为:"
-    },
-    {
       "name": "cancel_op_ed_time",
       "value": "取消片头片尾时间"
-    },
-    {
-      "name": "cancel_op_ed_time_success",
-      "value": "取消片头片尾时间成功"
     },
     {
       "name": "stop_ab_loop",
@@ -1443,16 +1366,8 @@
       "value": "设置A点时间：%s"
     },
     {
-      "name": "success_set_point_a_time",
-      "value": "成功设置A点时间为:"
-    },
-    {
       "name": "set_point_b_time",
       "value": "设置B点时间：%s"
-    },
-    {
-      "name": "success_set_point_b_time",
-      "value": "成功设置B点时间为:"
     },
     {
       "name": "cancel_ab_time",
@@ -1517,10 +1432,6 @@
     {
       "name": "ai_subtitle_settings_hint",
       "value": "独立于普通字幕样式，下次开启 AI 字幕时生效。中文音频仅支持中文显示；英文音频支持中文、英文或中英双语。"
-    },
-    {
-      "name": "ai_subtitle_options_api_required",
-      "value": "语言、字号设置需要 HarmonyOS 6.1.1（API 24）及以上版本，当前系统可设置面板背景。"
     },
     {
       "name": "ai_subtitle_source_language",
@@ -2999,10 +2910,6 @@
       "value": "此地址不支持 WebDAV 目录浏览"
     },
     {
-      "name": "webdav_unsupported_xml",
-      "value": "WebDAV 目录包含不支持的 XML 声明"
-    },
-    {
       "name": "webdav_invalid_xml",
       "value": "服务器返回的 WebDAV XML 目录无效"
     },
@@ -3099,10 +3006,6 @@
       "value": "删除视频失败：%s，原因是：%s"
     },
     {
-      "name": "file_reauth_required",
-      "value": "文件需要重新授权才能继续播放，请点击确定予以授权"
-    },
-    {
       "name": "delete_failed_reason",
       "value": "删除失败，原因是：%s"
     },
@@ -3137,14 +3040,6 @@
     {
       "name": "danmaku_texture_release_failed",
       "value": "弹幕纹理释放失败"
-    },
-    {
-      "name": "danmaku_texture_limit",
-      "value": "弹幕纹理超出限制"
-    },
-    {
-      "name": "danmaku_texture_cache_full",
-      "value": "弹幕纹理缓存已满"
     },
     {
       "name": "danmaku_texture_upload_failed",
@@ -3199,10 +3094,6 @@
       "value": "网络播放请求已取消"
     },
     {
-      "name": "webdav_playback_not_ready",
-      "value": "WebDAV 播放连接尚未就绪"
-    },
-    {
       "name": "usb_not_authorized",
       "value": "未取得 USB 设备授权"
     },
@@ -3247,10 +3138,6 @@
       "value": "文件夹名称排序任务失败"
     },
     {
-      "name": "webdav_invalid_directory_format",
-      "value": "服务器返回的 WebDAV 目录格式无效"
-    },
-    {
       "name": "huawei_oauth_failed",
       "value": "华为 OAuth 请求失败（HTTP %d）"
     },
@@ -3261,10 +3148,6 @@
     {
       "name": "cannot_read_video_file",
       "value": "无法读取视频文件"
-    },
-    {
-      "name": "system_exception",
-      "value": "系统异常"
     },
     {
       "name": "no_previous_item",
@@ -3475,10 +3358,6 @@
       "value": "封面搜索暂不可用，请重试或切换到按名称搜索"
     },
     {
-      "name": "hoa_needs_harmony7",
-      "value": "HOA 空间渲染需要鸿蒙 7及以上"
-    },
-    {
       "name": "audio_effect_applied",
       "value": "声音效果已应用"
     },
@@ -3652,7 +3531,11 @@
     },
     {
       "name": "move_to_recycle_failed",
-      "value": "视频快捷方式已删除，但移动到最近回收失败，原因是：errCode:%s, errMessage:%s"
+      "value": "无法移到回收站，视频仍保留在列表中"
+    },
+    {
+      "name": "move_to_recycle_batch_result",
+      "value": "已移入回收站 %s 个，%s 个未能移入并保留在列表中"
     },
     {
       "name": "avplayer_cannot_play",

@@ -13,6 +13,7 @@ export struct RenameDialog {
   @Prop title: ResourceStr = $r('app.string.rename')
   @Prop preserveExtension: boolean = false
   @Prop renameTarget: 'video' | 'folder' = 'video'
+  @Prop initialVideoTitle: string | undefined = undefined
   @State name: string = ''
   onConfirm?: (name: string) => void | Promise<void>
   private initialName: string = ''
@@ -22,7 +23,7 @@ export struct RenameDialog {
     if (this.renameTarget === 'folder') {
       this.initialName = (DataSyncUtil.editingFolder as FileFolder)?.name ?? ''
     } else {
-      this.initialName = (DataSyncUtil.editingVideo as VideoMetadata)?.title ?? ''
+      this.initialName = this.initialVideoTitle ?? (DataSyncUtil.editingVideo as VideoMetadata)?.title ?? ''
     }
     if (this.preserveExtension) {
       const parts = VideoInfoUtil.splitFileName(this.initialName)

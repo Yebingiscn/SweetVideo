@@ -102,10 +102,6 @@ export default class KnockShareUtil {
     return deviceInfo.deviceType === deviceInfo.DeviceTypes.TYPE_2IN1
   }
 
-  static isPreciseSupported(): boolean {
-    return KnockShareUtil.isPc() && deviceInfo.apiAvailable('26.0.0')
-  }
-
   static start(context: Context, mainWindow: window.Window): void {
     if (!Setting.knockShareEnabled) {
       return
@@ -211,7 +207,7 @@ export default class KnockShareUtil {
   }
 
   static updateVideoRegion(video: VideoMetadata, area: Area): void {
-    if (!KnockShareUtil.isPreciseSupported()) {
+    if (!KnockShareUtil.isPc()) {
       return
     }
     const x = Number(area.globalPosition.x)
@@ -321,7 +317,7 @@ export default class KnockShareUtil {
 
   private static getWindowCoordinate(target: harmonyShare.SharableTarget | harmonyShare.ReceivableTarget):
   KnockCoordinate | undefined {
-    if (!KnockShareUtil.isPreciseSupported()) {
+    if (!KnockShareUtil.isPc()) {
       return undefined
     }
     if (canIUse('SystemCapability.Collaboration.HarmonyShare')) {

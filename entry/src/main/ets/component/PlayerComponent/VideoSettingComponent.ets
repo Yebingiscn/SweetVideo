@@ -15,19 +15,14 @@ export struct VideoSettingComponent {
   @Require @Param abLoop: AbLoopController
   @Require @Param openingEnding: PlaybackOpeningEndingRange
   @Require @Param player: PlayerControllerInterface
-
   @Event onEditRange: (mode: 'ab' | 'oped') => void = () => {
   }
-
   @Event onSetIntro: () => void = () => {
   }
-
   @Event onSetOutro: () => void = () => {
   }
-
   @Event onClearOpeningEnding: () => void = () => {
   }
-
   @Event forward_80_s: (_time: number) => void = () => {
   }
   @Event onStartTimer: (_time: number) => void = () => {

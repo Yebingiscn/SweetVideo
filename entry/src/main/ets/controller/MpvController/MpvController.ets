@@ -348,7 +348,8 @@ export class MpvController implements PlayerControllerInterface {
     } else if (overrideRepeatMode !== undefined) {
       // Manual controls supply an override; automatic EOF/outro callers omit it.
       salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, '手动切集已到列表末尾，保留播放页', false)
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_next_item').id))
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_next_item').id),
+        ToolsUtil.TOAST_SHORT_MS)
     } else {
       salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "无下一个视频，播放结束", false)
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.play_finished_auto_exit').id))
@@ -365,7 +366,8 @@ export class MpvController implements PlayerControllerInterface {
     if (previousItem) {
       await this.playChooseVideo(previousItem, pathStack)
     } else {
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_previous_item').id))
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_previous_item').id),
+        ToolsUtil.TOAST_SHORT_MS)
     }
     salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "播放上一个视频前置流程完成", false)
   }
@@ -548,7 +550,8 @@ export class MpvController implements PlayerControllerInterface {
         this.userListener?.clear()
         this.userListener = null
         this.setPlayerCallback(pathStack)
-        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_video_ending').id))
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_video_ending').id),
+          ToolsUtil.TOAST_SHORT_MS)
       }
       // 全局片尾跳过：片尾<=总时长 且 片头+片尾<=总时长
       if (skipOutroSeconds > 0 && (endTime == null || endTime === 0)) {
@@ -565,7 +568,8 @@ export class MpvController implements PlayerControllerInterface {
           this.userListener?.clear()
           this.userListener = null
           this.setPlayerCallback(pathStack)
-          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_outro').id))
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_outro').id),
+            ToolsUtil.TOAST_SHORT_MS)
         }
       }
     })
@@ -1956,7 +1960,8 @@ export class MpvController implements PlayerControllerInterface {
     salmonLogger.addLog(TAG, `[MpvController] ${message}`, true)
     this.transitionTo(MpvPlayerState.ERROR)
     AVSessionUtil.updatePlaybackSessionState(false, this.playTime, this.repeatMode, this.speed)
-    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_load_failed_logged').id))
+    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_load_failed_logged').id),
+      ToolsUtil.TOAST_LONG_MS)
   }
 
   private async recoverUsbPlayback(): Promise<void> {

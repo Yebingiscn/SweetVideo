@@ -558,7 +558,8 @@ export struct GetVipPage {
         })
         return
       }
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.purchase_failed_detail').id, err.code, String(errorMessages.get(err.code))))
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.purchase_failed_detail').id,
+        err.code, String(errorMessages.get(err.code))), ToolsUtil.TOAST_LONG_MS)
       salmonLogger.addLog(TAG, 'Purchase failed. Code is ' + err.code + ', message is ' + err.message, true)
     } else {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.system_unsupported').id))

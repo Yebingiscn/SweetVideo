@@ -81,6 +81,6 @@ export struct RepeatModeButtonComponent {
     const repeatMode = VideoOperateUtil.getRepeatMode(this.repeatMode)
     this.onRepeatModeChange(repeatMode)
     AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, repeatMode)
-    ToolsUtil.showToast(getRepeatModeText(repeatMode))
+    ToolsUtil.showToast(getRepeatModeText(repeatMode), ToolsUtil.TOAST_SHORT_MS)
   }
 }

@@ -5,7 +5,6 @@ import {
 } from '../../common/AttributeModifierConfig'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { uiMaterial } from '@kit.ArkUI'
-import { deviceInfo } from '@kit.BasicServicesKit'
 
 @ComponentV2
 export struct SettingsToggleItem {
@@ -53,30 +52,17 @@ export struct SettingsToggleItem {
         }
       }.layoutWeight(1)
 
-      if (deviceInfo.apiAvailable('26.0.0')) {
-        Toggle({ type: ToggleType.Switch, isOn: this._enable })
-          .onChange((checked: boolean) => {
-            this._enable = checked
-            this.onChange(checked)
-          })
-          .enabled(this.itemEnabled)
-          .selectedColor($r('app.color.main_color'))
-          .width(45)
-          .height(27)
-          .flexShrink(0)
-          .systemMaterial(new uiMaterial.Material())
-      } else {
-        Toggle({ type: ToggleType.Switch, isOn: this._enable })
-          .onChange((checked: boolean) => {
-            this._enable = checked
-            this.onChange(checked)
-          })
-          .enabled(this.itemEnabled)
-          .selectedColor($r('app.color.main_color'))
-          .width(45)
-          .height(27)
-          .flexShrink(0)
-      }
+      Toggle({ type: ToggleType.Switch, isOn: this._enable })
+        .onChange((checked: boolean) => {
+          this._enable = checked
+          this.onChange(checked)
+        })
+        .enabled(this.itemEnabled)
+        .selectedColor($r('app.color.main_color'))
+        .width(45)
+        .height(27)
+        .flexShrink(0)
+        .systemMaterial(new uiMaterial.Material())
     }
     .justifyContent(FlexAlign.SpaceBetween)
     .alignItems(VerticalAlign.Center)

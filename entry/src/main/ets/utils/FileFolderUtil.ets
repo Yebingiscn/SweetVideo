@@ -226,10 +226,60 @@ export default class FileFolderUtil {
     if (removed.length === 0) {
       return folder
     }
+    if (deleteType === DeleteType.RECENT) {
+      return FileFolderUtil.recycleVideos(context, videoListController, folderDataSource, folder.date, removed)
+    }
     folder.video_list = folder.video_list.filter(item => !selectedUris.has(item.uri))
     Preferences.saveFileFolder(context, folders, true)
     await MediaLibraryService.deleteVideoFiles(removed, deleteType)
     return FileFolderUtil.publishSavedFolder(context, folder.date, videoListController, folderDataSource)
+  }
+
+  static async recycleVideos(context: Context, videoListController: VideoListController,
+    folderDataSource: FileFolderDataSource, folderDate: string, items: VideoMetadata[]): Promise<FileFolder | undefined> {
+    const results = new Map<string, boolean>()
+    const moved = new Map<string, string>()
+    for (const item of items) {
+      let success = results.get(item.uri)
+      if (success === undefined) {
+        success = await MediaLibraryService.moveVideoToTrash(item.uri)
+        results.set(item.uri, success)
+      }
+      if (success) {
+        moved.set(item.date, item.uri)
+      }
+    }
+
+    if (moved.size > 0) {
+      // 回收期间可能有导入、排序或跨文件夹移动，按原条目身份更新最新快照。
+      const folders = Preferences.getFileFolderForUpdate(context)
+      const removed: VideoMetadata[] = []
+      for (const folder of folders) {
+        folder.video_list = folder.video_list.filter((item: VideoMetadata): boolean => {
+          if (moved.get(item.date) !== item.uri) {
+            return true
+          }
+          removed.push(item)
+          return false
+        })
+      }
+      if (removed.length > 0) {
+        Preferences.saveFileFolder(context, folders, true)
+        await MediaLibraryService.deleteVideoFiles(removed, DeleteType.SOFT)
+      }
+    }
+
+    if (moved.size < items.length) {
+      if (items.length === 1) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.move_to_recycle_failed').id))
+      } else {
+        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.move_to_recycle_batch_result').id,
+          String(moved.size), String(items.length - moved.size)))
+      }
+    } else if (items.length === 1) {
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.moved_to_recycle').id, items[0].title))
+    }
+    return FileFolderUtil.publishSavedFolder(context, folderDate, videoListController, folderDataSource)
   }
 
   static delVideoInFileFolder(context: Context, videoListController: VideoListController,

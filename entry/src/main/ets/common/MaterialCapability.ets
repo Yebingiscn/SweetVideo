@@ -1,5 +1,5 @@
 import { uiMaterial } from '@kit.ArkUI'
-import { deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { hdsMaterial } from '@kit.UIDesignKit'
 import { salmonLogger } from 'salmonlogger'
 
@@ -14,9 +14,7 @@ export class MaterialCapability {
     if (MaterialCapability.arkUICached === undefined) {
       MaterialCapability.arkUICached = false
       try {
-        if (deviceInfo.apiAvailable('26.0.0')) {
-          MaterialCapability.arkUICached = uiMaterial.isImmersiveMaterialSupported()
-        }
+        MaterialCapability.arkUICached = uiMaterial.isImmersiveMaterialSupported()
       } catch (_error) {
         salmonLogger.addLog(TAG, '查询 ArkUI 沉浸材质能力失败，使用兼容样式', true)
       }
@@ -29,10 +27,8 @@ export class MaterialCapability {
     if (MaterialCapability.hdsCached === undefined) {
       MaterialCapability.hdsCached = false
       try {
-        if (deviceInfo.apiAvailable(23)) {
-          MaterialCapability.hdsCached =
-            hdsMaterial.getSystemMaterialTypes().includes(hdsMaterial.MaterialType.IMMERSIVE)
-        }
+        MaterialCapability.hdsCached =
+          hdsMaterial.getSystemMaterialTypes().includes(hdsMaterial.MaterialType.IMMERSIVE)
       } catch (_error) {
         salmonLogger.addLog(TAG, '查询 HDS 沉浸材质能力失败，使用兼容样式', true)
       }

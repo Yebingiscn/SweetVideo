@@ -9,6 +9,7 @@ import fileIo from '@ohos.file.fs'
 import { fileShare } from '@kit.CoreFileKit'
 import { backgroundTaskManager } from '@kit.BackgroundTasksKit'
 import ToolsUtil from './ToolsUtil'
+import { Available } from '@kit.BasicServicesKit'
 
 const TAG = 'PermissionUtil'
 
@@ -87,6 +88,7 @@ export default class PermissionUtil {
     PermissionUtil.stopContinuousTask()
   }
 
+  @Available({ minApiVersion: 'OpenHarmony 24' })
   static handleBackgroundPlaySettingChanged(enabled: boolean): void {
     AVSessionUtil.updateBackgroundPlayMode(enabled).catch((error: Error) => {
       salmonLogger.addLog(TAG, `update background play mode failed: ${error.message}`, true)
@@ -141,20 +143,21 @@ export default class PermissionUtil {
     if (ToolsUtil.isNetworkUrl(uri) || PermissionUtil.persistedPermissionCache.has(uri)) {
       return false
     }
-    if (!canIUse('SystemCapability.FileManagement.AppFileService.FolderAuthorization')) {
+    if (canIUse('SystemCapability.FileManagement.AppFileService.FolderAuthorization')) {
+      try {
+        const policies: fileShare.PolicyInfo[] = [{
+          uri: uri,
+          operationMode: fileShare.OperationMode.READ_MODE
+        }]
+        await fileShare.persistPermission(policies)
+        PermissionUtil.persistedPermissionCache.add(uri)
+        return false
+      } catch (error) {
+        salmonLogger.addLog(TAG, '持久授权失败，当前授权到期后可能需要重新选择文件，code=' + error.code, true)
+        return true
+      }
+    } else {
       return false
-    }
-    try {
-      const policies: fileShare.PolicyInfo[] = [{
-        uri: uri,
-        operationMode: fileShare.OperationMode.READ_MODE
-      }]
-      await fileShare.persistPermission(policies)
-      PermissionUtil.persistedPermissionCache.add(uri)
-      return false
-    } catch (error) {
-      salmonLogger.addLog(TAG, '持久授权失败，当前授权到期后可能需要重新选择文件，code=' + error.code, true)
-      return true
     }
   }
 

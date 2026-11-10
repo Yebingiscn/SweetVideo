@@ -16,7 +16,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import PermissionUtil from '../../utils/PermissionUtil'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
-import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { Available, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 @ComponentV2
 export struct PlayerSettingPage {
@@ -30,6 +30,7 @@ export struct PlayerSettingPage {
   ]
   private listScroller: Scroller = new Scroller()
 
+  @Available({ minApiVersion: 'OpenHarmony 24' })
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     HdsNavDestination() {

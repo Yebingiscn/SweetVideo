@@ -11,10 +11,10 @@ import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { userData } from '../../component/common/UserLoginComponent'
 import WantProcess from '../../utils/WantProcessUtil'
-import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
+import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { commentManager } from '@kit.AppGalleryKit'
-import { deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 const TAG = 'MoreSettingPage'
 
@@ -27,16 +27,6 @@ export struct MoreSettingPage {
   build() {
     HdsNavDestination() {
       List({ scroller: this.listScroller }) {
-        if (deviceInfo.apiAvailable('26.0.0')) {
-          ListItem() {
-            Column() {
-              Text('设备沉浸光感能力：' + uiMaterial.isImmersiveMaterialSupported())
-              Text('HDS沉浸能力：' + hdsMaterial.getSystemMaterialTypes().includes(hdsMaterial.MaterialType.IMMERSIVE))
-              Text('HDS能力支持：' + hdsMaterial.getSystemMaterialTypes().toString())
-            }
-          }
-        }
-
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.info_circle'),
