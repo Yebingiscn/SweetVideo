@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit'
+import { BusinessError } from '@kit.BasicServicesKit'
 import { fileIo } from '@kit.CoreFileKit'
 import { formBindingData, formProvider } from '@kit.FormKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -66,7 +67,6 @@ export class VideoFormBinding {
 }
 
 export class VideoFormData {
-  private static timer: number = -1
   private static publishing: boolean = false
   private static dirty: boolean = false
 
@@ -113,40 +113,42 @@ export class VideoFormData {
     }
     try {
       const value = JSON.stringify(snapshot)
-      if (JSON.stringify(VideoFormData.read(context)) === value && !forceRefresh) {
+      const unchanged = JSON.stringify(VideoFormData.read(context)) === value
+      if (unchanged && !forceRefresh && !VideoFormData.dirty) {
         return
       }
-      const path = `${context.filesDir}/video_form.json`
-      const file = fileIo.openSync(`${path}.tmp`, fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE |
-        fileIo.OpenMode.TRUNC)
-      try {
-        fileIo.writeSync(file.fd, value)
-      } finally {
-        fileIo.closeSync(file)
+      if (!unchanged) {
+        const path = `${context.filesDir}/video_form.json`
+        const file = fileIo.openSync(`${path}.tmp`, fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE |
+          fileIo.OpenMode.TRUNC)
+        try {
+          fileIo.writeSync(file.fd, value)
+        } finally {
+          fileIo.closeSync(file)
+        }
+        // Readers in the extension see either the old or the complete new snapshot.
+        fileIo.renameSync(`${path}.tmp`, path)
       }
-      // Readers in the extension see either the old or the complete new snapshot.
-      fileIo.renameSync(`${path}.tmp`, path)
       VideoFormData.dirty = true
-      if (VideoFormData.timer === -1) {
-        VideoFormData.timer = setTimeout(() => {
-          VideoFormData.timer = -1
-          VideoFormData.publish(context)
-        }, 500)
-      }
+      // Start delivery before the ability can be suspended in the background.
+      void VideoFormData.publish(context)
     } catch (_) {
       hilog.warn(0, 'VideoForm', 'Unable to save card snapshot')
     }
   }
 
-  static async update(context: common.Context, formId: string, dimension?: number): Promise<void> {
+  static async update(context: common.Context, formId: string, dimension?: number): Promise<boolean> {
     // The system supplies dimensions to the provider, not to the card's LocalStorage.
     let binding: VideoFormBinding | undefined = undefined
     try {
       const currentDimension = dimension ?? (await formProvider.getPublishedRunningFormInfoById(formId)).dimension
       binding = new VideoFormBinding(context, currentDimension)
       await formProvider.updateForm(formId, binding.data)
-    } catch (_) {
-      hilog.warn(0, 'VideoForm', 'Unable to update card')
+      return true
+    } catch (error) {
+      const code = (error as BusinessError)?.code ?? 'unknown'
+      hilog.warn(0, 'VideoForm', 'Unable to update card, code=%{public}s', String(code))
+      return false
     } finally {
       binding?.close()
     }
@@ -161,18 +163,23 @@ export class VideoFormData {
       while (VideoFormData.dirty) {
         VideoFormData.dirty = false
         const forms = await formProvider.getPublishedRunningFormInfos()
+        let failed = false
         for (const form of forms) {
-          if (form.formName === VIDEO_FORM_NAME) {
-            try {
-              await VideoFormData.update(context, form.formId, form.dimension)
-            } catch (_) {
-              hilog.warn(0, 'VideoForm', 'Unable to update a desktop card')
-            }
+          if (form.formName === VIDEO_FORM_NAME &&
+            !await VideoFormData.update(context, form.formId, form.dimension)) {
+            failed = true
           }
         }
+        if (failed) {
+          // A later history save can resend an unchanged snapshot after a delivery failure.
+          VideoFormData.dirty = true
+          return
+        }
       }
-    } catch (_) {
-      hilog.warn(0, 'VideoForm', 'Unable to query desktop cards')
+    } catch (error) {
+      VideoFormData.dirty = true
+      const code = (error as BusinessError)?.code ?? 'unknown'
+      hilog.warn(0, 'VideoForm', 'Unable to query desktop cards, code=%{public}s', String(code))
     } finally {
       VideoFormData.publishing = false
     }

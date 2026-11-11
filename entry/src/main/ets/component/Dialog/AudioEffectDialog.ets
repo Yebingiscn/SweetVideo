@@ -8,9 +8,12 @@ const EFFECT_VALUES: string[] = [
   'pure-voice-change', 'general-voice-change', 'tempo-pitch', 'hoa-space-render'
 ]
 const EFFECT_LABELS: ResourceStr[] = [
-  $r('app.string.off'), $r('app.string.effect_preset'), $r('app.string.effect_equalizer'), $r('app.string.effect_noise_reduction'), $r('app.string.effect_sound_field'), $r('app.string.effect_accompaniment'),
-  $r('app.string.effect_voice_beautifier'), $r('app.string.effect_environment'), $r('app.string.effect_audio_mixer'), $r('app.string.effect_space_render'),
-  $r('app.string.effect_pure_voice_change'), $r('app.string.effect_general_voice_change'), $r('app.string.effect_tempo_pitch'), $r('app.string.effect_hoa_space_render')
+  $r('app.string.off'), $r('app.string.effect_preset'), $r('app.string.effect_equalizer'),
+  $r('app.string.effect_noise_reduction'), $r('app.string.effect_sound_field'), $r('app.string.effect_accompaniment'),
+  $r('app.string.effect_voice_beautifier'), $r('app.string.effect_environment'), $r('app.string.effect_audio_mixer'),
+  $r('app.string.effect_space_render'),
+  $r('app.string.effect_pure_voice_change'), $r('app.string.effect_general_voice_change'),
+  $r('app.string.effect_tempo_pitch'), $r('app.string.effect_hoa_space_render')
 ]
 
 const PRESET_VALUES: string[] = [
@@ -19,8 +22,10 @@ const PRESET_VALUES: string[] = [
   'space-extension', 'broadcast-studio'
 ]
 const PRESET_LABELS: ResourceStr[] = [
-  $r('app.string.preset_hifi'), $r('app.string.preset_surround'), $r('app.string.preset_cinema'), $r('app.string.preset_concert'),
-  $r('app.string.preset_vocal'), $r('app.string.preset_bass_boost'), $r('app.string.preset_gaming'), $r('app.string.preset_retro'),
+  $r('app.string.preset_hifi'), $r('app.string.preset_surround'), $r('app.string.preset_cinema'),
+  $r('app.string.preset_concert'),
+  $r('app.string.preset_vocal'), $r('app.string.preset_bass_boost'), $r('app.string.preset_gaming'),
+  $r('app.string.preset_retro'),
   $r('app.string.preset_space_extension'), $r('app.string.preset_broadcast_studio')
 ]
 
@@ -88,22 +93,29 @@ const EQ_VALUES: string[] = [
   'dance', 'jazz', 'pop', 'r-and-b', 'rock'
 ]
 const EQ_LABELS: ResourceStr[] = [
-  $r('app.string.eq_custom'), $r('app.string.eq_default'), $r('app.string.eq_ballads'), $r('app.string.eq_chinese_style'), $r('app.string.eq_classical'),
-  $r('app.string.eq_dance'), $r('app.string.eq_jazz'), $r('app.string.eq_pop'), $r('app.string.eq_randb'), $r('app.string.eq_rock')
+  $r('app.string.eq_custom'), $r('app.string.eq_default'), $r('app.string.eq_ballads'),
+  $r('app.string.eq_chinese_style'), $r('app.string.eq_classical'),
+  $r('app.string.eq_dance'), $r('app.string.eq_jazz'), $r('app.string.eq_pop'), $r('app.string.eq_randb'),
+  $r('app.string.eq_rock')
 ]
 const EQ_FREQ_LABELS: string[] = ['31Hz', '62Hz', '125Hz', '250Hz', '500Hz', '1kHz', '2kHz', '4kHz', '8kHz', '16kHz']
 
 const SOUND_FIELD_VALUES: string[] = ['front-facing', 'grand', 'near', 'wide']
-const SOUND_FIELD_LABELS: ResourceStr[] = [$r('app.string.sf_front'), $r('app.string.sf_grand'), $r('app.string.sf_near'), $r('app.string.sf_wide')]
+const SOUND_FIELD_LABELS: ResourceStr[] =
+  [$r('app.string.sf_front'), $r('app.string.sf_grand'), $r('app.string.sf_near'), $r('app.string.sf_wide')]
 
 const ENVIRONMENT_VALUES: string[] = ['broadcast', 'earpiece', 'underwater', 'gramophone']
-const ENVIRONMENT_LABELS: ResourceStr[] = [$r('app.string.env_broadcast'), $r('app.string.env_earpiece'), $r('app.string.env_underwater'), $r('app.string.env_gramophone')]
+const ENVIRONMENT_LABELS: ResourceStr[] =
+  [$r('app.string.env_broadcast'), $r('app.string.env_earpiece'), $r('app.string.env_underwater'),
+    $r('app.string.env_gramophone')]
 
 const BEAUTIFIER_VALUES: string[] = ['clear', 'theatre', 'cd', 'studio']
-const BEAUTIFIER_LABELS: ResourceStr[] = [$r('app.string.bf_clear'), $r('app.string.bf_theatre'), 'CD', $r('app.string.bf_studio')]
+const BEAUTIFIER_LABELS: ResourceStr[] =
+  [$r('app.string.bf_clear'), $r('app.string.bf_theatre'), 'CD', $r('app.string.bf_studio')]
 
 const SPACE_MODE_VALUES: string[] = ['position', 'rotation', 'extension']
-const SPACE_MODE_LABELS: ResourceStr[] = [$r('app.string.space_position'), $r('app.string.space_rotation'), $r('app.string.space_extension')]
+const SPACE_MODE_LABELS: ResourceStr[] =
+  [$r('app.string.space_position'), $r('app.string.space_rotation'), $r('app.string.space_extension')]
 
 const DIRECTION_VALUES: string[] = ['counterclockwise', 'clockwise']
 const DIRECTION_LABELS: ResourceStr[] = [$r('app.string.dir_counterclockwise'), $r('app.string.dir_clockwise')]
@@ -112,14 +124,21 @@ const PURE_GENDER_VALUES: string[] = ['female', 'male']
 const PURE_GENDER_LABELS: ResourceStr[] = [$r('app.string.gender_female'), $r('app.string.gender_male')]
 
 const PURE_TYPE_VALUES: string[] = ['cartoon', 'cute', 'female', 'male', 'monster', 'robots', 'seasoned']
-const PURE_TYPE_LABELS: ResourceStr[] = [$r('app.string.voice_cartoon'), $r('app.string.voice_cute'), $r('app.string.voice_female'), $r('app.string.voice_male'), $r('app.string.voice_monster'), $r('app.string.voice_robot'), $r('app.string.voice_seasoned')]
+const PURE_TYPE_LABELS: ResourceStr[] =
+  [$r('app.string.voice_cartoon'), $r('app.string.voice_cute'), $r('app.string.voice_female'),
+    $r('app.string.voice_male'), $r('app.string.voice_monster'), $r('app.string.voice_robot'),
+    $r('app.string.voice_seasoned')]
 
 const GENERAL_VALUES: string[] =
   ['cute', 'cyberpunk', 'female', 'male', 'mix', 'monster', 'seasoned', 'synth', 'trill', 'war']
-const GENERAL_LABELS: ResourceStr[] = [$r('app.string.voice_cute'), $r('app.string.gen_cyberpunk'), $r('app.string.voice_female'), $r('app.string.voice_male'), $r('app.string.gen_mix'), $r('app.string.voice_monster'), $r('app.string.voice_seasoned'), $r('app.string.gen_synth'), $r('app.string.gen_trill'), $r('app.string.gen_war')]
+const GENERAL_LABELS: ResourceStr[] =
+  [$r('app.string.voice_cute'), $r('app.string.gen_cyberpunk'), $r('app.string.voice_female'),
+    $r('app.string.voice_male'), $r('app.string.gen_mix'), $r('app.string.voice_monster'),
+    $r('app.string.voice_seasoned'), $r('app.string.gen_synth'), $r('app.string.gen_trill'), $r('app.string.gen_war')]
 
 const SEPARATION_VALUES: string[] = ['vocals', 'accompaniment', 'mix']
-const SEPARATION_LABELS: ResourceStr[] = [$r('app.string.sep_vocals'), $r('app.string.sep_accompaniment'), $r('app.string.sep_mix')]
+const SEPARATION_LABELS: ResourceStr[] =
+  [$r('app.string.sep_vocals'), $r('app.string.sep_accompaniment'), $r('app.string.sep_mix')]
 
 const HOA_VALUES: string[] = [
   'order1-acn-n3d', 'order1-acn-sn3d', 'order1-fuma',
@@ -193,7 +212,7 @@ struct ValueSliderComponent {
         min: this.min,
         max: this.max,
         step: this.step,
-        style: SliderStyle.OutSet
+        style: SliderStyle.InSet
       })
         .selectedColor($r('app.color.main_color'))
         .enableHapticFeedback(true)
@@ -303,8 +322,9 @@ export struct AudioEffectDialog {
                           min: -10,
                           max: 10,
                           step: 1,
-                          style: SliderStyle.OutSet,
-                          direction: Axis.Vertical
+                          style: SliderStyle.InSet,
+                          direction: Axis.Vertical,
+                          reverse: true
                         })
                           .selectedColor($r('app.color.main_color'))
                           .height(120)
@@ -774,7 +794,8 @@ export struct AudioEffectDialog {
       }
     } catch (error) {
       if (version === this.applyVersion) {
-        this.applyStatus = (error as Error).message || ToolsUtil.getStringResource($r('app.string.effect_apply_failed_keep').id)
+        this.applyStatus =
+          (error as Error).message || ToolsUtil.getStringResource($r('app.string.effect_apply_failed_keep').id)
         this.reportApplyFailure(config.effect, this.applyStatus)
       }
     }

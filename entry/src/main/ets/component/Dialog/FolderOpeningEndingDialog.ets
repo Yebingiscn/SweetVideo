@@ -84,6 +84,7 @@ export struct FolderOpeningEndingDialog {
         })
         .selectedColor($r('app.color.main_color'))
         .width('100%')
+        .height(40)
         .enableHapticFeedback(true)
     }
     .width('100%')
@@ -120,6 +121,7 @@ export struct FolderOpeningEndingDialog {
         })
         .selectedColor($r('app.color.main_color'))
         .width('100%')
+        .height(40)
         .enableHapticFeedback(true)
     }
     .width('100%')

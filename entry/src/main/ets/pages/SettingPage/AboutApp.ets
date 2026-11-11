@@ -29,14 +29,27 @@ export struct AboutApp {
   private GITHUB_HOME_LINK: string = "https://github.com/Yebingiscn/SweetVideo"
   // 链接项配置
   private linkItems: LinkItem[] = [
-    { icon: $r('sys.symbol.cat_fill'), text: ToolsUtil.getStringResource($r('app.string.open_source_star').id), link: this.GITHUB_HOME_LINK },
+    {
+      icon: $r('sys.symbol.cat_fill'),
+      text: ToolsUtil.getStringResource($r('app.string.open_source_star').id),
+      link: this.GITHUB_HOME_LINK
+    },
     {
       icon: $r('sys.symbol.book_1'),
-      text: ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id) + ToolsUtil.getStringResource($r('app.string.terms_suffix').id),
+      text: ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id) +
+        ToolsUtil.getStringResource($r('app.string.terms_suffix').id),
       isDialog: true
     },
-    { icon: $r('sys.symbol.person_2'), text: ToolsUtil.getStringResource($r('app.string.qq_group').id), link: this.QQ_GROUP_LINK },
-    { icon: $r('sys.symbol.fish'), text: ToolsUtil.getStringResource($r('app.string.support_author').id), link: this.AI_FA_DIAN_LINK }
+    {
+      icon: $r('sys.symbol.person_2'),
+      text: ToolsUtil.getStringResource($r('app.string.qq_group').id),
+      link: this.QQ_GROUP_LINK
+    },
+    {
+      icon: $r('sys.symbol.fish'),
+      text: ToolsUtil.getStringResource($r('app.string.support_author').id),
+      link: this.AI_FA_DIAN_LINK
+    }
   ]
   private tempLink: string = ''
   linkConfirmDialog: CustomDialogController = new CustomDialogController({
@@ -49,7 +62,6 @@ export struct AboutApp {
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   private listScroller: Scroller = new Scroller()
-
 
   // 链接按钮构建器
   @Builder
@@ -128,6 +140,11 @@ export struct AboutApp {
 
           // 版权信息
           Text($r('app.string.copyright_notice'))
+            .fontSize(14)
+            .width('100%')
+            .textAlign(TextAlign.Center)
+
+          Text('湘ICP备2026020722号-5A')
             .fontSize(14)
             .width('100%')
             .textAlign(TextAlign.Center)

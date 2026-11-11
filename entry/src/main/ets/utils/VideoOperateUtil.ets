@@ -416,7 +416,8 @@ export default class VideoOperateUtil {
       return -1
     }
     const start_time = nowPlaying.start_time
-    const end_time = nowPlaying.end_time
+    // 文件夹片尾保存为跳过时长，续播判断需要换算后的片尾位置。
+    const end_time = VideoInfoUtil.getEndingPosition(nowPlaying)
     const last_play = nowPlaying.last_play ?? 0
     const time = nowPlaying.time ?? 0
     const title = nowPlaying.title

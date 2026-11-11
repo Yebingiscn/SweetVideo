@@ -513,7 +513,9 @@ export struct SideBarContentComponent {
               }
             })
           }
-          .padding({ left: 8, right: 8, bottom: 12 })
+          .padding({ left: 8, right: 8 })
+          .contentEndOffset(12)
+          .fadingEdge(true)
           .align(Alignment.Top)
           .scrollBar(BarState.Off)
           .width('100%')

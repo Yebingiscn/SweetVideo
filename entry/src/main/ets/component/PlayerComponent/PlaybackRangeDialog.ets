@@ -47,13 +47,19 @@ export class PlaybackRangeDraft {
   }
 
   setStart(value: number): void {
-    if (!Number.isFinite(value)) { this.error = 'invalid'; return }
+    if (!Number.isFinite(value)) {
+      this.error = 'invalid';
+      return
+    }
     this.start = this.clamp(value)
     this.error = ''
   }
 
   setEnd(value: number): void {
-    if (!Number.isFinite(value)) { this.error = 'invalid'; return }
+    if (!Number.isFinite(value)) {
+      this.error = 'invalid';
+      return
+    }
     this.end = this.clamp(value)
     this.error = ''
   }
@@ -61,14 +67,21 @@ export class PlaybackRangeDraft {
   useCurrent(options: PlaybackRangeDialogOptions, isStart: boolean): void {
     try {
       const position = options.getCurrentPosition()
-      if (isStart) { this.setStart(position) } else { this.setEnd(position) }
+      if (isStart) {
+        this.setStart(position)
+      } else {
+        this.setEnd(position)
+      }
     } catch (_) {
       this.error = 'invalid'
     }
   }
 
   save(options: PlaybackRangeDialogOptions): boolean {
-    if (!this.validRange()) { this.error = 'invalid'; return false }
+    if (!this.validRange()) {
+      this.error = 'invalid';
+      return false
+    }
     try {
       if (options.onSave(this.start, this.end)) {
         this.error = ''
@@ -132,8 +145,10 @@ export struct PlaybackRangeDialog {
 @ComponentV2
 struct PlaybackRangeEditor {
   @Require @Param options: PlaybackRangeDialogOptions
-  @Event onClose: () => void = () => {}
   @Local draft: PlaybackRangeDraft = new PlaybackRangeDraft()
+
+  @Event onClose: () => void = () => {
+  }
 
   aboutToAppear(): void {
     this.draft.load(this.options)
@@ -166,12 +181,13 @@ struct PlaybackRangeEditor {
               .fontSize(15)
               .fontColor($r('app.color.text_color'))
           }.width('100%')
+
           Slider({
             value: this.draft.start,
             min: 0,
             max: Math.max(1, this.draft.duration),
             step: 1,
-            style: SliderStyle.OutSet
+            style: SliderStyle.InSet
           })
             .width('100%')
             .selectedColor($r('app.color.main_color'))
@@ -195,12 +211,13 @@ struct PlaybackRangeEditor {
               .fontSize(15)
               .fontColor($r('app.color.text_color'))
           }.width('100%')
+
           Slider({
             value: this.draft.end,
             min: 0,
             max: Math.max(1, this.draft.duration),
             step: 1,
-            style: SliderStyle.OutSet
+            style: SliderStyle.InSet
           })
             .width('100%')
             .selectedColor($r('app.color.main_color'))
@@ -228,7 +245,11 @@ struct PlaybackRangeEditor {
             .fontColor($r('app.color.text_color'))
             .backgroundColor($r('sys.color.titlebar_icon_background_color'))
             .layoutWeight(1)
-            .onClick((): void => { if (this.draft.clear(this.options)) { this.onClose() } })
+            .onClick((): void => {
+              if (this.draft.clear(this.options)) {
+                this.onClose()
+              }
+            })
           Button($r('app.string.cancel'))
             .attributeModifier(new ButtonFancyModifier('', 40))
             .fontSize(15)
@@ -242,7 +263,11 @@ struct PlaybackRangeEditor {
             .fontColor(Color.White)
             .backgroundColor($r('app.color.main_color'))
             .layoutWeight(1)
-            .onClick((): void => { if (this.draft.save(this.options)) { this.onClose() } })
+            .onClick((): void => {
+              if (this.draft.save(this.options)) {
+                this.onClose()
+              }
+            })
         }.width('100%')
       }
       .width('100%')

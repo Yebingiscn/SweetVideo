@@ -13,6 +13,7 @@ import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignK
 import { SubtitlePreferredLanguage } from '../../common/enum/SubtitleLanguage'
 import { deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import AICaptionSettings, { AICaptionSettingsValue } from '../../utils/AICaptionSettings'
+import { SettingsTitleModifier } from '../../common/AttributeModifierConfig'
 
 const SUBTITLE_PREVIEW_HEIGHT: number = 220
 
@@ -474,12 +475,11 @@ export struct SubtitleSettingPage {
       ListItem() {
         Row({ space: 12 }) {
           Text(this.getColorTitle(target))
-            .fontSize(15)
-            .fontColor($r('sys.color.font_primary'))
+            .attributeModifier(new SettingsTitleModifier())
             .layoutWeight(1)
           Text(this.getSelectedColor(target))
-            .fontSize(13)
-            .fontColor($r('sys.color.font_secondary'))
+            .fontSize(15)
+            .fontColor($r('sys.color.font_primary'))
           HdsColorPicker({
             initialColor: this.getSelectedColor(target),
             initialFavoriteColors: this.favoriteColors,
@@ -495,6 +495,7 @@ export struct SubtitleSettingPage {
         .padding(16)
         .borderRadius(16)
         .backgroundColor($r('app.color.start_window_background_blur'))
+        .opacity(0.8)
       }
     }
   }

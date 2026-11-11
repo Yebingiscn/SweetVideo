@@ -73,7 +73,9 @@ export struct AudioTrackComponent {
     if (this.isMpvAudioTrack(item)) {
       const track = item as MpvAudioTrack
       const parts: string[] = []
-      if (track.external) parts.push(ToolsUtil.getStringResource($r('app.string.audio_external_label').id))
+      if (track.external) {
+        parts.push(ToolsUtil.getStringResource($r('app.string.audio_external_label').id))
+      }
       if (track.title) {
         parts.push(track.title)
       }
@@ -125,7 +127,8 @@ export struct AudioTrackComponent {
       if (codec === 'av3a') {
         if (this.player.nowPlaying && this.player.nowPlaying.audio_type !== AUDIO_TYPE.AUDIO_VIVID) {
           this.player.nowPlaying.audio_type = AUDIO_TYPE.AUDIO_VIVID
-          MediaLibraryService.saveData(PathUtils.appContext!, this.player.nowPlaying, { audioType: AUDIO_TYPE.AUDIO_VIVID })
+          MediaLibraryService.saveData(PathUtils.appContext!, this.player.nowPlaying,
+            { audioType: AUDIO_TYPE.AUDIO_VIVID })
         }
         return AUDIO_TYPE.AUDIO_VIVID
       }
@@ -232,9 +235,17 @@ export struct AudioTrackComponent {
         Text(this.player.usbVolumeStatus).fontSize(12).fontColor($r('app.color.text_color'))
         Row() {
           Text('USB').fontSize(16).fontColor($r('app.color.text_color')).width(35)
-          Slider({ value: this.player.usbVolume, min: 0, max: 100, step: 1, style: SliderStyle.NONE })
+          Slider({
+            value: this.player.usbVolume,
+            min: 0,
+            max: 100,
+            step: 1,
+            style: SliderStyle.InSet
+          })
             .onChange((value) => {
-              if (this.player instanceof MpvController) this.player.audioController.setUsbVolume(value)
+              if (this.player instanceof MpvController) {
+                this.player.audioController.setUsbVolume(value)
+              }
             })
             .selectedColor($r('app.color.main_color'))
             .enableHapticFeedback(true)
@@ -249,9 +260,18 @@ export struct AudioTrackComponent {
           .attributeModifier(new ButtonFancyModifier(28, 28))
           .backgroundColor(Color.Transparent)
           .onClick(() => {
-            if (this.player instanceof MpvController) this.player.audioController.setUsbVolume(50)
+            if (this.player instanceof MpvController) {
+              this.player.audioController.setUsbVolume(50)
+            }
           })
-        }.padding({ left: 8, right: 8, top: 4, bottom: 4 }).width('100%')
+        }
+        .padding({
+          left: 8,
+          right: 8,
+          top: 4,
+          bottom: 4
+        })
+        .width('100%')
       }
       if (this.isCurrentTrackStereo()) {
         AudioChannelComponent({
@@ -274,7 +294,7 @@ export struct AudioTrackComponent {
           min: -90,
           max: 24,
           step: 1,
-          style: SliderStyle.NONE
+          style: SliderStyle.InSet
         })
           .onChange((value) => {
             this.player.audioController.setLoudnessGain(value)
@@ -342,38 +362,53 @@ export struct AudioTrackComponent {
           ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.vip_feature_only').id))
         }
       })
+
       if (this.player instanceof MpvController) {
         Button({ type: ButtonType.Normal, stateEffect: true }) {
           Text(this.player.externalAudioImporting ? $r('app.string.audio_external_importing') :
-            (this.player.nowPlaying?.external_audio_file ? $r('app.string.audio_external_replace') : $r('app.string.audio_external_import')))
+            (this.player.nowPlaying?.external_audio_file ? $r('app.string.audio_external_replace') :
+              $r('app.string.audio_external_import')))
             .fontSize(16)
             .fontColor($r('app.color.text_color'))
             .width('100%')
             .textAlign(TextAlign.Start)
         }
-          .attributeModifier(new ButtonFancyModifier('100%', 40))
-          .padding({ left: 20, right: 10 })
-          .backgroundColor(Color.Transparent)
-          .enabled(!this.player.externalAudioImporting)
-          .onClick(() => {
-            if (this.player instanceof MpvController) this.player.audioController.importExternalAudio()
-          })
+        .attributeModifier(new ButtonFancyModifier('100%', 40))
+        .padding({ left: 20, right: 10 })
+        .backgroundColor(Color.Transparent)
+        .enabled(!this.player.externalAudioImporting)
+        .onClick(() => {
+          if (this.player instanceof MpvController) {
+            this.player.audioController.importExternalAudio()
+          }
+        })
+
         if (this.player.nowPlaying?.external_audio_file) {
           Row({ space: 8 }) {
-            Text(`${ToolsUtil.getStringResource($r('app.string.audio_external_sync').id)} ${this.player.externalAudioOffsetMs} ms`)
+            Text(`${ToolsUtil.getStringResource(
+              $r('app.string.audio_external_sync').id)} ${this.player.externalAudioOffsetMs} ms`)
               .fontSize(14).fontColor($r('app.color.text_color'))
             Button({ type: ButtonType.Circle }) {
               SymbolGlyph($r('sys.symbol.undo')).fontSize(16).fontColor([$r('app.color.text_color')])
             }.attributeModifier(new ButtonFancyModifier(28, 28)).backgroundColor(Color.Transparent)
             .onClick(() => {
-              if (this.player instanceof MpvController) this.player.audioController.setExternalAudioOffset(0)
+              if (this.player instanceof MpvController) {
+                this.player.audioController.setExternalAudioOffset(0)
+              }
             })
           }
-          Slider({ value: this.player.externalAudioOffsetMs, min: -5000, max: 5000, step: 100 })
+
+          Slider({
+            value: this.player.externalAudioOffsetMs,
+            min: -5000,
+            max: 5000,
+            step: 100
+          })
             .selectedColor($r('app.color.main_color')).width('100%')
             .onChange((value: number, mode: SliderChangeMode) => {
               if (this.player instanceof MpvController) {
-                this.player.audioController.setExternalAudioOffset(value, mode === SliderChangeMode.End || mode === SliderChangeMode.Click)
+                this.player.audioController.setExternalAudioOffset(value,
+                  mode === SliderChangeMode.End || mode === SliderChangeMode.Click)
               }
             })
           Text($r('app.string.audio_external_sync_help')).fontSize(12).fontColor($r('app.color.text_color'))

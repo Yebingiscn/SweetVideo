@@ -390,7 +390,9 @@ export struct SideBarFolderComponent {
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 8, right: 8, bottom: 12 })
+    .padding({ left: 8, right: 8 })
+    .contentEndOffset(12)
+    .fadingEdge(true)
     .nestedScroll({
       scrollForward: NestedScrollMode.PARENT_FIRST,
       scrollBackward: NestedScrollMode.SELF_FIRST

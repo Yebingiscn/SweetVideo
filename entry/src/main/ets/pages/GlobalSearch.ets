@@ -181,12 +181,20 @@ export struct GlobalSearch {
       this.refresh()
       if (!this.keyboardSearchReady) {
         this.keyboardSearchReady = true
-        this.getUIContext().getFocusController().requestFocus('global-search')
+        try {
+          this.getUIContext().getFocusController().requestFocus('global-search')
+        } catch (error) {
+
+        }
       }
     })
     .onKeyEvent((event: KeyEvent): boolean => {
       if (this.active && KeyboardShortcuts.home(event) === ShortcutAction.SEARCH) {
-        this.getUIContext().getFocusController().requestFocus('global-search')
+        try {
+          this.getUIContext().getFocusController().requestFocus('global-search')
+        } catch (error) {
+          return false
+        }
         return true
       }
       return false

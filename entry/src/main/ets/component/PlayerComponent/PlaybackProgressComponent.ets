@@ -1,11 +1,11 @@
 import { LightMaterialModifier } from '../../common/AttributeModifierConfig'
 import {
-  PlaybackProgressMarker,
-  PlaybackRangeMarker,
-  PlaybackRangeMarkerLabel,
   PLAYBACK_SLIDER_BLOCK_SIZE,
   PLAYBACK_SLIDER_TRACK_INSET,
   PLAYBACK_SLIDER_TRACK_THICKNESS,
+  PlaybackProgressMarker,
+  PlaybackRangeMarker,
+  PlaybackRangeMarkerLabel,
   playbackRangeMarkerLabels,
   playbackRangeMarkerLabelWidth,
   playbackRangeMarkerPosition,
@@ -132,14 +132,17 @@ export interface PlaybackProgressSliderParams {
 }
 
 export const PLAYBACK_HEATMAP_HEIGHT: number = 22
+
 const PLAYBACK_MARKER_LABEL_HEIGHT: number = 12
 const PLAYBACK_MARKER_LABEL_GAP: number = 2
 
 // Leave a separate caption row for A/B and intro/outro labels above the track.
 export function playbackHeatmapInset(params: PlaybackProgressSliderParams): number {
-  if (!params.danmakuHeatmapPath) { return 0 }
+  if (!params.danmakuHeatmapPath) {
+    return 0
+  }
   const hasCaption = params.markers?.some((marker: PlaybackProgressMarker): boolean =>
-    marker.kind !== 'chapter' && marker.key.length > 0 && marker.label.length > 0 &&
+  marker.kind !== 'chapter' && marker.key.length > 0 && marker.label.length > 0 &&
     Number.isFinite(marker.timeMs) && marker.timeMs >= 0 && marker.timeMs <= params.totalTime) ?? false
   return hasCaption ? 28 : 16
 }
@@ -182,13 +185,15 @@ export function PlaybackProgressSliderBuilder($$: PlaybackProgressSliderParams) 
     if ($$.danmakuHeatmapPath || playbackRangeMarkers($$.markers, $$.totalTime).length > 0) {
       Stack({ alignContent: Alignment.TopStart }) {
         if ($$.danmakuHeatmapPath) {
-          Path().commands($$.danmakuHeatmapPath ?? '').fill($r('app.color.main_color'))
-          .fillOpacity(0.8)
-          .strokeWidth(0)
-          .width('100%')
-          .height(PLAYBACK_HEATMAP_HEIGHT)
-          .position({ x: 0, y: playbackHeatmapTop($$) })
-          .hitTestBehavior(HitTestMode.None)
+          Path()
+            .commands($$.danmakuHeatmapPath ?? '')
+            .fill($r('app.color.main_color'))
+            .fillOpacity(0.8)
+            .strokeWidth(0)
+            .width('100%')
+            .height(PLAYBACK_HEATMAP_HEIGHT)
+            .position({ x: 0, y: playbackHeatmapTop($$) })
+            .hitTestBehavior(HitTestMode.None)
         }
         Repeat<PlaybackRangeMarker>(playbackRangeMarkers($$.markers, $$.totalTime))
           .each((repeatItem: RepeatItem<PlaybackRangeMarker>) => {
@@ -199,7 +204,8 @@ export function PlaybackProgressSliderBuilder($$: PlaybackProgressSliderParams) 
               .stroke($r('sys.color.mask_secondary'))
               .strokeWidth(0.5)
               .position({ x: playbackRangeMarkerPosition(repeatItem.item.ratio), y: '50%' })
-              .translate({ x: repeatItem.item.kind === 'chapter' ? -0.5 : -1, y: repeatItem.item.kind === 'chapter' ? -4 : -6 })
+              .translate(
+                { x: repeatItem.item.kind === 'chapter' ? -0.5 : -1, y: repeatItem.item.kind === 'chapter' ? -4 : -6 })
               .hitTestBehavior(HitTestMode.Transparent)
           })
           .key((marker: PlaybackRangeMarker): string => marker.key)

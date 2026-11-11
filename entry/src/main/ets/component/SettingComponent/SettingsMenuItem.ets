@@ -15,7 +15,6 @@ export struct SettingsMenuItem {
   @Local _selected: number = 0
   @Param list: ResourceStr[] = []
   @Local private select: SelectOption[] = []
-
   @Event onChange: (_index: number) => void = () => {
   }
 
@@ -76,7 +75,7 @@ export struct SettingsMenuItem {
     .width('100%')
     .align(Alignment.Center)
     .attributeModifier(new SettingsItemModifier())
-    .height(65)
+    .height(55)
     .onClick(() => {
       if (!this.itemEnabled) {
         ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.vip_feature_only').id))

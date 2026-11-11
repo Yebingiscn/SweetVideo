@@ -54,7 +54,7 @@ export struct DanmakuMenuComponent {
         min: 14,
         max: 48,
         step: 1,
-        style: SliderStyle.NONE
+        style: SliderStyle.InSet
       })
         .onChange((value: number) => {
           this.session.fontSize = value
@@ -97,7 +97,7 @@ export struct DanmakuMenuComponent {
         min: 10,
         max: 100,
         step: 1,
-        style: SliderStyle.NONE
+        style: SliderStyle.InSet
       })
         .onChange((value: number) => {
           this.session.opacity = value / 100

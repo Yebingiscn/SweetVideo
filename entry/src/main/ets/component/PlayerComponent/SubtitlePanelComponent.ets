@@ -205,7 +205,7 @@ export struct SubtitlePanelComponent {
         min: 5,
         max: 100,
         step: 1,
-        style: SliderStyle.NONE
+        style: SliderStyle.InSet
       })
         .onChange((value: number) => {
           this.changeSubtitlePosition(value, secondary)
@@ -249,7 +249,7 @@ export struct SubtitlePanelComponent {
         min: 14,
         max: 48,
         step: 1,
-        style: SliderStyle.NONE
+        style: SliderStyle.InSet
       })
         .onChange((value: number) => {
           this.changeSubtitleSize(value, secondary)

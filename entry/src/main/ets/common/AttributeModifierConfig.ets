@@ -11,6 +11,7 @@ export class SettingsItemModifier extends CommonModifier {
 
   applyNormalAttribute(instance: CommonAttribute): void {
     instance.backgroundColor($r('app.color.start_window_background_blur'))
+      .opacity(0.8)
       .borderRadius(16)
       .padding({
         right: 15,

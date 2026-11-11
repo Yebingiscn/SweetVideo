@@ -57,7 +57,7 @@ import lazy { MoreSettingPage } from './SettingPage/MoreSettingPage'
 import lazy { InterfaceSettingPage } from './SettingPage/InterfaceSettingPage'
 import lazy { PlayerSettingPage } from './SettingPage/PlayerSettingPage'
 import lazy { SubtitleSettingPage } from './SettingPage/SubtitleSettingPage'
-import lazy { SettingsPage } from './SettingPage/Setting'
+import lazy { SettingsPage } from './SettingPage/SettingPage'
 import lazy { VideoPlayer } from './VideoPlayer/VideoPlayer'
 import lazy { ShortVideoPage } from './ShortVideo/ShortVideoPage'
 import lazy { StreamPage } from './StreamPage/StreamPage'
@@ -109,6 +109,8 @@ struct Index {
   deletedVideosDialogController: CustomDialogController = new CustomDialogController({
     builder: DeletedVideosDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  sideBarScroller: Scroller = new Scroller()
+  sidebarHeaderScroller: Scroller = new Scroller()
   private folderRenameDialog = new CustomDialogController({
     builder: RenameDialog({
       title: $r('app.string.rename_new_folder'),
@@ -138,8 +140,6 @@ struct Index {
     cornerRadius: 20, shadow: DefaultDialogShadow
   })
   private folderDeleteDialog: CustomDialogController | undefined = undefined
-  sideBarScroller: Scroller = new Scroller()
-  sidebarHeaderScroller: Scroller = new Scroller()
   private sidebarFolderIndices: Map<string, number> = new Map()
   private homeWindowWidth: number = 0
   private homeNavVisible: boolean = true
@@ -204,7 +204,7 @@ struct Index {
       }
     }
     this.folderMenuActions.confirmDelete = (dates: string[], onDeleted: () => void) =>
-      this.confirmFolderDeletion(dates, onDeleted)
+    this.confirmFolderDeletion(dates, onDeleted)
     const lifecycleVersion = ++this.homeLifecycleVersion
     this.homeInitialization = this.initializeHome(lifecycleVersion).catch((): boolean => {
       if (lifecycleVersion === this.homeLifecycleVersion) {
@@ -595,107 +595,6 @@ struct Index {
     }
   }
 
-  private runFolderAction(action: FolderMenuAction, folder: FileFolder): void {
-    if (this.folderMenuActions.deleting || this.videoListController.directoryTransitioning) {
-      return
-    }
-    if (action === FolderMenuAction.INTRO_OUTRO) {
-      if (folder.video_list.length === 0) {
-        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_no_video').id))
-        return
-      }
-      DataSyncUtil.editingFolder = folder
-      this.folderTimingDialog.open()
-      return
-    }
-    if (folder.name === '首页') {
-      return
-    }
-    if (action === FolderMenuAction.EDIT) {
-      DataSyncUtil.editingFolder = folder
-      this.folderRenameDialog.open()
-    } else if (action === FolderMenuAction.MOVE) {
-      DataSyncUtil.movingFolderDate = folder.date
-      this.folderMoveDialog.open()
-    } else {
-      this.confirmFolderDeletion([folder.date])
-    }
-  }
-
-  private publishFolderChanges(folders: FileFolder[]): void {
-    const current = folders.find(folder => folder.date === this.videoListController.folder?.date)
-    if (current) {
-      this.videoListController.folder = current
-    }
-    this.fileFolderSource.updateData(folders)
-    this.file_folder_list = folders
-  }
-
-  private updateFolderTiming(date: string, start: number, end: number): void {
-    const folders = FolderOperator.updateFolderOpeningEndingTimes(date, start, end)
-    const updated = folders.find(folder => folder.date === date)
-    if (!updated) {
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_not_exist_set_failed').id))
-      return
-    }
-    if (this.videoListController.folder?.date === date) {
-      const visibleDates = new Set(this.videoListController.videoDataSource.getAllData().map(video => video.date))
-      const visible = updated.video_list.filter(video => visibleDates.has(video.date))
-      this.videoListController.selectDirectoryFolder(updated, visible)
-    }
-    this.publishFolderChanges(folders)
-    ToolsUtil.showToast(`已更新 ${updated.video_list.length} 个视频的片头片尾时间`)
-  }
-
-  private confirmFolderDeletion(dates: string[], onDeleted?: () => void): void {
-    if (this.folderMenuActions.deleting || this.videoListController.directoryTransitioning || dates.length === 0) {
-      return
-    }
-    const plan = FolderSelection.deletionPlan(Preferences.getFileFolder(PathUtils.appContext!), dates)
-    if (plan.dates.size === 0) {
-      return
-    }
-    this.folderDeleteDialog = new CustomDialogController({
-      builder: InfoConfirmDialog({
-        textInfo: $r('app.string.folder_batch_delete_confirm', plan.dates.size, plan.videoCount),
-        confirm: () => { void this.deleteFolders(dates, onDeleted) }
-      }),
-      cornerRadius: 20,
-      shadow: DefaultDialogShadow,
-      onDidDisappear: () => this.libraryKeyboard.reset()
-    })
-    this.folderDeleteDialog.open()
-  }
-
-  private async deleteFolders(dates: string[], onDeleted?: () => void): Promise<void> {
-    if (this.folderMenuActions.deleting) {
-      return
-    }
-    this.folderMenuActions.deleting = true
-    try {
-      const folders = await FileFolderUtil.deleteFileFoldersRecursive(PathUtils.appContext!, dates, this.fileFolderSource)
-      const retained = folders.find(folder => folder.date === this.videoListController.folder?.date)
-      const current = retained ?? folders.find(folder => folder.name === '首页') ?? folders[0]
-      this.videoListController.closeMultipleChoose()
-      if (onDeleted || !retained) {
-        this.clearSearchValue()
-      }
-      if (current && (onDeleted || !retained || this.searchValue.length === 0)) {
-        this.file_folder_list = VideoUtils.refresh(this.videoListController, this.fileFolderSource, current)
-        this.scrollToFolderDate = current.date
-      } else {
-        this.publishFolderChanges(folders)
-      }
-      onDeleted?.()
-    } catch (_error) {
-      salmonLogger.addLog(TAG, 'Could not delete folders', true)
-      const message = onDeleted ? $r('app.string.folder_batch_delete_failed') : $r('app.string.delete_failed_retry')
-      ToolsUtil.showToast(ToolsUtil.getStringResource(message.id))
-    } finally {
-      this.folderMenuActions.deleting = false
-    }
-  }
-
   clearSearchValue() {
     if (this.searchValue.length > 0) {
       this.searchValue = ''
@@ -781,6 +680,110 @@ struct Index {
         this.totalItems = totalItems
       }
     })
+  }
+
+  private runFolderAction(action: FolderMenuAction, folder: FileFolder): void {
+    if (this.folderMenuActions.deleting || this.videoListController.directoryTransitioning) {
+      return
+    }
+    if (action === FolderMenuAction.INTRO_OUTRO) {
+      if (folder.video_list.length === 0) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_no_video').id))
+        return
+      }
+      DataSyncUtil.editingFolder = folder
+      this.folderTimingDialog.open()
+      return
+    }
+    if (folder.name === '首页') {
+      return
+    }
+    if (action === FolderMenuAction.EDIT) {
+      DataSyncUtil.editingFolder = folder
+      this.folderRenameDialog.open()
+    } else if (action === FolderMenuAction.MOVE) {
+      DataSyncUtil.movingFolderDate = folder.date
+      this.folderMoveDialog.open()
+    } else {
+      this.confirmFolderDeletion([folder.date])
+    }
+  }
+
+  private publishFolderChanges(folders: FileFolder[]): void {
+    const current = folders.find(folder => folder.date === this.videoListController.folder?.date)
+    if (current) {
+      this.videoListController.folder = current
+    }
+    this.fileFolderSource.updateData(folders)
+    this.file_folder_list = folders
+  }
+
+  private updateFolderTiming(date: string, start: number, end: number): void {
+    const folders = FolderOperator.updateFolderOpeningEndingTimes(date, start, end)
+    const updated = folders.find(folder => folder.date === date)
+    if (!updated) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_not_exist_set_failed').id))
+      return
+    }
+    if (this.videoListController.folder?.date === date) {
+      const visibleDates = new Set(this.videoListController.videoDataSource.getAllData().map(video => video.date))
+      const visible = updated.video_list.filter(video => visibleDates.has(video.date))
+      this.videoListController.selectDirectoryFolder(updated, visible)
+    }
+    this.publishFolderChanges(folders)
+    ToolsUtil.showToast(`已更新 ${updated.video_list.length} 个视频的片头片尾时间`)
+  }
+
+  private confirmFolderDeletion(dates: string[], onDeleted?: () => void): void {
+    if (this.folderMenuActions.deleting || this.videoListController.directoryTransitioning || dates.length === 0) {
+      return
+    }
+    const plan = FolderSelection.deletionPlan(Preferences.getFileFolder(PathUtils.appContext!), dates)
+    if (plan.dates.size === 0) {
+      return
+    }
+    this.folderDeleteDialog = new CustomDialogController({
+      builder: InfoConfirmDialog({
+        textInfo: $r('app.string.folder_batch_delete_confirm', plan.dates.size, plan.videoCount),
+        confirm: () => {
+          void this.deleteFolders(dates, onDeleted)
+        }
+      }),
+      cornerRadius: 20,
+      shadow: DefaultDialogShadow,
+      onDidDisappear: () => this.libraryKeyboard.reset()
+    })
+    this.folderDeleteDialog.open()
+  }
+
+  private async deleteFolders(dates: string[], onDeleted?: () => void): Promise<void> {
+    if (this.folderMenuActions.deleting) {
+      return
+    }
+    this.folderMenuActions.deleting = true
+    try {
+      const folders =
+        await FileFolderUtil.deleteFileFoldersRecursive(PathUtils.appContext!, dates, this.fileFolderSource)
+      const retained = folders.find(folder => folder.date === this.videoListController.folder?.date)
+      const current = retained ?? folders.find(folder => folder.name === '首页') ?? folders[0]
+      this.videoListController.closeMultipleChoose()
+      if (onDeleted || !retained) {
+        this.clearSearchValue()
+      }
+      if (current && (onDeleted || !retained || this.searchValue.length === 0)) {
+        this.file_folder_list = VideoUtils.refresh(this.videoListController, this.fileFolderSource, current)
+        this.scrollToFolderDate = current.date
+      } else {
+        this.publishFolderChanges(folders)
+      }
+      onDeleted?.()
+    } catch (_error) {
+      salmonLogger.addLog(TAG, 'Could not delete folders', true)
+      const message = onDeleted ? $r('app.string.folder_batch_delete_failed') : $r('app.string.delete_failed_retry')
+      ToolsUtil.showToast(ToolsUtil.getStringResource(message.id))
+    } finally {
+      this.folderMenuActions.deleting = false
+    }
   }
 
   private handleHomeShortcut(event: KeyEvent): boolean {
@@ -895,7 +898,8 @@ struct Index {
             if (action === ShortcutAction.RENAME) {
               this.runFolderAction(FolderMenuAction.EDIT, folder)
             } else {
-              this.confirmFolderDeletion([folder.date], () => {})
+              this.confirmFolderDeletion([folder.date], () => {
+              })
             }
           }
         } else if (this.libraryKeyboard.focusKind === 'sidebar-folder') {
@@ -1136,7 +1140,8 @@ struct Index {
       return
     }
     // 检测期间可能导入、移动或改动 URI；以最新数据生成清理计划，不覆盖新内容。
-    const plan = FolderHierarchy.pruneInvalidVideos(Preferences.getFileFolder(PathUtils.appContext!, true), invalidVideos)
+    const plan =
+      FolderHierarchy.pruneInvalidVideos(Preferences.getFileFolder(PathUtils.appContext!, true), invalidVideos)
     if (plan.videos.length === 0) {
       return
     }
@@ -1217,8 +1222,9 @@ struct Index {
     if (!this.isSizeInitialized || this.sideBarController.mode !== mode) {
       this.sideBarController.mode = mode
       // 进入车载时默认收起；车载窗口改变宽度时保留用户手动选择。
-      const visible = HiCar.enabled ? this.isSizeInitialized && this.sideBarController.visibility === Visibility.Visible :
-        embedded && Preferences.getEmbedSidebarVisible(PathUtils.appContext!)
+      const visible =
+        HiCar.enabled ? this.isSizeInitialized && this.sideBarController.visibility === Visibility.Visible :
+          embedded && Preferences.getEmbedSidebarVisible(PathUtils.appContext!)
       this.sideBarController.visibility = visible ? Visibility.Visible : Visibility.Hidden
       this.sideBarController.isShow = visible
       this.sideBarController.overlay = visible && !embedded

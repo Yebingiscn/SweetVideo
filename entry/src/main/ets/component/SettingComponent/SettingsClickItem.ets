@@ -26,14 +26,18 @@ export function SettingsClickItem($$: SettingsClickItemParams) {
         Text($$.message ?? '')
           .attributeModifier(new SettingsTitleModifier())
           .constraintSize({ maxWidth: '85%' })
-          .textOverflow({ overflow: TextOverflow.MARQUEE })
         if ($$.tag) {
           Text($$.tag)
             .fontSize(12)
             .fontColor(Color.White)
             .backgroundColor($r('app.color.main_color'))
             .borderRadius(6)
-            .padding({ left: 4, right: 4, top: 1, bottom: 1 })
+            .padding({
+              left: 4,
+              right: 4,
+              top: 1,
+              bottom: 1
+            })
             .flexShrink(0)
         }
       }.layoutWeight(1)
@@ -51,8 +55,12 @@ export function SettingsClickItem($$: SettingsClickItemParams) {
     .align(Alignment.Center)
   }
   .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.95 })
-  .onClick(() => { $$.onPress?.() })
-  .gesture(LongPressGesture().onAction(() => { $$.onLongPress?.() }))
+  .onClick(() => {
+    $$.onPress?.()
+  })
+  .gesture(LongPressGesture().onAction(() => {
+    $$.onLongPress?.()
+  }))
   .attributeModifier(new SettingsItemModifier())
   .height(55)
 }

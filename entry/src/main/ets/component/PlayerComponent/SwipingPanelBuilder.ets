@@ -47,7 +47,7 @@ export function SwipingPanelBuilder(value: SwipingPanelValue) {
           min: value.onSwipingVoice ? VideoOperateUtil.minVolume : 0,
           max: value.onSwipingVoice ? VideoOperateUtil.maxVolume : 1,
           step: 0.1,
-          style: SliderStyle.NONE,
+          style: SliderStyle.InSet,
           direction: Axis.Horizontal,
           reverse: false
         })

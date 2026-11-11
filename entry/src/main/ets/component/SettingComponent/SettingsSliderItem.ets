@@ -1,4 +1,8 @@
-import { SettingsTitleModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import {
+  SettingsItemModifier,
+  SettingsTitleModifier,
+  SymbolGlyphFancyModifier
+} from '../../common/AttributeModifierConfig'
 import TimeUtil from '../../utils/TimeUtil'
 
 @ComponentV2
@@ -75,14 +79,7 @@ export struct SettingsSliderItem {
     .align(Alignment.Center)
     .backgroundColor($r('app.color.start_window_background_blur'))
     .height(65)
-    .borderRadius(16)
-    .padding({
-      right: 10,
-      left: 15,
-      top: 10,
-      bottom: 10
-    })
-    .margin({ top: 5, bottom: 5 })
+    .attributeModifier(new SettingsItemModifier())
   }
 
   private getDisplayText(): ResourceStr {
