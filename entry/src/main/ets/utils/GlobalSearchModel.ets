@@ -3,6 +3,7 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 
 export interface SearchVideoEntry {
   video: VideoMetadata
+  displayVideo?: VideoMetadata
   folders: string[]
 }
 

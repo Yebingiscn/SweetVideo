@@ -1,7 +1,7 @@
 import { hiAppEvent } from '@kit.PerformanceAnalysisKit'
 import { salmonLogger, SalmonLogLine } from 'salmonlogger'
 import { SweetLogDataSource } from '../../utils/DataUtil'
-import { Setting } from '../../utils/ObservedUtil'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { systemShare } from '@kit.ShareKit'
@@ -66,7 +66,7 @@ export struct CrashPage {
           })
         })
           .margin({ top: 8, bottom: 8 })
-        
+
         Swiper() {
           Column() {
             Row({ space: 8 }) {
@@ -251,9 +251,9 @@ export struct CrashPage {
             direction: GradientDirection.Right,
             colors: [[$r('app.color.main_color'), 0.0], ['#ff48cdf6', 1.0]]
           })
-          .width('40%')
+          .width(180)
           .borderRadius(24)
-          .margin({ top: 10, bottom: 15 })
+          .margin({ top: 10, bottom: SafeHeight.bottomSafeHeight })
       }
       .width('100%')
       .height('100%')

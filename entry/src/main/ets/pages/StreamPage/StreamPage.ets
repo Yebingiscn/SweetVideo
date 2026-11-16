@@ -5,7 +5,7 @@ import Preferences from '../../database/Preferences'
 import { PathUtils } from '../../utils/PathUtils'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
-import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import {
   ButtonFancyModifier,
   DefaultDialogShadow,
@@ -34,19 +34,12 @@ import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { DeleteType } from '../../common/enum/DeleteType'
 import RecentPlayUtil from '../../utils/RecentPlayUtil'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 @ComponentV2
 export struct StreamPage {
   @Local networkStreams: VideoMetadata[] = []
   @Local allStreams: VideoMetadata[] = []
-  addNetworkStreamDialogController: CustomDialogController = new CustomDialogController({
-    builder: AddNetworkStreamDialog({
-      onStreamAdded: () => {
-        this.allStreams = Preferences.getNetworkStreams(PathUtils.appContext!)
-        this.applySearch()
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   editStreamDialogController: CustomDialogController = new CustomDialogController({
     builder: EditStreamDialog({
       onConfirm: (newName: string, newUrl: string, headers: Record<string, string>) => {
@@ -64,6 +57,14 @@ export struct StreamPage {
           this.allStreams = [...streams]
           this.applySearch()
         }
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  addNetworkStreamDialogController: CustomDialogController = new CustomDialogController({
+    builder: AddNetworkStreamDialog({
+      onStreamAdded: () => {
+        this.allStreams = Preferences.getNetworkStreams(PathUtils.appContext!)
+        this.applySearch()
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -149,7 +150,11 @@ export struct StreamPage {
         .backdropBlur(150)
         .attributeModifier(new ButtonFancyModifier(35, 35))
         .transition(XAnimation.getAnimation('right', 0, false))
-        .bindMenu(this.SortMenuBuilder, { showInSubWindow: false })
+        .bindMenu(this.SortMenuBuilder, {
+          showInSubWindow: false, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+            style: uiMaterial.ImmersiveStyle.THICK
+          }) : undefined
+        })
         .attributeModifier(new LightMaterialModifier())
       }
     }
@@ -168,30 +173,36 @@ export struct StreamPage {
       items: [
         {
           field: SortField.RECENT_PLAY,
-          icon: $r('sys.symbol.play_round_triangle_fill'),
           textResource: $r('app.string.sort_by_recent_play'),
-          onAction: (): void => { void this.handleSort(SortField.RECENT_PLAY, false) }
+          onAction: (): void => {
+            void this.handleSort(SortField.RECENT_PLAY, false)
+          }
         },
         {
           field: SortField.DATETIME,
-          icon: $r('sys.symbol.calendar'),
           textResource: $r('app.string.sort_by_datetime'),
-          onAction: (): void => { void this.handleSort(SortField.DATETIME, false) }
+          onAction: (): void => {
+            void this.handleSort(SortField.DATETIME, false)
+          }
         },
         {
           field: SortField.TIME,
-          icon: $r('sys.symbol.clock'),
           textResource: $r('app.string.sort_by_time'),
-          onAction: (): void => { void this.handleSort(SortField.TIME, false) }
+          onAction: (): void => {
+            void this.handleSort(SortField.TIME, false)
+          }
         },
         {
           field: SortField.NAME,
-          icon: $r('sys.symbol.textformat'),
           textResource: $r('app.string.sort_by_name'),
-          onAction: (): void => { void this.handleSort(SortField.NAME, true) }
+          onAction: (): void => {
+            void this.handleSort(SortField.NAME, true)
+          }
         }
       ],
-      onPinyinSortChange: (value: boolean): void => { void this.handlePinyinSortChange(value) }
+      onPinyinSortChange: (value: boolean): void => {
+        void this.handlePinyinSortChange(value)
+      }
     })
   }
 
@@ -199,7 +210,6 @@ export struct StreamPage {
   StreamMenuBuilder(item: VideoMetadata | undefined) {
     Menu() {
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_triangle')),
         content: VideoOperateUtil.getPlayerName(Setting.defaultPlayerEngine, true)
       })
         .onClick(() => {
@@ -208,7 +218,6 @@ export struct StreamPage {
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
         content: $r('app.string.edit')
       })
         .onClick(() => {
@@ -216,7 +225,6 @@ export struct StreamPage {
           this.editStreamDialogController.open()
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),
         content: $r('app.string.delete')
       })
         .onClick(() => {
@@ -224,7 +232,6 @@ export struct StreamPage {
           this.deleteConfirmDialog.open()
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.share')),
         content: $r('app.string.share')
       })
         .onClick(async () => {
@@ -288,9 +295,11 @@ export struct StreamPage {
                         top: 16,
                         bottom: 4
                       },
-                      backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                       hapticFeedbackMode: HapticFeedbackMode.ENABLED,
-                      mask: true
+                      mask: true,
+                      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                      }) : undefined
                     })
                   .bindContextMenu(this.StreamMenuBuilder(repeatItem.item), ResponseType.RightClick,
                     {
@@ -302,8 +311,10 @@ export struct StreamPage {
                         top: 16,
                         bottom: 4
                       },
-                      backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                      mask: true
+                      mask: true,
+                      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                      }) : undefined
                     })
                 })
                 .key((item: VideoMetadata) => item.date)
@@ -346,7 +357,9 @@ export struct StreamPage {
                         top: 16,
                         bottom: 4
                       },
-                      backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                      }) : undefined,
                       hapticFeedbackMode: HapticFeedbackMode.ENABLED,
                       mask: true
                     })
@@ -360,7 +373,9 @@ export struct StreamPage {
                         top: 16,
                         bottom: 4
                       },
-                      backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                      }) : undefined,
                       mask: true
                     })
                 })
@@ -486,13 +501,17 @@ export struct StreamPage {
       mode: HideMode.SCROLL_UP
     })
     .hideBackButton(false)
-    .onHidden(() => { this.pageActive = false; this.sortVersion++ })
+    .onHidden(() => {
+      this.pageActive = false;
+      this.sortVersion++
+    })
     .onShown(() => {
       this.pageActive = true
       this.allStreams = Preferences.getNetworkStreams(PathUtils.appContext!)
       this.applySearch()
       if (DataSyncUtil.lastPlayVideoIndex >= 0) {
-        const scroller = Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? this.listScroller : this.cardScroller
+        const scroller =
+          Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? this.listScroller : this.cardScroller
         scroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
         DataSyncUtil.lastPlayVideoIndex = -1
       }
@@ -542,7 +561,9 @@ export struct StreamPage {
       case SortField.NAME:
         const source = this.allStreams
         const sorted = await MediaSortUtil.sortByNameProcess(source, this.currentSortAsc, this.pinyinSort)
-        if (!this.pageActive || version !== this.sortVersion || source !== this.allStreams) return
+        if (!this.pageActive || version !== this.sortVersion || source !== this.allStreams) {
+          return
+        }
         this.allStreams = sorted
         break
       case SortField.DATETIME:
@@ -565,7 +586,9 @@ export struct StreamPage {
     if (this.currentSortField === SortField.NAME) {
       const source = this.allStreams
       const sorted = await MediaSortUtil.sortByNameProcess(source, this.currentSortAsc, this.pinyinSort)
-      if (!this.pageActive || version !== this.sortVersion || source !== this.allStreams) return
+      if (!this.pageActive || version !== this.sortVersion || source !== this.allStreams) {
+        return
+      }
       this.allStreams = sorted
       this.applySearch()
     }

@@ -957,10 +957,6 @@
       "value": "Long-press speed"
     },
     {
-      "name": "long_press_speed_hint",
-      "value": "Swipe up to lock · Swipe down to restore"
-    },
-    {
       "name": "horizontal_seek_sensitivity",
       "value": "Horizontal swipe seek sensitivity"
     },
@@ -4415,6 +4411,18 @@
     {
       "name": "danmaku_heatmap_description",
       "value": "Show danmaku activity along the progress bar when danmaku is available."
+    },
+    {
+      "name": "mpv_quality_boost",
+      "value": "MPV image enhancement (Buffer/SW only)"
+    },
+    {
+      "name": "sdr_to_hdr",
+      "value": "SDR to HDR (Buffer/SW only)"
+    },
+    {
+      "name": "super_resolution",
+      "value": "Video super resolution"
     }
   ]
 }

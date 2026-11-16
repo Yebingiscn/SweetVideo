@@ -1,3 +1,4 @@
+import type { LongPressSpeedHost } from './LongPressSpeedController'
 import { FramePreviewTarget } from '../utils/FFmpegThumbnailUtil'
 import { media } from '@kit.MediaKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
@@ -37,7 +38,7 @@ export interface AudioControllerInterface {
   setAudioChannelMode(mode: number): void
 }
 
-export interface PlayerControllerInterface extends FramePreviewTarget, PlaybackPolicyHost {
+export interface PlayerControllerInterface extends FramePreviewTarget, PlaybackPolicyHost, LongPressSpeedHost {
   nowPlaying: VideoMetadata | undefined
   playbackPolicy: PlaybackPolicyCallbacks | undefined
   setABLoop(pointAMs?: number, pointBMs?: number): boolean

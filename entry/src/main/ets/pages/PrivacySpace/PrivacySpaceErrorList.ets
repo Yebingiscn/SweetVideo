@@ -7,7 +7,7 @@ import { Privacy, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
-import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { fileIo } from '@kit.CoreFileKit'
 import { CoverLayoutMode } from '../../common/enum/DisplayMode'
 import ShareUtil from '../../utils/ShareUtil'
@@ -15,6 +15,7 @@ import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import PrivacyRecoveryUtil from '../../utils/PrivacyRecoveryUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { ImportProgressBuilder } from '../../component/VideoItemComponent/ImportProgressBuilder'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 const TAG = 'PrivacySpaceErrorList'
 
@@ -145,14 +146,13 @@ export struct PrivacySpaceErrorList {
   MenuBuilder(item: string) {
     Menu() {
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
+        content: $r('app.string.delete')
       })
         .enabled(!this.isScanning && !this.deletionInProgress)
         .onClick(async () => {
           await this.delItem(item)
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
         content: $r('app.string.export')
       })
         .onClick(async () => {
@@ -160,7 +160,6 @@ export struct PrivacySpaceErrorList {
             PathUtils.appContext!)
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.share')),
         content: $r('app.string.share')
       })
         .onClick(async () => {
@@ -249,7 +248,6 @@ export struct PrivacySpaceErrorList {
                 .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
                 .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
                 .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress, {
-                  backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
                   preview: this.VideoItemBuilder(repeatItem.item),
                   previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
                   layoutRegionMargin: {
@@ -259,10 +257,12 @@ export struct PrivacySpaceErrorList {
                     bottom: 4
                   },
                   mask: true,
-                  hapticFeedbackMode: HapticFeedbackMode.ENABLED
+                  hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+                  systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                    style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                  }) : undefined
                 })
                 .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick, {
-                  backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
                   preview: this.VideoItemBuilder(repeatItem.item),
                   previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                   layoutRegionMargin: {
@@ -271,7 +271,10 @@ export struct PrivacySpaceErrorList {
                     top: 16,
                     bottom: 4
                   },
-                  mask: true
+                  mask: true,
+                  systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                    style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                  }) : undefined
                 })
               })
               .key((item: string, _index: number) => item)

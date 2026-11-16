@@ -20,6 +20,8 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import VideoUtils from '../../utils/VideoUtil'
 import FolderSelection from '../../utils/FolderSelection'
 import { KeyboardShortcuts, LibraryItemFocus, LibraryKeyboard, ShortcutAction } from '../../utils/KeyboardShortcuts'
+import { MaterialCapability } from '../../common/MaterialCapability'
+import { uiMaterial } from '@kit.ArkUI'
 
 @ComponentV2
 export struct SideBarFolderComponent {
@@ -78,6 +80,7 @@ export struct SideBarFolderComponent {
     shadow: DefaultDialogShadow,
     onDidDisappear: () => this.libraryKeyboard.reset()
   })
+
   aboutToAppear(): void {
     this.libraryKeyboard.onFolderAction = (action: ShortcutAction, date: string): void => {
       if (this.folderMenuActions.deleting || this.videoListController.directoryTransitioning) {
@@ -227,19 +230,16 @@ export struct SideBarFolderComponent {
       items: [
         {
           field: SortField.FOLDER_NAME,
-          icon: $r('sys.symbol.textformat'),
           textResource: $r('app.string.sort_folder_by_name'),
           onAction: (): void => this.handleFolderSort(SortField.FOLDER_NAME, true)
         },
         {
           field: SortField.FOLDER_DATETIME,
-          icon: $r('sys.symbol.calendar'),
           textResource: $r('app.string.sort_folder_by_datetime'),
           onAction: (): void => this.handleFolderSort(SortField.FOLDER_DATETIME, false)
         },
         {
           field: SortField.FOLDER_COUNT,
-          icon: $r('sys.symbol.sort'),
           textResource: $r('app.string.sort_folder_by_count'),
           onAction: (): void => this.handleFolderSort(SortField.FOLDER_COUNT, false)
         }
@@ -319,8 +319,10 @@ export struct SideBarFolderComponent {
           .backgroundColor(Color.Transparent)
           .bindMenu(this.FolderSortMenuBuilder,
             {
-              backgroundBlurStyle: BlurStyle.Regular,
-              hapticFeedbackMode: HapticFeedbackMode.ENABLED
+              hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+              systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                style: uiMaterial.ImmersiveStyle.THICK
+              }) : undefined
             })
           .margin({ right: 4 })
         }
@@ -368,8 +370,16 @@ export struct SideBarFolderComponent {
           })
           .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, 'sidebar-folder', repeatItem.item.date,
             () => this.activateFolder(repeatItem.item)))
-          .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.LongPress)
-          .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.RightClick)
+          .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.LongPress, {
+            systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+              style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+            }) : undefined
+          })
+          .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.RightClick, {
+            systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+              style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+            }) : undefined
+          })
           .width('100%')
           .padding({
             left: 8,
@@ -425,6 +435,11 @@ export struct SideBarFolderComponent {
       }
       return false
     })
+  }
+
+  @Monitor('folderMenuActions.deleting')
+  onFolderDeletingChanged(): void {
+    this.onDeletingChange(this.folderMenuActions.deleting)
   }
 
   private publishFolderTreeIndices(): void {
@@ -510,11 +525,6 @@ export struct SideBarFolderComponent {
 
   private confirmFolderSelectionDelete(): void {
     this.folderMenuActions.confirmDelete(Array.from(this.selectedFolderDates), () => this.closeFolderSelection())
-  }
-
-  @Monitor('folderMenuActions.deleting')
-  onFolderDeletingChanged(): void {
-    this.onDeletingChange(this.folderMenuActions.deleting)
   }
 
   private recomputeExpandedFolderDates() {

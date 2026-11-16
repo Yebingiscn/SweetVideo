@@ -37,27 +37,18 @@ import { ScrollBarBuilder } from './ScrollBarBuilder'
 import VideoCardItem from './VideoCardItemComponent'
 import { VideoItemPreviewBuilder } from './VideoItemPreviewBuilder'
 import VideoListItem from './VideoListItemComponent'
-import { SymbolGlyphModifier } from '@kit.ArkUI'
 import KnockShareUtil from '../../utils/KnockShareUtil'
 import { DirectoryView } from './DirectoryView'
 import { LibraryItemFocus, LibraryKeyboard, ShortcutAction } from '../../utils/KeyboardShortcuts'
 import { VideoListController } from '../../controller/VideoListController'
 import MediaLibraryService from '../../utils/MediaLibraryService'
 import HomeSidebarLayout from '../../utils/HomeSidebarLayout'
+import { MaterialCapability } from '../../common/MaterialCapability'
+import { uiMaterial } from '@kit.ArkUI'
 
 @ComponentV2
 export struct VideoList {
   @Consumer() libraryKeyboard: LibraryKeyboard = new LibraryKeyboard()
-  private alphabetFirstIndexes: Map<string, number> = new Map()
-  private alphabetLetters: string[] = []
-  private get displayMode(): ListDisplayMode {
-    return Setting.listDisplayMode
-  }
-
-  private get alphabetIndexerTop(): number {
-    return HiCar.enabled ? 80 : SafeHeight.topSafeHeight + (this.searchBarHidden ? 0 : 100)
-  }
-
   @Param searchValue: string = ''
   @Local _searchValue: string = ''
   @Param currentSortField: SortField | '' = ''
@@ -67,32 +58,6 @@ export struct VideoList {
   @Param contentWidth: number = 0
   @Param holdingHand: motion.HoldingHandStatus | null = null
   @Param videoListController: VideoListController = new VideoListController()
-  delConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: VideoDeleteDialog({
-      confirm: async (deleteType: DeleteType) => {
-        try {
-          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
-            DataSyncUtil.editingVideo!)
-        } catch (_error) {
-          salmonLogger.addLog('VideoList', 'Could not delete the video', true)
-          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_failed_retry').id))
-          return
-        }
-        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow,
-    onDidDisappear: () => this.libraryKeyboard.reset()
-  })
-  // 显式接收结果数组，避免 @Monitor 依赖跨继承层的数据源路径。
-  @Param directoryVideos: VideoMetadata[] = []
-  @Param directoryLayout: ListDisplayMode = this.displayMode
-  @Param directoryCoverLayout: CoverLayoutMode = Setting.coverLayout
-  @Local activeAlphabet: string[] = []
-  @Local indexerSelected: number = 0
-  // 累计修改封面时通知对应列表项重新读取封面文件
-  @Local coverRefreshDate: string = ''
-  @Local coverRefreshToken: number = 0
-  @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: RenameDialog({
       title: $r('app.string.rename'),
@@ -114,6 +79,34 @@ export struct VideoList {
         this.saveEditedVideo(updatedVideo)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  // 显式接收结果数组，避免 @Monitor 依赖跨继承层的数据源路径。
+  @Param directoryVideos: VideoMetadata[] = []
+  @Param directoryLayout: ListDisplayMode = this.displayMode
+  @Param directoryCoverLayout: CoverLayoutMode = Setting.coverLayout
+  @Local activeAlphabet: string[] = []
+  @Local indexerSelected: number = 0
+  // 累计修改封面时通知对应列表项重新读取封面文件
+  @Local coverRefreshDate: string = ''
+  @Local coverRefreshToken: number = 0
+  @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
+  delConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: VideoDeleteDialog({
+      confirm: async (deleteType: DeleteType) => {
+        try {
+          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
+            DataSyncUtil.editingVideo!)
+        } catch (_error) {
+          salmonLogger.addLog('VideoList', 'Could not delete the video', true)
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_failed_retry').id))
+          return
+        }
+        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+      }
+    }),
+    cornerRadius: 20,
+    shadow: DefaultDialogShadow,
+    onDidDisappear: () => this.libraryKeyboard.reset()
   })
   @Consumer() file_folder_list: FileFolder[] = []
   @Consumer() sideBarController: SideBarController = new SideBarController()
@@ -138,12 +131,16 @@ export struct VideoList {
         VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         this.videoListController.closeMultipleChoose()
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow,
+    }),
+    cornerRadius: 20,
+    shadow: DefaultDialogShadow,
     onDidDisappear: () => this.libraryKeyboard.reset()
   })
   @Local showDetailSheet: boolean = false
   @Local detailMetadata: VideoMetadata | undefined = undefined
   @Local homeEntranceProgress: number = 0
+  private alphabetFirstIndexes: Map<string, number> = new Map()
+  private alphabetLetters: string[] = []
   private homeEntranceTimer: number | undefined = undefined
   private homeEntranceStarted: boolean = false
   private directoryAlive: boolean = false
@@ -164,35 +161,41 @@ export struct VideoList {
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
 
-  private saveEditedVideo(video: VideoMetadata): void {
-    if (!FileFolderUtil.updateVideoInFileFolder(PathUtils.appContext!, this.videoListController,
-      this.fileFolderSource, video)) {
-      throw new Error('Video no longer exists in the folder')
-    }
-    DataSyncUtil.editingVideo = video
+  private get displayMode(): ListDisplayMode {
+    return Setting.listDisplayMode
   }
 
-  private async changeExternalSubtitle(item: VideoMetadata | undefined): Promise<void> {
-    if (!item) return
-    const context = PathUtils.appContext!
-    const folderDate = this.videoListController.folder?.date
-    try {
-      const original = Preferences.findVideoByDate(context, item.date, true)
-      if (!original[0] || original[2] !== folderDate) return
-      const draft = Preferences.copyPlaybackMetadata(original[0])
-      await SubtitleUtil.importOrDeleteSubtitleProcess(draft)
-      // 系统选文件期间，播放记忆或其它元数据可能已有更新；仅合并字幕字段。
-      const latest = Preferences.findVideoByDate(context, item.date, true)
-      if (!latest[0] || latest[2] !== folderDate || this.videoListController.folder?.date !== folderDate ||
-        latest[0].external_subtitle_format === draft.external_subtitle_format) return
-      const updated = Preferences.copyPlaybackMetadata(latest[0])
-      updated.external_subtitle_format = draft.external_subtitle_format
-      this.saveEditedVideo(updated)
-    } catch (_error) {
-      salmonLogger.addLog('VideoList', 'Could not update external subtitle metadata', true)
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.library_operation_failed').id))
-    }
+  private get alphabetIndexerTop(): number {
+    return HiCar.enabled ? 80 : SafeHeight.topSafeHeight + (this.searchBarHidden ? 0 : 100)
   }
+
+  private get indexerInSidebarGap(): boolean {
+    return !HiCar.enabled && this.sideBarController.mode === SideBarContainerType.Embed &&
+      this.sideBarController.isShow
+  }
+
+  private get indexerOnLeft(): boolean {
+    return this.indexerInSidebarGap || IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand)
+  }
+
+  private get scrollOverlayAlignment(): Alignment {
+    // 由外层负责靠边定位，保持字母条内部默认垂直居中。
+    const onLeft = this.currentSortField === SortField.NAME && this.pinyinSort ?
+      this.indexerOnLeft : IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand)
+    return onLeft ? Alignment.TopStart : Alignment.TopEnd
+  }
+
+  private get indexerOffsetX(): number {
+    if (!this.indexerInSidebarGap) {
+      return 0
+    }
+    const scale = HomeSidebarLayout.contentScaleWhenOpen
+    const scaleInset = this.contentWidth * (1 - scale) / 2
+    // 两侧内容各留 16vp；把缩放后的间隙中点换算回本地坐标，再减去索引条半宽。
+    // 再向视频侧内移 8vp，避免选中背景被侧栏边界遮住。
+    return (16 * scale - 16 - scaleInset) / (2 * scale) - 14 + 8 / scale
+  }
+
   @Event onSearchValueChange: (v: string) => void = () => {
   }
   @Event onDelMultipleListChange: (v: VideoMetadata[]) => void = () => {
@@ -205,10 +208,14 @@ export struct VideoList {
   aboutToAppear(): void {
     this.libraryKeyboard.onVideoAction = (action: ShortcutAction, date: string): void => {
       const selected = DataSyncUtil.delMultipleList
-      if (this.videoListController.multipleChooseState === Visibility.Visible && selected.length !== 1) return
+      if (this.videoListController.multipleChooseState === Visibility.Visible && selected.length !== 1) {
+        return
+      }
       const item = this.videoListController.videoDataSource.data.find(video => video.date ===
         (this.videoListController.multipleChooseState === Visibility.Visible ? selected[0]?.date : date))
-      if (!item) return
+      if (!item) {
+        return
+      }
       if (action === ShortcutAction.RENAME) {
         DataSyncUtil.editingVideo = item
         this.editMetadataDialogController.open()
@@ -228,25 +235,24 @@ export struct VideoList {
     this.clearHomeEntranceTimer()
   }
 
-  private clearHomeEntranceTimer(): void {
-    if (this.homeEntranceTimer !== undefined) {
-      clearTimeout(this.homeEntranceTimer)
-      this.homeEntranceTimer = undefined
-    }
-  }
-
   @Monitor('videoListController.homeReady', 'videoListController.directoryMode')
   playHomeEntrance(): void {
-    if (!this.directoryAlive) { return }
+    if (!this.directoryAlive) {
+      return
+    }
     this.clearHomeEntranceTimer()
     // 整个内容区以左上角为固定起点展开并淡入，不给虚拟列表项叠加入场动画。
     this.getUIContext().animateTo({ duration: 0 }, () => {
       this.homeEntranceProgress = 0
     })
-    if (!this.videoListController.homeReady) { return }
+    if (!this.videoListController.homeReady) {
+      return
+    }
     this.homeEntranceTimer = setTimeout(() => {
       this.homeEntranceTimer = undefined
-      if (!this.directoryAlive || !this.videoListController.homeReady) { return }
+      if (!this.directoryAlive || !this.videoListController.homeReady) {
+        return
+      }
       this.homeEntranceStarted = true
       this.getUIContext().animateTo({ duration: 180, curve: Curve.Ease }, () => {
         this.homeEntranceProgress = 1
@@ -287,24 +293,33 @@ export struct VideoList {
         _delMultipleList: this._delMultipleList,
         coverRefreshDate: this.coverRefreshDate,
         coverRefreshToken: this.coverRefreshToken,
-        menuBuilder: (item: VideoMetadata | undefined) => { this.MenuBuilder(item) },
+        menuBuilder: (item: VideoMetadata | undefined) => {
+          this.MenuBuilder(item)
+        },
         menuOptions: (item: VideoMetadata, response: ResponseType) => this.videoMenuOptions(item, response),
         onVideoTap: (item: VideoMetadata, list?: VideoMetadata[]) => this.handleVideoItemTap(item, list),
         onSearchValueChange: (value: string) => this.onSearchValueChange(value),
         onScrollDirectionChange: (isUp: boolean) => this.onScrollDirectionChange(isUp),
         onDirectoryFolderChange: (date: string) => this.onDirectoryFolderChange(date)
       })
-      .opacity(this.homeEntranceProgress)
-      .scale({ x: this.homeEntranceProgress, y: this.homeEntranceProgress,
-        centerX: 16, centerY: (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100) })
-      .transition(TransitionEffect.IDENTITY)
-      .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
-        detents: [SheetSize.LARGE],
-        backgroundColor: $r('app.color.start_window_background'),
-        blurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-        showClose: true,
-        onWillDismiss: () => { this.showDetailSheet = false }
-      })
+        .opacity(this.homeEntranceProgress)
+        .scale({
+          x: this.homeEntranceProgress,
+          y: this.homeEntranceProgress,
+          centerX: 16,
+          centerY: (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100)
+        })
+        .transition(TransitionEffect.IDENTITY)
+        .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
+          detents: [SheetSize.LARGE],
+          showClose: true,
+          onWillDismiss: () => {
+            this.showDetailSheet = false
+          },
+          systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+            style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+          }) : undefined
+        })
     } else if (this.displayMode === ListDisplayMode.LIST_DISPLAY) {
       Stack({
         alignContent: this.scrollOverlayAlignment
@@ -335,7 +350,8 @@ export struct VideoList {
               .margin({ bottom: 20 })
               .clickEffect(this.videoClickEffect(repeatItem.item))
               .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, 'video', repeatItem.item.date, () => {
-                this.handleVideoItemTap(repeatItem.item).catch(() => {})
+                this.handleVideoItemTap(repeatItem.item).catch(() => {
+                })
               }))
               .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
               .width(this.videoListController.listLine === 1 ? '100%' : '95%')
@@ -379,7 +395,8 @@ export struct VideoList {
         })
         .onDidScroll((scrollOffset: number, scrollState: ScrollState) => {
           this.syncSearchBarVisible(scrollOffset, scrollState,
-            this.videoListController.listScroller.currentOffset()?.yOffset, (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100))
+            this.videoListController.listScroller.currentOffset()?.yOffset,
+            (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100))
         })
         .onReachStart(() => {
           this.onScrollDirectionChange(false)
@@ -402,18 +419,21 @@ export struct VideoList {
       .animation({ duration: 300, curve: Curve.Ease })
       .opacity(this.homeEntranceProgress)
       .scale({
-        x: this.homeEntranceProgress, y: this.homeEntranceProgress,
-        centerX: 16, centerY: (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100)
+        x: this.homeEntranceProgress,
+        y: this.homeEntranceProgress,
+        centerX: 16,
+        centerY: (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100)
       })
       .transition(TransitionEffect.IDENTITY)
       .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
         detents: [SheetSize.LARGE],
-        backgroundColor: $r('app.color.start_window_background'),
-        blurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
         showClose: true,
         onWillDismiss: () => {
           this.showDetailSheet = false
-        }
+        },
+        systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+          style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+        }) : undefined
       })
     } else {
       Stack({
@@ -449,7 +469,8 @@ export struct VideoList {
               })
               .clickEffect(this.videoClickEffect(repeatItem.item))
               .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, 'video', repeatItem.item.date, () => {
-                this.handleVideoItemTap(repeatItem.item).catch(() => {})
+                this.handleVideoItemTap(repeatItem.item).catch(() => {
+                })
               }))
               .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
                 this.videoMenuOptions(repeatItem.item, ResponseType.LongPress))
@@ -514,18 +535,22 @@ export struct VideoList {
       .animation({ duration: 300, curve: Curve.Ease })
       .opacity(this.homeEntranceProgress)
       .scale({
-        x: this.homeEntranceProgress, y: this.homeEntranceProgress,
-        centerX: 16, centerY: (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100)
+        x: this.homeEntranceProgress,
+        y: this.homeEntranceProgress,
+        centerX: 16,
+        centerY: (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100)
       })
       .transition(TransitionEffect.IDENTITY)
       .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
         detents: [SheetSize.LARGE],
-        backgroundColor: $r('app.color.start_window_background'),
         blurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
         showClose: true,
         onWillDismiss: () => {
           this.showDetailSheet = false
-        }
+        },
+        systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+          style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+        }) : undefined
       })
     }
   }
@@ -561,31 +586,6 @@ export struct VideoList {
     }
   }
 
-  private get indexerInSidebarGap(): boolean {
-    return !HiCar.enabled && this.sideBarController.mode === SideBarContainerType.Embed &&
-      this.sideBarController.isShow
-  }
-
-  private get indexerOnLeft(): boolean {
-    return this.indexerInSidebarGap || IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand)
-  }
-
-  private get scrollOverlayAlignment(): Alignment {
-    // 由外层负责靠边定位，保持字母条内部默认垂直居中。
-    const onLeft = this.currentSortField === SortField.NAME && this.pinyinSort ?
-      this.indexerOnLeft : IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand)
-    return onLeft ? Alignment.TopStart : Alignment.TopEnd
-  }
-
-  private get indexerOffsetX(): number {
-    if (!this.indexerInSidebarGap) return 0
-    const scale = HomeSidebarLayout.contentScaleWhenOpen
-    const scaleInset = this.contentWidth * (1 - scale) / 2
-    // 两侧内容各留 16vp；把缩放后的间隙中点换算回本地坐标，再减去索引条半宽。
-    // 再向视频侧内移 8vp，避免选中背景被侧栏边界遮住。
-    return (16 * scale - 16 - scaleInset) / (2 * scale) - 14 + 8 / scale
-  }
-
   @Builder
   AlphabetIndexerBuilder() {
     AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
@@ -614,27 +614,26 @@ export struct VideoList {
   MenuBuilder(item: VideoMetadata | undefined) {
     Menu() {
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')), content: $r('app.string.edit'), labelInfo: 'F2'
+        content: $r('app.string.edit'), labelInfo: 'F2'
       })
         .onClick(() => {
           DataSyncUtil.editingVideo = item
           this.editMetadataDialogController.open()
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture')), content: $r('app.string.change_cover')
+        content: $r('app.string.change_cover')
       })
         .onClick(() => {
           this.changeVideoCover(item)
         })
       // TODO 调整文件夹转移
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
         content: $r('app.string.move_to_folder'),
         builder: (): void => this.FileFolderMenuBuilder(item)
       })
       // TODO  调整删除的方法
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
+        content: $r('app.string.delete')
       })
         .onClick(() => {
           if (this.videoListController.multipleChooseState === Visibility.Visible) {
@@ -653,7 +652,6 @@ export struct VideoList {
           }
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.checkmark_square_on_square')),
         content: this.videoListController.multipleChooseState === Visibility.Visible ?
           $r('app.string.exit_multiple_choice') :
           $r('app.string.multiple_choice')
@@ -667,7 +665,6 @@ export struct VideoList {
           this.onDelMultipleListChange([...this._delMultipleList])
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_triangle')),
         content: VideoOperateUtil.getPlayerName(Setting.defaultPlayerEngine, true)
       })
         .onClick(() => {
@@ -677,7 +674,6 @@ export struct VideoList {
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_rectangle')),
         content: $r('app.string.menu_short_video_play')
       })
         .onClick(() => {
@@ -690,7 +686,6 @@ export struct VideoList {
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')),
         content: $r('app.string.menu_detail')
       })
         .onClick(() => {
@@ -700,19 +695,18 @@ export struct VideoList {
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')),
         content: $r('app.string.menu_import_subtitle')
       })
-        .onClick(() => { void this.changeExternalSubtitle(item) })
+        .onClick(() => {
+          void this.changeExternalSubtitle(item)
+        })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder_badge_arrow_left')),
         content: $r('app.string.menu_open_file_location')
       })
         .onClick(async () => {
           await WantProcess.linkToVideoSource(item!.uri)
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.share')),
         content: $r('app.string.share')
       })
         .onClick(async () => {
@@ -731,26 +725,76 @@ export struct VideoList {
     FileFolderMenu({ video_item: video_item })
   }
 
-  private videoClickEffect(video: VideoMetadata | undefined): ClickEffect | undefined {
-    return video ? { level: ClickEffectLevel.LIGHT, scale: 0.9 } : undefined
-  }
-
   @Builder
   VideoPreviewBuilder(video: VideoMetadata) {
     VideoItemPreviewBuilder(video)
   }
 
+  private saveEditedVideo(video: VideoMetadata): void {
+    if (!FileFolderUtil.updateVideoInFileFolder(PathUtils.appContext!, this.videoListController,
+      this.fileFolderSource, video)) {
+      throw new Error('Video no longer exists in the folder')
+    }
+    DataSyncUtil.editingVideo = video
+  }
+
+  private async changeExternalSubtitle(item: VideoMetadata | undefined): Promise<void> {
+    if (!item) {
+      return
+    }
+    const context = PathUtils.appContext!
+    const folderDate = this.videoListController.folder?.date
+    try {
+      const original = Preferences.findVideoByDate(context, item.date, true)
+      if (!original[0] || original[2] !== folderDate) {
+        return
+      }
+      const draft = Preferences.copyPlaybackMetadata(original[0])
+      await SubtitleUtil.importOrDeleteSubtitleProcess(draft)
+      // 系统选文件期间，播放记忆或其它元数据可能已有更新；仅合并字幕字段。
+      const latest = Preferences.findVideoByDate(context, item.date, true)
+      if (!latest[0] || latest[2] !== folderDate || this.videoListController.folder?.date !== folderDate ||
+        latest[0].external_subtitle_format === draft.external_subtitle_format) {
+        return
+      }
+      const updated = Preferences.copyPlaybackMetadata(latest[0])
+      updated.external_subtitle_format = draft.external_subtitle_format
+      this.saveEditedVideo(updated)
+    } catch (_error) {
+      salmonLogger.addLog('VideoList', 'Could not update external subtitle metadata', true)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.library_operation_failed').id))
+    }
+  }
+
+  private clearHomeEntranceTimer(): void {
+    if (this.homeEntranceTimer !== undefined) {
+      clearTimeout(this.homeEntranceTimer)
+      this.homeEntranceTimer = undefined
+    }
+  }
+
+  private videoClickEffect(video: VideoMetadata | undefined): ClickEffect | undefined {
+    return video ? { level: ClickEffectLevel.LIGHT, scale: 0.9 } : undefined
+  }
+
   private videoMenuOptions(video: VideoMetadata, response: ResponseType): ContextMenuOptions {
     return {
-      backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
       preview: () => {
         this.VideoPreviewBuilder(video)
       },
       previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-      layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
+      layoutRegionMargin: {
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: 4
+      },
       hapticFeedbackMode: response === ResponseType.LongPress ? HapticFeedbackMode.ENABLED : undefined,
       mask: (this.displayMode === ListDisplayMode.LIST_DISPLAY ? response === ResponseType.RightClick :
-        response === ResponseType.LongPress) ? true : undefined
+        response === ResponseType.LongPress) ? true : undefined,
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+      }) : undefined
     }
   }
 
@@ -781,7 +825,9 @@ export struct VideoList {
       const letter = MediaSortUtil.getFirstLetterForVideo(list[index])
       this.alphabetLetters.push(letter)
       letterSet.add(letter)
-      if (!this.alphabetFirstIndexes.has(letter)) this.alphabetFirstIndexes.set(letter, index)
+      if (!this.alphabetFirstIndexes.has(letter)) {
+        this.alphabetFirstIndexes.set(letter, index)
+      }
     }
     let alphabet = FULL_ALPHABET.filter(letter => letterSet.has(letter))
     if (!this.currentSortAsc) {
@@ -792,7 +838,9 @@ export struct VideoList {
 
   private scrollToLetter(letter: string): void {
     const index = this.alphabetFirstIndexes.get(letter)
-    if (index !== undefined) this.videoListController.getActiveScroller().scrollToIndex(index)
+    if (index !== undefined) {
+      this.videoListController.getActiveScroller().scrollToIndex(index)
+    }
   }
 
   private updateIndexerOnScroll(index: number): void {

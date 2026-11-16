@@ -2,10 +2,9 @@ import { ShortVideoPlayer } from '../../controller/ShortVideo/ShortVideoPlayer'
 import { ShortVideoPlayerManager } from '../../controller/ShortVideo/ShortVideoPlayerManager'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PathUtils } from '../../utils/PathUtils'
-import { Setting } from '../../utils/ObservedUtil'
 import { FastForwardPanelBuilder } from '../PlayerComponent/FastForwardPanelBuilder'
-import { MediaSmartGestureModifier } from '../../utils/MediaSmartGestureUtil'
 import { AudioCoverBuilder } from '../PlayerComponent/AudioCoverBuilder'
+import { GestureComponent } from '../PlayerComponent/GestureComponent'
 
 
 @ComponentV2
@@ -22,29 +21,90 @@ export struct ShortVideoItem {
   @Event onPlayWithMpv: () => void = () => {
   }
   @Local player: ShortVideoPlayer | undefined = undefined
-  @Local isLongPressing: boolean = false
   @Local containerWidth: number = 0
   @Local containerHeight: number = 0
   private xComponentController: XComponentController = new XComponentController()
+  private longPressIndex: number = -1
+  private seekIndex: number = -1
 
   aboutToAppear(): void {
     this.bindPlayer()
   }
 
+  aboutToDisappear(): void {
+    this.cancelGestures()
+  }
+
   @Monitor('index')
   onIndexChanged(): void {
+    this.cancelGestures()
     this.bindPlayer()
   }
 
-  @Monitor('currentIndex')
+  @Monitor('currentIndex', 'isSwitching')
   onCurrentIndexChanged(): void {
-    if (this.index === this.currentIndex) {
+    if (this.index === this.currentIndex && !this.isSwitching) {
       // 同一个索引再次进入时，Repeat 未必重新触发 aboutToAppear/onLoad。
       this.bindPlayer()
-    } else if (this.isLongPressing) {
-      this.isLongPressing = false
-      this.manager.endLongPress(this.index)
+    } else {
+      this.cancelGestures()
     }
+  }
+
+  private beginLongPress(): void {
+    if (this.manager.isClosing || this.isSwitching || this.index !== this.currentIndex ||
+      this.player?.state !== 'playing') {
+      return
+    }
+    this.longPressIndex = this.index
+    this.manager.beginLongPress(this.longPressIndex)
+  }
+
+  private endLongPress(): void {
+    const index = this.longPressIndex
+    this.longPressIndex = -1
+    if (index >= 0 && !this.manager.isClosing) {
+      this.manager.endLongPress(index)
+    }
+  }
+
+  private cancelLongPress(): void {
+    const index = this.longPressIndex
+    this.longPressIndex = -1
+    if (index >= 0 && !this.manager.isClosing) {
+      this.manager.cancelLongPress(index)
+    }
+  }
+
+  private beginHorizontalSeek(): void {
+    if (this.manager.isClosing || this.isSwitching || this.index !== this.currentIndex) {
+      return
+    }
+    this.manager.beginHorizontalSeek(this.index)
+    if (this.manager.onSwiping && this.index === this.currentIndex) {
+      this.seekIndex = this.index
+    }
+  }
+
+  private endHorizontalSeek(): void {
+    const index = this.seekIndex
+    this.seekIndex = -1
+    if (index >= 0) {
+      this.manager.endHorizontalSeek(index)
+    }
+  }
+
+  private cancelHorizontalSeek(): void {
+    const index = this.seekIndex
+    this.seekIndex = -1
+    if (index >= 0) {
+      this.manager.cancelHorizontalSeek(index)
+    }
+  }
+
+  private cancelGestures(): void {
+    this.cancelLongPress()
+    this.cancelHorizontalSeek()
   }
 
   private bindPlayer(): void {
@@ -77,125 +137,135 @@ export struct ShortVideoItem {
     return videoRatio > containerRatio ? this.containerWidth / videoRatio : this.containerHeight
   }
 
+  @Builder
+  private VideoContent() {
+    Image(PathUtils.coverUri(this.item.date))
+      .dynamicRangeMode(DynamicRangeMode.CONSTRAINT)
+      .width(this.videoAreaWidth())
+      .height(this.videoAreaHeight())
+      .objectFit(ImageFit.Contain)
+
+    XComponent({
+      type: XComponentType.SURFACE,
+      controller: this.xComponentController,
+      id: `short_video_surface_${this.item.date}`
+    })
+      .width(this.videoAreaWidth())
+      .height(this.videoAreaHeight())
+      .onLoad(() => {
+        this.bindPlayer()
+      })
+      .onDestroy(() => {
+        this.cancelGestures()
+        this.manager.unbindSurface(this.xComponentController)
+        this.player = undefined
+      })
+
+    AudioCoverBuilder({ coverUri: this.player?.audioCoverUri ?? '' })
+  }
+
+  @Builder
+  private PlaybackOverlays() {
+    if (this.player?.state === 'preparing' || this.player?.activating) {
+      LoadingProgress()
+        .width(42)
+        .height(42)
+        .color(Color.White)
+        .hitTestBehavior(HitTestMode.None)
+    }
+
+    if (!this.isSwitching && this.index === this.currentIndex &&
+      this.player === this.manager.currentPlayer && this.player?.playbackFailed) {
+      Column({ space: 10 }) {
+        Text('!')
+          .fontSize(40)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(Color.White)
+        Text($r('app.string.avplayer_cannot_play'))
+          .fontSize(16)
+          .fontColor(Color.White)
+        Button($r('app.string.switch_to_mpv_player'), { type: ButtonType.Capsule })
+          .fontSize(14)
+          .fontColor(Color.Black)
+          .backgroundColor(Color.White)
+          .margin({ top: 6, bottom: 6 })
+          .onClick(() => this.onPlayWithMpv())
+        Text($r('app.string.swipe_up_to_switch'))
+          .fontSize(13)
+          .fontColor('#B3FFFFFF')
+      }
+    }
+
+    if (this.player?.state === 'paused') {
+      SymbolGlyph($r('sys.symbol.play_fill'))
+        .fontSize(52)
+        .fontColor([Color.White])
+        .opacity(0.85)
+        .hitTestBehavior(HitTestMode.None)
+    }
+
+    if (this.index === this.currentIndex &&
+      (this.manager.gestureState.longPress || this.manager.gestureState.speedLocked)) {
+      FastForwardPanelBuilder({
+        speed: this.manager.playbackSpeed,
+        location: this.containerHeight,
+        speedLocked: this.manager.gestureState.speedLocked,
+      })
+    }
+
+  }
+
+  @Builder
+  private GestureLayer() {
+    GestureComponent({
+      player: this.manager.gestureState,
+      gestureSurfaceId: `short_video_smart_gesture_${this.item.date}`,
+      gestureEnabled: this.index === this.currentIndex && !this.isSwitching && !this.manager.isClosing,
+      smartGestureEnabled: this.index === this.currentIndex,
+      extendedGestures: false,
+      touchAreaHeight: '100%',
+      onSingleClickAction: () => {
+        if (this.index === this.currentIndex && !this.manager.isClosing) {
+          this.onSingleTap()
+        }
+      },
+      onDoubleClickAction: (tapX: number) => {
+        if (this.index === this.currentIndex && !this.manager.isClosing) {
+          this.onDoubleTap(tapX)
+        }
+      },
+      onLongPressAction: () => this.beginLongPress(),
+      onLongPressEnd: () => this.endLongPress(),
+      onLongPressCancel: () => this.cancelLongPress(),
+      onLongPressPanStart: (offsetX: number, offsetY: number) => {
+        this.manager.onLongPressPanStart(this.longPressIndex, offsetX, offsetY)
+      },
+      onLongPressPanUpdate: (offsetX: number, offsetY: number) => {
+        this.manager.onLongPressPanUpdate(this.longPressIndex, offsetX, offsetY)
+      },
+      onHorizonPanStart: () => this.beginHorizontalSeek(),
+      onHorizonPanUpdate: (offsetX: number) => {
+        this.manager.updateHorizontalSeek(this.seekIndex, offsetX, this.containerWidth)
+      },
+      onHorizonPanEnd: () => this.endHorizontalSeek(),
+      onHorizonPanCancel: () => this.cancelHorizontalSeek()
+    })
+      .hitTestBehavior(HitTestMode.Transparent)
+  }
+
   build() {
     Stack({ alignContent: Alignment.Center }) {
-      Image(PathUtils.coverUri(this.item.date))
-        .dynamicRangeMode(DynamicRangeMode.CONSTRAINT)
-        .width(this.videoAreaWidth())
-        .height(this.videoAreaHeight())
-        .objectFit(ImageFit.Contain)
-
-      XComponent({
-        type: XComponentType.SURFACE,
-        controller: this.xComponentController,
-        id: `short_video_surface_${this.item.date}`
-      })
-        .width(this.videoAreaWidth())
-        .height(this.videoAreaHeight())
-        .onLoad(() => {
-          this.bindPlayer()
-        })
-        .onDestroy(() => {
-          this.manager.unbindSurface(this.xComponentController)
-          this.player = undefined
-        })
-
-      AudioCoverBuilder({ coverUri: this.player?.audioCoverUri ?? '' })
-
-      if (this.player?.state === 'preparing') {
-        LoadingProgress()
-          .width(42)
-          .height(42)
-          .color(Color.White)
-      }
-
-      if (!this.isSwitching && this.index === this.currentIndex &&
-        this.player === this.manager.currentPlayer && this.player?.state === 'error') {
-        Column({ space: 10 }) {
-          Text('!')
-            .fontSize(40)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(Color.White)
-          Text($r('app.string.avplayer_cannot_play'))
-            .fontSize(16)
-            .fontColor(Color.White)
-          Button($r('app.string.switch_to_mpv_player'), { type: ButtonType.Capsule })
-            .fontSize(14)
-            .fontColor(Color.Black)
-            .backgroundColor(Color.White)
-            .margin({ top: 6, bottom: 6 })
-            .onClick(() => this.onPlayWithMpv())
-          Text($r('app.string.swipe_up_to_switch'))
-            .fontSize(13)
-            .fontColor('#B3FFFFFF')
-        }
-      }
-
-      if (this.player?.state === 'paused') {
-        SymbolGlyph($r('sys.symbol.play_fill'))
-          .fontSize(52)
-          .fontColor([Color.White])
-          .opacity(0.85)
-      }
-
-      if (this.isLongPressing) {
-        FastForwardPanelBuilder({
-          speed: this.player?.playbackRate || Setting.longPressSpeed,
-          location: this.containerHeight,
-          speedLocked: false
-        })
-      }
-
+      this.VideoContent()
+      this.GestureLayer()
+      this.PlaybackOverlays()
     }
-    .id(`short_video_smart_gesture_${this.item.date}`)
-    .attributeModifier(new MediaSmartGestureModifier(Setting.smartGestureEnabled && this.index === this.currentIndex))
     .width('100%')
     .height('100%')
     .backgroundColor(Color.Black)
     .onAreaChange((_oldValue: Area, newValue: Area) => {
       this.containerWidth = Number(newValue.width)
       this.containerHeight = Number(newValue.height)
+      this.manager.gestureState.screenWidth = this.containerWidth
     })
-    .gesture(GestureGroup(GestureMode.Exclusive,
-      TapGesture({ count: 2 })
-        .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
-          SourceTool.JOYSTICK])
-        .onAction((event: GestureEvent) => {
-          if (this.index !== this.currentIndex) {
-            return
-          }
-          const tapX = event.fingerList[0]?.localX
-          if (typeof tapX !== 'number') {
-            return
-          }
-          this.onDoubleTap(tapX)
-        }),
-      TapGesture({ count: 1 })
-        .onAction(() => {
-          if (this.index === this.currentIndex) {
-            this.onSingleTap()
-          }
-        }),
-      LongPressGesture({ repeat: false })
-        .onAction(() => {
-          if (this.index !== this.currentIndex || this.player?.state !== 'playing') {
-            return
-          }
-          this.isLongPressing = true
-          this.manager.beginLongPress(this.index)
-        })
-        .onActionEnd(() => {
-          if (!this.isLongPressing) {
-            return
-          }
-          this.isLongPressing = false
-          this.manager.endLongPress(this.index)
-        }),
-      PanGesture({ fingers: 1, direction: PanDirection.Horizontal })
-        .onActionStart(() => this.manager.beginHorizontalSeek(this.index))
-        .onActionUpdate((event: GestureEvent) => {
-          this.manager.updateHorizontalSeek(this.index, event.offsetX, this.containerWidth)
-        })
-        .onActionEnd(() => this.manager.endHorizontalSeek(this.index))))
   }
 }

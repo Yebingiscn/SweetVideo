@@ -25,6 +25,28 @@ const DATA_BASE_NAME = 'sweet_video'
 const MAX_PREFERENCES_STRING_BYTES = 16 * 1024 * 1024
 
 export default class Preferences {
+  private static recentPlayChangeListeners: Set<() => void> = new Set()
+
+  static subscribeRecentPlayChanges(listener: () => void): () => void {
+    Preferences.recentPlayChangeListeners.add(listener)
+    return () => {
+      Preferences.recentPlayChangeListeners.delete(listener)
+    }
+  }
+
+  private static notifyRecentPlayChanged(): void {
+    // 通知只表示写入成功；页面自行读取最新值，不传递可能过期的对象快照。
+    Array.from(Preferences.recentPlayChangeListeners).forEach(listener => {
+      if (!Preferences.recentPlayChangeListeners.has(listener)) return
+      try {
+        listener()
+      } catch (_error) {
+        // 展示刷新失败不能把已经成功写入的历史记录判为保存失败。
+        salmonLogger.addLog('Preferences', '刷新播放历史界面失败', true)
+      }
+    })
+  }
+
   static getHiCarLayout(context: Context): boolean {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'hicar_layout', false) as boolean
   }
@@ -528,6 +550,7 @@ export default class Preferences {
     } catch (_error) {
       salmonLogger.addLog('Preferences', '更新播放历史卡片失败', true)
     }
+    Preferences.notifyRecentPlayChanged()
   }
 
   static saveEnableBackgroundDarkImage(context: Context, enableBackgroundDarkImage: boolean) {

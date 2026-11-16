@@ -18,9 +18,11 @@ import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { userData } from '../../component/common/UserLoginComponent'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
-import { LengthMetrics } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { MpvPlaybackEffects } from '../../controller/MpvController/MpvPlaybackEffects'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 @ComponentV2
 export struct EngineSettingPage {
@@ -68,7 +70,50 @@ export struct EngineSettingPage {
             }
           })
         }
-        
+
+        ListItem() {
+          SettingsSegmentButtonItem({
+            symbol: $r('sys.symbol.wand_and_stars'),
+            message: ToolsUtil.getStringResource($r('app.string.mpv_quality_boost').id),
+            tag: 'VIP',
+            tips: MpvPlaybackEffects.getShaderModeNames(),
+            tabSelectedIndex: Setting.mpvShaderMode,
+            itemEnabled: userData.isVip,
+            onButtonClick: (tabSelectedIndex: number) => {
+              Setting.mpvShaderMode = tabSelectedIndex
+              Preferences.saveMpvShaderMode(PathUtils.appContext!, tabSelectedIndex)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
+            symbol: $r('sys.symbol.hdr'),
+            message: ToolsUtil.getStringResource($r('app.string.sdr_to_hdr').id),
+            tag: 'VIP',
+            enable: Setting.mpvSdrToHdr,
+            itemEnabled: userData.isVip,
+            onChange: (checked: boolean) => {
+              Setting.mpvSdrToHdr = checked
+              Preferences.saveMpvSdrToHdr(PathUtils.appContext!, checked)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
+            symbol: $r('sys.symbol.camera_master_ai'),
+            message: ToolsUtil.getStringResource($r('app.string.super_resolution').id),
+            tag: 'VIP',
+            enable: Setting.superResolutionState,
+            itemEnabled: userData.isVip,
+            onChange: (checked: boolean) => {
+              Setting.superResolutionState = checked
+              Preferences.saveSuperResolutionState(PathUtils.appContext!, Setting.superResolutionState)
+            }
+          })
+        }
+
         ListItem() {
           Column({ space: 4 }) {
             this.ConfToggle()
@@ -292,10 +337,12 @@ export struct EngineSettingPage {
       height: SheetSize.LARGE,
       showClose: true,
       title: { title: $r('app.string.mpv_conf_title') },
-      backgroundColor: $r('app.color.start_window_background'),
       onDisappear: () => {
         this.confVisible = false
-      }
+      },
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+      }) : undefined
     })
   }
 

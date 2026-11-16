@@ -17,8 +17,9 @@ import SmbUtil from '../../utils/SmbUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
-import { LengthMetrics } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 interface SmbEntryView {
   entry: SmbEntry
@@ -72,25 +73,25 @@ export struct SmbPage {
     this.stopThumbnails()
   }
 
-  private columns(): number {
-    return Math.max(1, Math.floor(this.contentWidth / 500) +
-      (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? 1 : 2))
-  }
-
   @Builder
   EntryCover($$: SmbEntryView) {
     Stack() {
       SymbolGlyph($$.entry.directory ? $r('sys.symbol.folder') : $r('sys.symbol.play_round_triangle'))
         .fontSize(32).fontColor([$r('app.color.main_color')])
       if (!$$.entry.directory && this.covers[$$.entry.name]) {
-        Image(this.covers[$$.entry.name]).width('100%').height('100%').objectFit(ImageFit.Cover)
+        Image(this.covers[$$.entry.name])
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Cover)
           .dynamicRangeMode(DynamicRangeMode.CONSTRAINT)
           .onComplete((event) => {
             if (event && event.width > 0 && event.height > 0) {
               const ratio = Math.max(0.6, Math.min(2.4, event.width / event.height))
               if (this.coverRatios[$$.entry.name] !== ratio) {
                 const ratios: Record<string, number> = {}
-                Object.keys(this.coverRatios).forEach((key: string) => { ratios[key] = this.coverRatios[key] })
+                Object.keys(this.coverRatios).forEach((key: string) => {
+                  ratios[key] = this.coverRatios[key]
+                })
                 ratios[$$.entry.name] = ratio
                 this.coverRatios = ratios
               }
@@ -101,7 +102,9 @@ export struct SmbPage {
     .width($$.list ? 112 : '100%')
     .aspectRatio($$.list || Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 16 / 9 :
       (this.coverRatios[$$.entry.name] ?? 16 / 9))
-    .backgroundColor($r('app.color.list_item_background')).borderRadius(12).clip(true)
+    .backgroundColor($r('app.color.list_item_background'))
+    .borderRadius(12)
+    .clip(true)
   }
 
   @Builder
@@ -120,13 +123,17 @@ export struct SmbPage {
     if ($$.list) {
       Row({ space: 12 }) {
         this.EntryCover({ entry: $$.entry, list: true })
-        Column() { this.EntryText({ entry: $$.entry, list: $$.list }) }.layoutWeight(1)
+        Column() {
+          this.EntryText({ entry: $$.entry, list: $$.list })
+        }.layoutWeight(1)
       }.width('100%').padding(10).borderRadius(12)
       .backgroundColor($r('app.color.list_item_background'))
     } else {
       Column({ space: 8 }) {
         this.EntryCover({ entry: $$.entry, list: false })
-        Column() { this.EntryText({ entry: $$.entry, list: $$.list }) }.padding({ left: 8, right: 8, bottom: 10 })
+        Column() {
+          this.EntryText({ entry: $$.entry, list: $$.list })
+        }.padding({ left: 8, right: 8, bottom: 10 })
       }.width('100%').borderRadius(12).backgroundColor($r('app.color.list_item_background'))
     }
   }
@@ -148,15 +155,20 @@ export struct SmbPage {
       Column({ space: 12 }) {
         if (this.server) {
           Row({ space: 12 }) {
-            Button(this.folder ? $r('app.string.go_up') : $r('app.string.server')).onClick(() => this.back()).enabled(!this.loading)
+            Button(this.folder ? $r('app.string.go_up') : $r('app.string.server'))
+              .onClick(() => this.back())
+              .enabled(!this.loading)
             Text(`${this.server.name} / ${this.server.share}${this.folder ? '/' + this.folder : ''}`)
               .fontSize(14)
               .fontColor($r('app.color.text_color'))
               .layoutWeight(1)
               .maxLines(2)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Button($r('app.string.refresh')).onClick(() => this.browse(this.server!, this.folder)).enabled(!this.loading)
+            Button($r('app.string.refresh'))
+              .onClick(() => this.browse(this.server!, this.folder))
+              .enabled(!this.loading)
           }.width('100%').padding({ left: 16, right: 16 })
+
           if (this.discIndexPath !== undefined) {
             Button($r('app.string.play_bluray')).onClick(() => this.playDisc()).enabled(!this.loading)
           }
@@ -176,16 +188,25 @@ export struct SmbPage {
         } else if (this.server && Setting.listDisplayMode !== ListDisplayMode.LIST_DISPLAY) {
           WaterFlow({ scroller: this.scroller, layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW }) {
             Repeat<SmbEntry>(this.entries).each((item: RepeatItem<SmbEntry>) => {
-              FlowItem() { this.EntryItem({ entry: item.item, list: false }) }
-                .onClick(() => this.select(item.item)).enabled(!this.loading)
-                .onVisibleAreaChange([0], (visible: boolean) => this.thumbnailVisibility(item.item, visible))
-            }).key((item: SmbEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`).virtualScroll()
+              FlowItem() {
+                this.EntryItem({ entry: item.item, list: false })
+              }
+              .onClick(() => this.select(item.item)).enabled(!this.loading)
+              .onVisibleAreaChange([0], (visible: boolean) => this.thumbnailVisibility(item.item, visible))
+            })
+              .key((item: SmbEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`)
+              .virtualScroll()
           }
-          .columnsTemplate('1fr '.repeat(this.columns()).trim()).columnsGap(16).rowsGap(16)
+          .columnsTemplate('1fr '.repeat(this.columns()).trim())
+          .columnsGap(16)
+          .rowsGap(16)
           .padding({ left: 16, right: 16 })
           .contentEndOffset(SafeHeight.bottomSafeHeight)
-          .width('100%').height('100%').layoutWeight(1)
+          .width('100%')
+          .height('100%')
+          .layoutWeight(1)
           .scrollBar(BarState.Off)
+
           if (!this.loading && this.entries.length === 0) {
             Text($r('app.string.no_playable_files')).fontColor($r('app.color.text_color')).padding(24)
           }
@@ -209,18 +230,29 @@ export struct SmbPage {
                       SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(16)
                     }.padding(16).width('100%').backgroundColor($r('app.color.list_item_background')).borderRadius(16)
                   }.onClick(() => this.browse(item.item, item.item.initialPath ?? '')).enabled(!this.loading)
-                  .bindContextMenu(this.ServerMenu(item.item), ResponseType.LongPress)
-                  .bindContextMenu(this.ServerMenu(item.item), ResponseType.RightClick)
+                  .bindContextMenu(this.ServerMenu(item.item), ResponseType.LongPress, {
+                    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                      style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                    }) : undefined
+                  })
+                  .bindContextMenu(this.ServerMenu(item.item), ResponseType.RightClick, {
+                    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                      style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                    }) : undefined
+                  })
                 })
                 .key((item: SmbServer) => item.id).virtualScroll()
             } else {
               Repeat<SmbEntry>(this.entries)
                 .each((item: RepeatItem<SmbEntry>) => {
-                  ListItem() { this.EntryItem({ entry: item.item, list: true }) }
-                    .onClick(() => this.select(item.item)).enabled(!this.loading)
-                    .onVisibleAreaChange([0], (visible: boolean) => this.thumbnailVisibility(item.item, visible))
+                  ListItem() {
+                    this.EntryItem({ entry: item.item, list: true })
+                  }
+                  .onClick(() => this.select(item.item)).enabled(!this.loading)
+                  .onVisibleAreaChange([0], (visible: boolean) => this.thumbnailVisibility(item.item, visible))
                 })
-                .key((item: SmbEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`).virtualScroll()
+                .key((item: SmbEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`)
+                .virtualScroll()
               if (!this.loading && this.entries.length === 0) {
                 ListItem() {
                   Text($r('app.string.no_playable_files')).fontColor($r('app.color.text_color')).padding(24)
@@ -238,7 +270,9 @@ export struct SmbPage {
           .scrollBar(BarState.Off)
         }
       }.width('100%').height('100%').clip(false)
-      .onAreaChange((_old: Area, area: Area) => { this.contentWidth = Number(area.width) })
+      .onAreaChange((_old: Area, area: Area) => {
+        this.contentWidth = Number(area.width)
+      })
     }
     .titleBar({
       avoidLayoutSafeArea: true,
@@ -336,10 +370,19 @@ export struct SmbPage {
     .onShown(() => {
       this.thumbnailActive = true
       this.entries.forEach((entry: SmbEntry) => {
-        if (!this.covers[entry.name]) this.thumbnailAttempted.delete(entry.name)
-        if (this.thumbnailVisible.has(entry.name)) this.thumbnailVisibility(entry, true)
+        if (!this.covers[entry.name]) {
+          this.thumbnailAttempted.delete(entry.name)
+        }
+        if (this.thumbnailVisible.has(entry.name)) {
+          this.thumbnailVisibility(entry, true)
+        }
       })
     })
+  }
+
+  private columns(): number {
+    return Math.max(1, Math.floor(this.contentWidth / 500) +
+      (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? 1 : 2))
   }
 
   private reloadServers(): void {
@@ -393,7 +436,8 @@ export struct SmbPage {
       this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
     } catch (error) {
       if (version === this.requestVersion) {
-        this.error = error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.read_share_failed').id)
+        this.error =
+          error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.read_share_failed').id)
       }
     } finally {
       if (version === this.requestVersion) {
@@ -445,7 +489,9 @@ export struct SmbPage {
   private async playDisc(): Promise<void> {
     const server = this.server
     const indexPath = this.discIndexPath
-    if (!server || indexPath === undefined || this.loading) return
+    if (!server || indexPath === undefined || this.loading) {
+      return
+    }
     const version = ++this.requestVersion
     this.loading = true
     this.error = ''
@@ -454,15 +500,23 @@ export struct SmbPage {
       const previous = RecentPlayUtil.getRecentPlaybacks().find((item: VideoMetadata) => item.uri === uri)
       const root = indexPath.replace(/(?:^|\/)BDMV\/index\.bdmv$/, '')
       const title = root.substring(root.lastIndexOf('/') + 1) || server.name
-      const item = previous ?? VideoInfoUtil.buildNetworkVideoMetadata(uri, await SmbUtil.fileId(uri), title, '', [0, 0])
+      const item =
+        previous ?? VideoInfoUtil.buildNetworkVideoMetadata(uri, await SmbUtil.fileId(uri), title, '', [0, 0])
       item.format = 'BDMV'
       item.has_video_track = true
-      if (version !== this.requestVersion) return
+      if (version !== this.requestVersion) {
+        return
+      }
       await ToolsUtil.routerWhere(this.pathStack, item, [item])
     } catch (_error) {
-      if (version === this.requestVersion) this.error = ToolsUtil.getStringResource($r('app.string.network_bluray_prepare_failed').id)
+      if (version === this.requestVersion) {
+        this.error =
+          ToolsUtil.getStringResource($r('app.string.network_bluray_prepare_failed').id)
+      }
     } finally {
-      if (version === this.requestVersion) this.loading = false
+      if (version === this.requestVersion) {
+        this.loading = false
+      }
     }
   }
 
@@ -485,7 +539,9 @@ export struct SmbPage {
         file.size <= 8 * 1024 * 1024 && /\.(srt|ass|vtt)$/i.test(file.name))
       const list: VideoMetadata[] = []
       for (const file of this.entries.filter((file: SmbEntry) => !file.directory)) {
-        if (version !== this.requestVersion) return
+        if (version !== this.requestVersion) {
+          return
+        }
         list.push(await this.metadata(file, candidates))
       }
       if (version !== this.requestVersion) {
@@ -496,7 +552,8 @@ export struct SmbPage {
       await ToolsUtil.routerWhere(this.pathStack, item, list)
     } catch (error) {
       if (version === this.requestVersion) {
-        this.error = error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.open_video_failed').id)
+        this.error =
+          error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.open_video_failed').id)
       }
     } finally {
       if (version === this.requestVersion) {
@@ -516,7 +573,9 @@ export struct SmbPage {
   }
 
   private thumbnailVisibility(entry: SmbEntry, visible: boolean): void {
-    if (entry.directory) return
+    if (entry.directory) {
+      return
+    }
     if (!visible) {
       this.thumbnailVisible.delete(entry.name)
       this.thumbnailQueue = this.thumbnailQueue.filter((file: SmbEntry) => file.name !== entry.name)
@@ -524,18 +583,24 @@ export struct SmbPage {
     }
     this.thumbnailVisible.add(entry.name)
     if (!this.thumbnailActive || this.covers[entry.name] || this.thumbnailAttempted.has(entry.name) ||
-      this.thumbnailQueue.some((file: SmbEntry) => file.name === entry.name)) return
+      this.thumbnailQueue.some((file: SmbEntry) => file.name === entry.name)) {
+      return
+    }
     this.thumbnailQueue.push(entry)
     this.loadThumbnails()
   }
 
   private async loadThumbnails(): Promise<void> {
-    if (this.thumbnailRunning) return
+    if (this.thumbnailRunning) {
+      return
+    }
     this.thumbnailRunning = true
     try {
       while (this.thumbnailActive && this.server && this.thumbnailQueue.length > 0) {
         const entry = this.thumbnailQueue.shift()!
-        if (!this.thumbnailVisible.has(entry.name)) continue
+        if (!this.thumbnailVisible.has(entry.name)) {
+          continue
+        }
         const version = this.thumbnailVersion
         const path = this.folder ? `${this.folder}/${entry.name}` : entry.name
         const uri = SmbUtil.uri(this.server, path)
@@ -543,14 +608,21 @@ export struct SmbPage {
         let url = ''
         try {
           const id = await SmbUtil.fileId(`${uri}:${entry.size}`)
-          if (!id || version !== this.thumbnailVersion) continue
+          if (!id || version !== this.thumbnailVersion) {
+            continue
+          }
           const root = PathUtils.appContext!.cacheDir + '/'
           const filename = 'smb_cover_' + id + '.webp'
           let cached = false
-          try { cached = await fs.access(root + filename) } catch (_) {}
+          try {
+            cached = await fs.access(root + filename)
+          } catch (_) {
+          }
           if (!cached) {
             url = await SmbUtil.open(uri)
-            if (version !== this.thumbnailVersion) continue
+            if (version !== this.thumbnailVersion) {
+              continue
+            }
             this.thumbnailUrl = url
             const result = await FFmpegThumbnailUtil.extractNetworkCover(url, 360)
             if (result.pixelMap) {
@@ -564,16 +636,24 @@ export struct SmbPage {
           }
           if (cached && version === this.thumbnailVersion) {
             const covers: Record<string, string> = {}
-            Object.keys(this.covers).forEach((key: string) => { covers[key] = this.covers[key] })
+            Object.keys(this.covers).forEach((key: string) => {
+              covers[key] = this.covers[key]
+            })
             covers[entry.name] = PathUtils.pathToUri(root + filename)
             this.covers = covers
           }
         } catch (_) {
           // Keep the placeholder; retry only on an explicit directory refresh.
-          if (version === this.thumbnailVersion) salmonLogger.addLog('SmbPage', 'SMB 缩略图读取失败', true)
+          if (version === this.thumbnailVersion) {
+            salmonLogger.addLog('SmbPage', 'SMB 缩略图读取失败', true)
+          }
         } finally {
-          if (url) smbClose(url)
-          if (this.thumbnailUrl === url) this.thumbnailUrl = ''
+          if (url) {
+            smbClose(url)
+          }
+          if (this.thumbnailUrl === url) {
+            this.thumbnailUrl = ''
+          }
         }
       }
     } finally {

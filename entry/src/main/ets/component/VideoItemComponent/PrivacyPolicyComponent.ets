@@ -1,9 +1,11 @@
 import { salmonLogger } from 'salmonlogger'
+import { MaterialCapability } from '../../common/MaterialCapability'
 import Preferences from '../../database/Preferences'
 import { OOBEVersion } from '../../utils/DataSyncUtil'
 import { SafeHeight } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
+import { uiMaterial } from '@kit.ArkUI'
 
 const TAG = 'PrivacyPolicyComponent'
 
@@ -28,7 +30,8 @@ export struct PrivacyPolicyComponent {
     Column() {
       Scroll() {
         Text() {
-          Span(ToolsUtil.getStringResourceArgs($r('app.string.terms_privacy_doc_title').id, ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)))
+          Span(ToolsUtil.getStringResourceArgs($r('app.string.terms_privacy_doc_title').id,
+            ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)))
             .fontColor($r('app.color.main_color'))
           Span('\n\n' +
             '流心播放器（以下简称“本软件”）是由 郴州液态科技有限公司 （以下简称“我们”）开发，供您（以下称“用户”）免费使用的本地音视频播放软件。\n' +
@@ -72,7 +75,8 @@ export struct PrivacyPolicyComponent {
         Button($r('app.string.decline_and_exit'))
           .onClick(() => {
             PathUtils.appContext!.terminateSelf()?.catch((error: Error) => {
-              ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.close_dialog_failed').id, String(error)))
+              ToolsUtil.showToast(
+                ToolsUtil.getStringResourceArgs($r('app.string.close_dialog_failed').id, String(error)))
             })
           })
           .fontColor(Color.Red)
@@ -126,6 +130,9 @@ export struct PrivacyPolicyComponent {
           })
         }
       }),
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+      }) : undefined
     })
   }
 }

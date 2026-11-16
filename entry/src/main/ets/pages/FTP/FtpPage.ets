@@ -12,8 +12,9 @@ import SmbUtil from '../../utils/SmbUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
-import { LengthMetrics } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 @ComponentV2
 export struct FtpPage {
@@ -53,11 +54,6 @@ export struct FtpPage {
     this.request?.close()
   }
 
-  private columns(): number {
-    return Math.max(1, Math.floor(this.contentWidth / 500) +
-      (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? 1 : 2))
-  }
-
   @Builder
   EntryCover(entry: FtpEntry, list: boolean) {
     Stack() {
@@ -66,7 +62,9 @@ export struct FtpPage {
     }
     .width(list ? 112 : '100%')
     .aspectRatio(16 / 9)
-    .backgroundColor($r('app.color.list_item_background')).borderRadius(12).clip(true)
+    .backgroundColor($r('app.color.list_item_background'))
+    .borderRadius(12)
+    .clip(true)
   }
 
   @Builder
@@ -85,13 +83,17 @@ export struct FtpPage {
     if (list) {
       Row({ space: 12 }) {
         this.EntryCover(entry, true)
-        Column() { this.EntryText(entry) }.layoutWeight(1)
+        Column() {
+          this.EntryText(entry)
+        }.layoutWeight(1)
       }.width('100%').padding(10).borderRadius(12)
       .backgroundColor($r('app.color.list_item_background'))
     } else {
       Column({ space: 8 }) {
         this.EntryCover(entry, false)
-        Column() { this.EntryText(entry) }.padding({ left: 8, right: 8, bottom: 10 })
+        Column() {
+          this.EntryText(entry)
+        }.padding({ left: 8, right: 8, bottom: 10 })
       }.width('100%').borderRadius(12).backgroundColor($r('app.color.list_item_background'))
     }
   }
@@ -113,14 +115,18 @@ export struct FtpPage {
       Column({ space: 12 }) {
         if (this.server) {
           Row({ space: 12 }) {
-            Button(this.folder ? $r('app.string.go_up') : $r('app.string.server')).onClick(() => this.back()).enabled(!this.loading)
+            Button(this.folder ? $r('app.string.go_up') : $r('app.string.server'))
+              .onClick(() => this.back())
+              .enabled(!this.loading)
             Text(`${this.server.name} / ${this.folder || ToolsUtil.getStringResource($r('app.string.root_folder').id)}`)
               .fontSize(14)
               .fontColor($r('app.color.text_color'))
               .layoutWeight(1)
               .maxLines(2)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Button($r('app.string.refresh')).onClick(() => this.browse(this.server!, this.folder)).enabled(!this.loading)
+            Button($r('app.string.refresh'))
+              .onClick(() => this.browse(this.server!, this.folder))
+              .enabled(!this.loading)
           }.width('100%').padding({ left: 16, right: 16 })
         }
         if (this.error) {
@@ -138,15 +144,24 @@ export struct FtpPage {
         } else if (this.server && Setting.listDisplayMode !== ListDisplayMode.LIST_DISPLAY) {
           WaterFlow({ scroller: this.scroller, layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW }) {
             Repeat<FtpEntry>(this.entries).each((item: RepeatItem<FtpEntry>) => {
-              FlowItem() { this.EntryItem(item.item, false) }
-                .onClick(() => this.select(item.item)).enabled(!this.loading)
-            }).key((item: FtpEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`).virtualScroll()
+              FlowItem() {
+                this.EntryItem(item.item, false)
+              }
+              .onClick(() => this.select(item.item)).enabled(!this.loading)
+            })
+              .key((item: FtpEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`)
+              .virtualScroll()
           }
-          .columnsTemplate('1fr '.repeat(this.columns()).trim()).columnsGap(16).rowsGap(16)
+          .columnsTemplate('1fr '.repeat(this.columns()).trim())
+          .columnsGap(16)
+          .rowsGap(16)
           .padding({ left: 16, right: 16 })
           .contentEndOffset(SafeHeight.bottomSafeHeight)
-          .width('100%').height('100%').layoutWeight(1)
+          .width('100%')
+          .height('100%')
+          .layoutWeight(1)
           .scrollBar(BarState.Off)
+
           if (!this.loading && this.entries.length === 0) {
             Text($r('app.string.no_playable_files')).fontColor($r('app.color.text_color')).padding(24)
           }
@@ -170,17 +185,28 @@ export struct FtpPage {
                       SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(16)
                     }.padding(16).width('100%').backgroundColor($r('app.color.list_item_background')).borderRadius(16)
                   }.onClick(() => this.browse(item.item, '')).enabled(!this.loading)
-                  .bindContextMenu(this.ServerMenu(item.item), ResponseType.LongPress)
-                  .bindContextMenu(this.ServerMenu(item.item), ResponseType.RightClick)
+                  .bindContextMenu(this.ServerMenu(item.item), ResponseType.LongPress, {
+                    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                      style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                    }) : undefined
+                  })
+                  .bindContextMenu(this.ServerMenu(item.item), ResponseType.RightClick, {
+                    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                      style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                    }) : undefined
+                  })
                 })
                 .key((item: FtpServer) => item.id).virtualScroll()
             } else {
               Repeat<FtpEntry>(this.entries)
                 .each((item: RepeatItem<FtpEntry>) => {
-                  ListItem() { this.EntryItem(item.item, true) }
-                    .onClick(() => this.select(item.item)).enabled(!this.loading)
+                  ListItem() {
+                    this.EntryItem(item.item, true)
+                  }
+                  .onClick(() => this.select(item.item)).enabled(!this.loading)
                 })
-                .key((item: FtpEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`).virtualScroll()
+                .key((item: FtpEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`)
+                .virtualScroll()
               if (!this.loading && this.entries.length === 0) {
                 ListItem() {
                   Text($r('app.string.no_playable_files')).fontColor($r('app.color.text_color')).padding(24)
@@ -198,7 +224,9 @@ export struct FtpPage {
           .scrollBar(BarState.Off)
         }
       }.width('100%').height('100%').clip(false)
-      .onAreaChange((_old: Area, area: Area) => { this.contentWidth = Number(area.width) })
+      .onAreaChange((_old: Area, area: Area) => {
+        this.contentWidth = Number(area.width)
+      })
     }
     .titleBar({
       avoidLayoutSafeArea: true,
@@ -300,6 +328,11 @@ export struct FtpPage {
     })
   }
 
+  private columns(): number {
+    return Math.max(1, Math.floor(this.contentWidth / 500) +
+      (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? 1 : 2))
+  }
+
   private reloadServers(): void {
     try {
       this.servers = FtpUtil.servers()
@@ -347,7 +380,8 @@ export struct FtpPage {
       this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
     } catch (error) {
       if (version === this.requestVersion) {
-        this.error = error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.read_ftp_failed').id)
+        this.error =
+          error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.read_ftp_failed').id)
       }
     } finally {
       request.close()
@@ -419,7 +453,8 @@ export struct FtpPage {
       await ToolsUtil.routerWhere(this.pathStack, item, list)
     } catch (error) {
       if (version === this.requestVersion) {
-        this.error = error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.open_video_failed').id)
+        this.error =
+          error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.open_video_failed').id)
       }
     } finally {
       if (version === this.requestVersion) {
@@ -427,5 +462,4 @@ export struct FtpPage {
       }
     }
   }
-
 }

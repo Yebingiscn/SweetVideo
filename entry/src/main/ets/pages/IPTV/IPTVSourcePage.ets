@@ -11,9 +11,10 @@ import { PathUtils } from '../../utils/PathUtils'
 import TimeUtil from '../../utils/TimeUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 @ComponentV2
 export struct IPTVSourcePage {
@@ -53,18 +54,15 @@ export struct IPTVSourcePage {
   SourceMenu(source: IPTVSource) {
     Menu() {
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
         content: $r('app.string.edit')
       }).onClick(() => {
         IPTVSourceService.editingSource = source
         this.addDialogController.open()
       })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_clockwise')),
         content: $r('app.string.refresh')
       }).onClick(async () => await this.refresh(source))
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),
         content: $r('app.string.delete')
       }).onClick(() => {
         this.pendingDelete = source
@@ -155,13 +153,18 @@ export struct IPTVSourcePage {
                 }
               })
               .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
-              .bindContextMenu(this.SourceMenu(item.item), ResponseType.LongPress,
-                {
-                  backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                  hapticFeedbackMode: HapticFeedbackMode.ENABLED
-                })
-              .bindContextMenu(this.SourceMenu(item.item), ResponseType.RightClick,
-                { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
+              .bindContextMenu(this.SourceMenu(item.item), ResponseType.LongPress, {
+                systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                  style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                }) : undefined,
+                hapticFeedbackMode: HapticFeedbackMode.ENABLED
+              }
+              )
+              .bindContextMenu(this.SourceMenu(item.item), ResponseType.RightClick, {
+                systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                  style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                }) : undefined
+              })
             })
             .key((item: IPTVSource) => `${item.id}_${item.updatedTime}_${item.lastRefreshStatus}`).virtualScroll()
         }
@@ -288,7 +291,8 @@ export struct IPTVSourcePage {
     try {
       const refreshed = await IPTVSourceService.refreshSource(source)
       this.upsertSource(refreshed)
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.refresh_success_channels').id, refreshed.channelCount))
+      ToolsUtil.showToast(
+        ToolsUtil.getStringResourceArgs($r('app.string.refresh_success_channels').id, refreshed.channelCount))
     } catch (error) {
       const sources = Preferences.getIPTVSources(PathUtils.appContext!)
       const target = sources.find(item => item.id === source.id)
@@ -315,6 +319,7 @@ export struct IPTVSourcePage {
     if (!source.lastRefreshTime) {
       return ToolsUtil.getStringResource($r('app.string.not_refreshed_yet').id)
     }
-    return ToolsUtil.getStringResourceArgs($r('app.string.updated_at').id, TimeUtil.formatDateTime(source.lastRefreshTime))
+    return ToolsUtil.getStringResourceArgs($r('app.string.updated_at').id,
+      TimeUtil.formatDateTime(source.lastRefreshTime))
   }
 }

@@ -31,11 +31,11 @@ export function SwipingPanelBuilder(value: SwipingPanelValue) {
       if (value.onSwipingVoice) {
         SymbolGlyph(getVolumeIcon(value.videoVolumeShow))
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
+          .fontColor([$r('app.color.main_color')])
       } else {
         SymbolGlyph($r('sys.symbol.sun_max'))
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
+          .fontColor([$r('app.color.main_color')])
           .rotate({ angle: value.screenBrightness * 360 })
           .animation({ duration: 300, curve: Curve.Smooth })
       }
@@ -55,7 +55,7 @@ export function SwipingPanelBuilder(value: SwipingPanelValue) {
           .enableHapticFeedback(true)
           .width(160)
           .height(40)
-          .trackThickness(40)
+          .trackThickness(20)
           .selectedBorderRadius(16)
           .padding({ left: 5 })
           .selectedColor($r('app.color.main_color'))

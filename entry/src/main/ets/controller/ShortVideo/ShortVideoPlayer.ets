@@ -28,6 +28,7 @@ export class ShortVideoPlayer {
   private smbPlayback: NetworkPlayback = new NetworkPlayback()
   readonly item: VideoMetadata
   @Trace state: ShortVideoState = 'idle'
+  @Trace activating: boolean = false
   @Trace currentTime: number = 0
   @Trace playbackPositionMs: number = 0
   @Trace duration: number = 0
@@ -41,6 +42,10 @@ export class ShortVideoPlayer {
   private surfaceId: string = ''
   private prepareTask: Promise<void> | undefined = undefined
   private playTask: Promise<void> | undefined = undefined
+  private playTaskVersion: number = -1
+  private pauseTask: Promise<void> | undefined = undefined
+  // 命令返回与 playing 回调不是同一时刻，回调到来前也不能重复起播。
+  private playRequested: boolean = false
   private preparedResolver: (() => void) | undefined = undefined
   private preparedRejecter: ((reason: Error) => void) | undefined = undefined
   private active: boolean = false
@@ -78,11 +83,21 @@ export class ShortVideoPlayer {
     return this.isActive && this.state === 'playing'
   }
 
+  get playbackFailed(): boolean {
+    return this.isActive && !this.activating && this.state === 'error'
+  }
+
+  private isCurrentActivation(version: number, player?: NativeAVPlayer): boolean {
+    return this.active && !this.disposed && version === this.activationVersion &&
+      (player === undefined || this.player === player)
+  }
+
   async finishAtEnding(): Promise<void> {
     const player = this.player
     if (!this.active || this.disposed || !player) { return }
+    const pauseTask = this.pause()
     const activationVersion = this.activationVersion
-    await this.pause()
+    await pauseTask
     if (!this.active || this.disposed || this.player !== player || activationVersion !== this.activationVersion) { return }
     this.playbackEnded = true
     this.state = 'completed'
@@ -158,8 +173,10 @@ export class ShortVideoPlayer {
       this.readyPlayer = undefined
       this.readyPolicy = undefined
       this.policyHandledReady = false
-      await this.pause()
-      if (this.disposed || this.active) {
+      const pauseTask = this.pause()
+      const version = this.activationVersion
+      await pauseTask
+      if (this.disposed || this.active || version !== this.activationVersion) {
         return
       }
       const restartFromBeginning = this.hasReachedWatchedThreshold()
@@ -170,48 +187,87 @@ export class ShortVideoPlayer {
       return
     }
     this.hasBeenActive = true
-    // The page can become active before Swiper has created its XComponent surface.
-    // Do not leave behind a completed play task in that case; bindSurface() will retry.
+    const version = this.activationVersion
+    if (this.playTask && this.playTaskVersion === version) {
+      return this.playTask
+    }
+    if (this.state === 'playing' && !this.playbackEnded && !this.pauseTask) {
+      return
+    }
+    this.activating = true
+    // Surface 尚未创建时保留准备状态，绑定后由同一激活入口继续。
     if (!this.surfaceId) {
       return
     }
-    if (this.playTask) {
-      return this.playTask
-    }
-    const task = this.playWhenReady()
+    const task = this.playWhenReady(version, this.playTask)
     this.playTask = task
+    this.playTaskVersion = version
     try {
       await task
-    } catch (error) {
-      if (this.active) {
-        this.fail(error)
-      }
     } finally {
       if (this.playTask === task) {
         this.playTask = undefined
       }
+      if (this.isCurrentActivation(version)) {
+        this.activating = this.playRequested
+      }
     }
   }
 
-  private async playWhenReady(): Promise<void> {
-    await this.prepare()
-    if (!this.active || this.disposed || !this.player) {
+  private async playWhenReady(version: number, previousTask?: Promise<void>): Promise<void> {
+    // 快速切走再切回时，先让旧请求收尾，再启动当前这轮，不能复用旧轮结果。
+    if (previousTask) {
+      await previousTask
+    }
+    if (!this.isCurrentActivation(version)) {
       return
     }
-    const player = this.player
-    this.notifyPolicyReady()
-    if (!this.active || this.disposed || this.player !== player ||
+    try {
+      await this.prepare()
+      const player = this.player
+      if (!player || !this.isCurrentActivation(version, player)) {
+        return
+      }
+      this.notifyPolicyReady()
+      if (!this.isCurrentActivation(version, player)) {
+        return
+      }
+      if (this.state === 'completed') {
+        this.resetToBeginning()
+      }
+      await this.requestPlay(player, version, 'activate')
+    } catch (error) {
+      if (this.isCurrentActivation(version) && this.state !== 'error') {
+        this.fail(error)
+      }
+    }
+  }
+
+  private async requestPlay(player: NativeAVPlayer, version: number, source: string): Promise<void> {
+    const pauseTask = this.pauseTask
+    if (pauseTask) {
+      await pauseTask
+    }
+    if (!this.isCurrentActivation(version, player) || this.playRequested ||
       (this.state === 'playing' && !this.playbackEnded)) {
       return
     }
-    if (this.state === 'completed') {
-      this.resetToBeginning()
-    }
+    const requestedState = player.state
+    this.playRequested = true
+    this.playbackEnded = false
     try {
-      this.playbackEnded = false
       await player.play()
     } catch (error) {
-      if (this.active) {
+      const current = this.isCurrentActivation(version, player)
+      salmonLogger.addLog(TAG,
+        `play request failed: item=${this.item.date}, source=${source}, state=${requestedState}->${player.state}, ` +
+          `activation=${version}/${this.activationVersion}, active=${this.active}, current=${current}, ${error}`, true)
+      if (!current) {
+        return
+      }
+      this.playRequested = false
+      // 已确认在播放的实例，不应被随后返回的命令拒绝覆盖为媒体错误。
+      if (player.state !== 'playing') {
         this.fail(error, player)
       }
     }
@@ -224,31 +280,17 @@ export class ShortVideoPlayer {
       return
     }
     this.playbackEnded = false
-    player.play().catch((error: BusinessError) => {
-      if (this.active && !this.disposed && this.player === player) {
-        this.fail(error, player)
-      }
-    })
+    void this.requestPlay(player, this.activationVersion, 'policy')
   }
 
   async toggle(): Promise<void> {
     if (!this.player || !this.active || this.disposed) {
       return
     }
-    const player = this.player
-    try {
-      if (this.state === 'playing') {
-        await player.pause()
-      } else {
-        if (this.state === 'completed') {
-          this.resetToBeginning()
-        }
-        await player.play()
-      }
-    } catch (error) {
-      if (this.active) {
-        this.fail(error, player)
-      }
+    if (this.state === 'playing' || this.playRequested || this.activating) {
+      await this.pause()
+    } else {
+      await this.setActive(true)
     }
   }
 
@@ -285,11 +327,35 @@ export class ShortVideoPlayer {
   }
 
   async pause(): Promise<void> {
-    if (!this.player || this.state !== 'playing') {
+    // 暂停也结束当前起播意图，避免旧 prepare/play 在暂停后继续生效。
+    this.activationVersion++
+    this.activating = false
+    const player = this.player
+    const shouldPause = this.playRequested || this.state === 'playing'
+    this.playRequested = false
+    if (this.pauseTask) {
+      return this.pauseTask
+    }
+    if (!player || !shouldPause) {
       return
     }
+    const task = this.pauseInternal(player)
+    this.pauseTask = task
     try {
-      await this.player.pause()
+      await task
+    } finally {
+      if (this.pauseTask === task) {
+        this.pauseTask = undefined
+      }
+    }
+  }
+
+  private async pauseInternal(player: NativeAVPlayer): Promise<void> {
+    try {
+      await player.pause()
+      if (!this.disposed && this.player === player && player.state !== 'error') {
+        this.state = 'paused'
+      }
     } catch (error) {
       salmonLogger.addLog(TAG, `pause failed: ${error}`, true)
     }
@@ -314,6 +380,9 @@ export class ShortVideoPlayer {
       return
     }
     this.disposed = true
+    this.activationVersion++
+    this.activating = false
+    this.playRequested = false
     this.playbackPolicy = undefined
     this.readyPlayer = undefined
     this.readyPolicy = undefined
@@ -343,6 +412,13 @@ export class ShortVideoPlayer {
     this.state = 'preparing'
     this.errorMessage = ''
     try {
+      const oldPlayer = this.player
+      this.player = undefined
+      if (oldPlayer) {
+        this.unregisterCallbacks(oldPlayer)
+        await oldPlayer.release()
+      }
+      if (this.disposed) return
       const player = await NativeAVPlayer.create()
       if (this.disposed) {
         await player.release()
@@ -426,6 +502,9 @@ export class ShortVideoPlayer {
           this.clearPrepareCallbacks()
           break
         case 'playing':
+          this.playRequested = false
+          this.activating = false
+          this.errorMessage = ''
           this.state = 'playing'
           this.playbackEnded = false
           if (this.active) {
@@ -434,9 +513,8 @@ export class ShortVideoPlayer {
           if (this.playbackRate !== 1) {
             this.setPlaybackRate(this.playbackRate)
           }
-          if (!this.active) {
-            player.pause().catch(() => {
-            })
+          if (!this.active && !this.pauseTask) {
+            void this.pause()
           }
           break
         case 'paused':
@@ -446,6 +524,8 @@ export class ShortVideoPlayer {
           }
           break
         case 'completed':
+          this.playRequested = false
+          this.activating = false
           this.playbackEnded = true
           if (!this.active) {
             return
@@ -562,6 +642,10 @@ export class ShortVideoPlayer {
   private fail(error: Object, player?: NativeAVPlayer): void {
     if (this.disposed || (player !== undefined && this.player !== player)) {
       return
+    }
+    this.playRequested = false
+    if (!this.playTask) {
+      this.activating = false
     }
     this.state = 'error'
     this.onPlaybackStateChanged(false, this.currentTime)

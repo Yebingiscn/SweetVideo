@@ -152,8 +152,6 @@ export class LightMaterialModifier implements AttributeModifier<CommonAttribute>
         interactive: true,
         lightEffect: {},
       }))
-    } else {
-      instance.backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
     }
   }
 }

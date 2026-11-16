@@ -11,13 +11,15 @@ import { VideoItemPreviewBuilder } from '../component/VideoItemComponent/VideoIt
 
 import { Setting } from '../utils/ObservedUtil'
 import RecentPlayUtil from '../utils/RecentPlayUtil'
+import { RecentPlaybackSnapshot } from '../utils/RecentPlaybackSnapshot'
 import SelectFileUtil from '../utils/SelectFileUtil'
 import Preferences from '../database/Preferences'
 import ToolsUtil from '../utils/ToolsUtil'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
-import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { MaterialCapability } from '../common/MaterialCapability'
 
 @ComponentV2
 export struct RecentPlay { // 最近播放页
@@ -31,8 +33,7 @@ export struct RecentPlay { // 最近播放页
           ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_failed_retry').id))
           return
         }
-        this.recent_video_meta_data = []
-        this.videoDataSource.updateData(this.recent_video_meta_data)
+        this.publishRecentPlay([])
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -51,19 +52,17 @@ export struct RecentPlay { // 最近播放页
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   private listScroller: Scroller = new Scroller()
+  private historySnapshot: RecentPlaybackSnapshot = new RecentPlaybackSnapshot()
+  private historySubscription: (() => void) | undefined = undefined
 
-  async aboutToAppear(): Promise<void> {
-    if (Setting.recentPlay) {
-      this.recent_video_meta_data = RecentPlayUtil.getRecentPlaybacks()
-      this.videoDataSource = new VideoDataSource(this.recent_video_meta_data)
-    }
+  aboutToDisappear(): void {
+    this.stopObservingRecentPlay()
   }
 
   @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
     Menu() {
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_triangle')),
         content: VideoOperateUtil.getPlayerName(Setting.defaultPlayerEngine, true)
       })
         .onClick(() => {
@@ -72,7 +71,6 @@ export struct RecentPlay { // 最近播放页
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_rectangle')),
         content: $r('app.string.short_video_mode')
       })
         .onClick(() => {
@@ -83,13 +81,12 @@ export struct RecentPlay { // 最近播放页
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),
         content: $r('app.string.delete')
       }).onClick(() => {
         this.pendingDeleteItem = item!
         this.deleteConfirmDialog.open()
       })
-      MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: $r('app.string.menu_detail') })
+      MenuItem({ content: $r('app.string.menu_detail') })
         .onClick(() => {
           setTimeout(() => {
             this.detailMetadata = item
@@ -133,8 +130,8 @@ export struct RecentPlay { // 最近播放页
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_failed_retry').id))
       return false
     }
-    this.recent_video_meta_data = this.recent_video_meta_data.filter(i => i.uri !== item.uri)
-    this.videoDataSource.updateData(this.recent_video_meta_data)
+    // Read the successful persisted result, not a possibly stale visible subset.
+    this.refreshRecentPlay()
     return true
   }
 
@@ -184,9 +181,11 @@ export struct RecentPlay { // 最近播放页
                     top: 16,
                     bottom: 4
                   },
-                  backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                   hapticFeedbackMode: HapticFeedbackMode.ENABLED,
-                  mask: true
+                  mask: true,
+                  systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                    style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                  }) : undefined
                 })
               .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
                 {
@@ -198,13 +197,13 @@ export struct RecentPlay { // 最近播放页
                     top: 16,
                     bottom: 4
                   },
-                  backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                  mask: true
+                  mask: true,
+                  systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                    style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                  }) : undefined
                 })
             })
-            .key(
-              (item: VideoMetadata, _index: number) => item.date + item.title + item.last_play + item.size.toString() +
-                item.time)
+            .key((item: VideoMetadata): string => RecentPlaybackSnapshot.key(item))
             .virtualScroll()
         }
         .clip(false)
@@ -218,10 +217,11 @@ export struct RecentPlay { // 最近播放页
       }
     }
     .onShown(() => {
-      if (Setting.recentPlay) {
-        this.recent_video_meta_data = RecentPlayUtil.getRecentPlaybacks()
-        this.videoDataSource.updateData(this.recent_video_meta_data)
-      }
+      // 返回时可能早于播放器完成进度保存，继续监听成功写入以更新本次进度。
+      this.observeRecentPlay()
+    })
+    .onHidden(() => {
+      this.stopObservingRecentPlay()
     })
     .titleBar({
       enableComponentSafeArea: true, // 将标题栏设置为组件级安全区，内容区可避让标题栏
@@ -319,17 +319,44 @@ export struct RecentPlay { // 最近播放页
     })
     .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
       detents: [SheetSize.LARGE],
-      backgroundColor: $r('app.color.start_window_background'),
-      blurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
       showClose: true,
       onWillDismiss: () => {
         this.showDetailSheet = false
-      }
+      },
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+      }) : undefined
     })
   }
 
   @Builder
   DetailSheetBuilder() {
     VideoDetailSheetBuilder(this.detailMetadata)
+  }
+
+  private observeRecentPlay(): void {
+    if (!this.historySubscription) {
+      this.historySubscription = Preferences.subscribeRecentPlayChanges(() => {
+        this.refreshRecentPlay()
+      })
+    }
+    this.refreshRecentPlay()
+  }
+
+  private stopObservingRecentPlay(): void {
+    this.historySubscription?.()
+    this.historySubscription = undefined
+  }
+
+  private publishRecentPlay(items: VideoMetadata[]): void {
+    if (!this.historySnapshot.update(items)) {
+      return
+    }
+    this.recent_video_meta_data = this.historySnapshot.items
+    this.videoDataSource.updateData(this.recent_video_meta_data)
+  }
+
+  private refreshRecentPlay(): void {
+    this.publishRecentPlay(Setting.recentPlay ? RecentPlayUtil.getRecentPlaybacks() : [])
   }
 }

@@ -33,6 +33,7 @@ import { userData, userLoginBuilder } from '../common/UserLoginComponent'
 import { FolderSelectMenuBuilder } from '../FileFolderComponent/FileFolderSelectBuilder'
 import { SideBarFolderComponent } from './SideBarFolderComponent'
 import { LibraryKeyboard } from '../../utils/KeyboardShortcuts'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 @ComponentV2
 export struct SideBarContentComponent {
@@ -153,7 +154,11 @@ export struct SideBarContentComponent {
     .attributeModifier(new ButtonFancyModifier('100%', 60))
     .backgroundColor(Color.Transparent)
     .animation({ duration: 300, curve: Curve.Ease })
-    .bindMenu(this.SelectFileMenuBuilder)
+    .bindMenu(this.SelectFileMenuBuilder, {
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.THICK
+      }) : undefined
+    })
     .width('100%')
 
     Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -208,7 +213,10 @@ export struct SideBarContentComponent {
       title: { title: $r('app.string.account_info') },
       onWillDismiss: () => {
         this.isLogin = false
-      }
+      },
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+      }) : undefined
     })
   }
 
@@ -557,7 +565,6 @@ export struct SideBarContentComponent {
   private getSelectFileMenus(): IMenuItem[] {
     return [
       {
-        icon: $r("sys.symbol.resolution_video"),
         content: $r('app.string.import_from_videos'),
         shortcut: 'Ctrl+O',
         onAction: async () => {
@@ -567,7 +574,6 @@ export struct SideBarContentComponent {
         },
       },
       {
-        icon: $r('sys.symbol.folder_badge_eye'),
         content: `从下载文件夹导入（路径：Download/${ToolsUtil.getStringResource($r('app.string.EntryAbility_label')
           .id)}）`,
         onAction: async () => {
@@ -576,7 +582,6 @@ export struct SideBarContentComponent {
         },
       },
       {
-        icon: $r('sys.symbol.picture_2'),
         content: $r('app.string.import_from_album'),
         onAction: async () => {
           this.sideBarController.closeIfOverlay(false)
@@ -585,7 +590,6 @@ export struct SideBarContentComponent {
         },
       },
       {
-        icon: $r('sys.symbol.music'),
         content: $r('app.string.import_from_music'),
         onAction: async () => {
           this.sideBarController.closeIfOverlay(false)
@@ -594,7 +598,6 @@ export struct SideBarContentComponent {
         },
       },
       {
-        icon: $r('sys.symbol.folder'),
         content: $r('app.string.import_from_folder'),
         shortcut: 'Ctrl+Shift+O',
         onAction: async () => {

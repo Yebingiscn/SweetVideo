@@ -9,7 +9,6 @@ import FileFolderUtil from '../../utils/FileFolderUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import VideoUtils from '../../utils/VideoUtil'
 import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
-import { SymbolGlyphModifier } from '@kit.ArkUI'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { salmonLogger } from 'salmonlogger'
 
@@ -34,22 +33,17 @@ export struct FileFolderMenu {
 
   build() {
     Menu() {
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder_badge_plus')),
-        content: $r('app.string.add_folder')
-      }).onClick(() => {
-        this.addFileFolderNameDialogController?.open()
-      })
+      MenuItem({ content: $r('app.string.add_folder') })
+        .onClick(() => {
+          this.addFileFolderNameDialogController?.open()
+        })
       Repeat<FileFolder>(FileFolderUtil.flattenTree(this.file_folder_list))
         .each((repeatItem: RepeatItem<FileFolder>) => {
           if (repeatItem.item.date !== this.videoListController.folder.date) {
-            MenuItem(
-              {
-                symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")),
-                content: repeatItem.item.name
-              })
+            MenuItem({ content: repeatItem.item.name })
               .onClick(() => {
-                const videos = DataSyncUtil.delMultipleList.length > 0 ? DataSyncUtil.delMultipleList : [this.video_item!]
+                const videos =
+                  DataSyncUtil.delMultipleList.length > 0 ? DataSyncUtil.delMultipleList : [this.video_item!]
                 let folders: FileFolder[]
                 try {
                   folders = FileFolderUtil.transferVideosToFileFolder(PathUtils.appContext!, videos,

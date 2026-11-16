@@ -8,13 +8,14 @@ import { CoverLayoutMode, ListDisplayMode } from '../../common/enum/DisplayMode'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import VideoCardItem from './VideoCardItemComponent'
 import VideoListItem from './VideoListItemComponent'
-import { Binding, curves, UIUtils } from '@kit.ArkUI'
+import { Binding, curves, uiMaterial, UIUtils } from '@kit.ArkUI'
 import KnockShareUtil from '../../utils/KnockShareUtil'
 import FolderDirectory, { DirectoryEntry } from '../../utils/FolderDirectory'
 import DirectoryHero, { DirectoryRect } from '../../utils/DirectoryHero'
 import { VideoListController } from '../../controller/VideoListController'
 import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { LibraryItemFocus, LibraryKeyboard } from '../../utils/KeyboardShortcuts'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 enum DirectoryCoverPlacement {
   LIST,
@@ -215,7 +216,7 @@ export struct DirectoryView {
       if (this.videoListController.directoryFolderSelection &&
         (placement === DirectoryCoverPlacement.LIST || placement === DirectoryCoverPlacement.CARD)) {
         Checkbox()
-          .select(this.videoListController.directoryFolderSelection.has(folder.value.date))
+          .select(this.videoListController.directoryFolderSelection?.has(folder.value.date) ?? false)
           .enabled(folder.value.name !== '首页')
           .selectedColor($r('app.color.main_color'))
           .width(22)
@@ -294,8 +295,16 @@ export struct DirectoryView {
     .width('100%')
     .accessibilityText($r('app.string.directory_folder_accessibility', folder.value.name,
       folder.value.video_list.length, this.directoryIndex.childFolders(folder.value.date).length))
-    .bindContextMenu(this.DirectoryFolderMenu(folder.value), ResponseType.LongPress)
-    .bindContextMenu(this.DirectoryFolderMenu(folder.value), ResponseType.RightClick)
+    .bindContextMenu(this.DirectoryFolderMenu(folder.value), ResponseType.LongPress, {
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+      }) : undefined
+    })
+    .bindContextMenu(this.DirectoryFolderMenu(folder.value), ResponseType.RightClick, {
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+      }) : undefined
+    })
     .backdropBlur(Setting.listItemBackgroundBlur ? 150 : 0)
     .borderRadius(12)
   }
@@ -334,8 +343,16 @@ export struct DirectoryView {
     .padding({ bottom: 12 })
     .accessibilityText($r('app.string.directory_folder_accessibility', folder.value.name,
       folder.value.video_list.length, this.directoryIndex.childFolders(folder.value.date).length))
-    .bindContextMenu(this.DirectoryFolderMenu(folder.value), ResponseType.LongPress)
-    .bindContextMenu(this.DirectoryFolderMenu(folder.value), ResponseType.RightClick)
+    .bindContextMenu(this.DirectoryFolderMenu(folder.value), ResponseType.LongPress, {
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+      }) : undefined
+    })
+    .bindContextMenu(this.DirectoryFolderMenu(folder.value), ResponseType.RightClick, {
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+      }) : undefined
+    })
   }
 
   @Computed

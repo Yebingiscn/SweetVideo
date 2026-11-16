@@ -7,12 +7,13 @@ import IPTVParser from '../../utils/IPTVParser'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { LengthMetrics } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { salmonLogger } from 'salmonlogger'
 import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { SearchComponent } from '../../component/VideoItemComponent/SearchComponent'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 function allChannelsLabel(): string {
   return ToolsUtil.getStringResource($r('app.string.all_channels').id)
@@ -284,6 +285,9 @@ export struct IPTVChannelPage {
               .bindMenu(this.LineMenu(params.channel!), {
                 placement: Placement.BottomRight,
                 showInSubWindow: false,
+                systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                  style: uiMaterial.ImmersiveStyle.THICK
+                }) : undefined
               })
           }
           .width('100%')

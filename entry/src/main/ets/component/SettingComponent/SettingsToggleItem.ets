@@ -54,6 +54,9 @@ export struct SettingsToggleItem {
 
       Toggle({ type: ToggleType.Switch, isOn: this._enable })
         .onChange((checked: boolean) => {
+          if (checked === this._enable) {
+            return
+          }
           this._enable = checked
           this.onChange(checked)
         })

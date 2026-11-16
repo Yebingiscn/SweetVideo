@@ -11,10 +11,11 @@ import SelectFileUtil from '../../utils/SelectFileUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { userData } from '../../component/common/UserLoginComponent'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
-import { LengthMetrics } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { appInfoManager } from '@kit.AppGalleryKit'
 import { BusinessError, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { salmonLogger } from 'salmonlogger'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 const TAG = 'PersonalizeSettingPage'
 
@@ -260,8 +261,10 @@ export struct PersonalizeSettingPage {
       detents: [SheetSize.LARGE, SheetSize.MEDIUM],
       showClose: true,
       dragBar: true,
-      backgroundColor: $r('app.color.start_window_background'),
       title: { title: $r('app.string.app_icon') },
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+      }) : undefined
     })
   }
 

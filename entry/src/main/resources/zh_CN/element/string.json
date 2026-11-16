@@ -918,10 +918,6 @@
       "value": "长按快进倍速"
     },
     {
-      "name": "long_press_speed_hint",
-      "value": "上滑锁定 · 下滑恢复原倍速"
-    },
-    {
       "name": "horizontal_seek_sensitivity",
       "value": "横向滑动调节进度灵敏度"
     },
@@ -4334,6 +4330,18 @@
     {"name": "stream_headers_hint", "value": "请求头（可选，每行一个，例如 Referer: https://example.com）"},
     {"name": "stream_headers_invalid", "value": "请求头格式不正确或内容过长，请使用每行 名称: 值"},
     {"name": "danmaku_heatmap", "value": "弹幕高能进度条"},
-    {"name": "danmaku_heatmap_description", "value": "有弹幕时显示进度条上的高能分布"}
+    {"name": "danmaku_heatmap_description", "value": "有弹幕时显示进度条上的高能分布"},
+    {
+      "name": "mpv_quality_boost",
+      "value": "MPV 画质增强（仅 Buffer/软解）"
+    },
+    {
+      "name": "sdr_to_hdr",
+      "value": "SDR 转 HDR（仅 Buffer/软解）"
+    },
+    {
+      "name": "super_resolution",
+      "value": "视频超分辨率"
+    }
   ]
 }

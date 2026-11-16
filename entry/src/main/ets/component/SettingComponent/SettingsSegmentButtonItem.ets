@@ -68,6 +68,9 @@ export struct SettingsSegmentButtonItem {
         items: this.textItems,
         selectedIndex: this.tabSelectedIndex,
         $selectedIndex: (index: number) => {
+          if (index === this.tabSelectedIndex) {
+            return
+          }
           this.onButtonClick(index)
         },
         itemSelectedFontColor: this.itemSelectedFontColor,

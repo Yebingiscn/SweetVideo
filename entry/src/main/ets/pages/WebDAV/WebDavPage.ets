@@ -13,8 +13,9 @@ import SmbUtil from '../../utils/SmbUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
-import { LengthMetrics } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 @ComponentV2
 export struct WebDavPage {
@@ -175,8 +176,16 @@ export struct WebDavPage {
                       SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(16)
                     }.padding(16).width('100%').backgroundColor($r('app.color.list_item_background')).borderRadius(16)
                   }.onClick(() => this.browse(item.item, '')).enabled(!this.loading)
-                  .bindContextMenu(this.ServerMenu(item.item), ResponseType.LongPress)
-                  .bindContextMenu(this.ServerMenu(item.item), ResponseType.RightClick)
+                  .bindContextMenu(this.ServerMenu(item.item), ResponseType.LongPress, {
+                    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                      style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                    }) : undefined
+                  })
+                  .bindContextMenu(this.ServerMenu(item.item), ResponseType.RightClick, {
+                    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                      style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                    }) : undefined
+                  })
                 })
                 .key((item: WebDavServer) => item.id).virtualScroll()
             } else {

@@ -1,11 +1,9 @@
-import { LightMaterialModifier, MenuFancyModifier } from '../../common/AttributeModifierConfig'
+import { MenuFancyModifier } from '../../common/AttributeModifierConfig'
 import { SortField } from '../../common/enum/SortField'
 import ToolsUtil from '../../utils/ToolsUtil'
-import { SymbolGlyphModifier } from '@kit.ArkUI'
 
 export interface SortMenuItem {
   field: SortField
-  icon: Resource
   textResource: Resource
   onAction: () => void
 }
@@ -29,7 +27,6 @@ export struct SortMenuComponent {
     Menu() {
       Repeat(this.items).each((ri) => {
         MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier(ri.item.icon),
           content: ToolsUtil.getStringResource(ri.item.textResource.id) + this.getSortIndicator(ri.item.field)
         })
           .onClick(() => {
@@ -38,7 +35,6 @@ export struct SortMenuComponent {
       }).key((item: SortMenuItem) => item.field)
       if (this.currentSortField === this.pinyinSortField) {
         MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.translate')),
           content: this.pinyinSortText + (this.pinyinSort ? ' ✓' : '')
         })
           .onClick(() => {

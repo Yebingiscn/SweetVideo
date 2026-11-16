@@ -587,7 +587,6 @@ export struct VideoPlayer {
                 speed: this.player.speed,
                 location: VideoInfoUtil.playAreaHeight,
                 speedLocked: this.player.speedLocked,
-                showHints: true,
               })
             }
             if (this.player.onSwiping) {
@@ -633,13 +632,13 @@ export struct VideoPlayer {
               onPinchStart: (event: GestureEvent) => this.gestures.onPinchStart(event),
               onPinchUpdate: (event: GestureEvent) => this.gestures.onPinchUpdate(event),
               onPinchEnd: () => this.gestures.onPinchEnd(),
-              onLongPressAction: () => this.gestures.onLongPressAction(),
-              onLongPressEnd: () => this.gestures.onLongPressEnd(),
-              onLongPressCancel: () => this.gestures.onLongPressCancel(),
+              onLongPressAction: () => this.gestures.longPressSpeed.begin(),
+              onLongPressEnd: () => this.gestures.longPressSpeed.end(),
+              onLongPressCancel: () => this.gestures.longPressSpeed.cancel(),
               onLongPressPanStart: (offsetX: number, offsetY: number) =>
-              this.gestures.onLongPressPanStart(offsetX, offsetY),
+              this.gestures.longPressSpeed.panStart(offsetX, offsetY),
               onLongPressPanUpdate: (offsetX: number, offsetY: number) =>
-              this.gestures.onLongPressPanUpdate(offsetX, offsetY),
+              this.gestures.longPressSpeed.panUpdate(offsetX, offsetY),
               onPanMoveStart: (event: GestureEvent) => this.gestures.onPanMoveStart(event),
               onPanMoveUpdate: (event: GestureEvent) => this.gestures.onPanMoveUpdate(event),
               onPanMoveEnd: () => this.gestures.onPanMoveEnd(),
@@ -963,9 +962,6 @@ export struct VideoPlayer {
         this.keyboardSubtitleMenuVisible = visible
       },
       isAnySubtitleActive: this.subtitleManager.isAnySubtitleActive,
-      carSettingsMenu: (): void => this.VideoSettingBuilder(),
-      carSpeedMenu: (): void => this.PlaybackSpeedMenuBuilder(),
-      carNavigationMenu: (): void => this.HiCarNavigationMenu(),
       danmakuMenuBuilder: () => {
         this.DanmakuMenu()
       },
@@ -1094,20 +1090,7 @@ export struct VideoPlayer {
     })
   }
 
-  @Builder
-  HiCarNavigationMenu() {
-    Menu() {
-      MenuItem({ content: $r('app.string.hicar_playlist') }).height(56)
-        .onClick(() => {
-          this.sideBarStatusTmp = Visibility.Visible
-          this.sideBarStatus = true
-        })
-      MenuItem({ content: $r('app.string.hicar_previous') }).height(56)
-        .onClick(async () => this.playPreviousFromControl())
-      MenuItem({ content: $r('app.string.hicar_next') }).height(56)
-        .onClick(async () => this.playNextFromControl())
-    }
-  }
+
 
   @Builder
   AudioTrackMenuBuilder() {
@@ -1206,7 +1189,7 @@ export struct VideoPlayer {
     PlaybackSpeedMenuComponent({
       player: this.player,
       onSpeedChange: (speed: number) => {
-        this.gestures.unlockSpeed()
+        this.gestures.longPressSpeed.unlock()
         this.player.updatePlaybackSpeed(speed)
         this.player.savePlayerSpeed(PathUtils.appContext!)
       }
@@ -1437,11 +1420,11 @@ export struct VideoPlayer {
         const requestedSpeed = this.player.getRequestedPlaybackSpeed?.() ?? this.player.speed
         const faster = speeds.find(speed => speed > requestedSpeed + 0.001)
         const slower = speeds.slice().reverse().find(speed => speed < requestedSpeed - 0.001)
-        this.gestures.unlockSpeed()
+        this.gestures.longPressSpeed.unlock()
         this.player.updatePlaybackSpeed((action === ShortcutAction.SPEED_UP ? faster : slower) ?? requestedSpeed)
         break
       case ShortcutAction.SPEED_RESET:
-        this.gestures.unlockSpeed()
+        this.gestures.longPressSpeed.unlock()
         this.player.updatePlaybackSpeed(1)
         break
       case ShortcutAction.SUBTITLE:

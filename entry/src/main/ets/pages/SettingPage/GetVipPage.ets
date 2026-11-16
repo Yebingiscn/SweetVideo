@@ -1,6 +1,6 @@
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
-import { LengthMetrics } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { userData, userLoginBuilder } from '../../component/common/UserLoginComponent'
 import { iap } from '@kit.IAPKit'
 import { PathUtils } from '../../utils/PathUtils'
@@ -11,6 +11,7 @@ import { salmonLogger } from 'salmonlogger'
 import { common } from '@kit.AbilityKit'
 import Preferences from '../../database/Preferences'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 const TAG = 'GetVipPage'
 
@@ -144,7 +145,10 @@ export struct GetVipPage {
       title: { title: $r('app.string.account_login') },
       onWillDismiss: () => {
         this.isShowLoginSheet = false
-      }
+      },
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+      }) : undefined
     })
   }
 
@@ -317,7 +321,10 @@ export struct GetVipPage {
       title: { title: $r('app.string.membership_service_agreement') },
       onWillDismiss: () => {
         this.showAgreementSheet = false
-      }
+      },
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+      }) : undefined
     })
   }
 

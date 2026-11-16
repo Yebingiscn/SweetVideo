@@ -1,9 +1,6 @@
 import { framePreviewSession } from '../utils/FFmpegThumbnailUtil'
-import ToolsUtil from '../utils/ToolsUtil'
 import VideoInfoUtil from '../utils/VideoInfoUtil'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
-import { XAnimation } from '../utils/AnimationUtil'
-import { Setting } from '../utils/ObservedUtil'
 import { PlayerControllerInterface } from '../controller/PlayerControllerFactory'
 import {
   MAX_SCALE_FACTOR,
@@ -14,24 +11,18 @@ import {
   SCREEN_HALF_DIVIDER,
   SCROLL_BRIGHTNESS_SENSITIVITY,
   SCROLL_VOLUME_SENSITIVITY,
-  SWIPE_THRESHOLD,
   TWO_FINGER_PAN_BASE_VP,
   TWO_FINGER_ZOOM_BASE_VP,
   VERTICAL_PAN_SENSITIVITY,
   VOLUME_PAN_MULTIPLIER
 } from '../common/Constants'
 import { TwoFingerMode } from '../common/enum/TwoFingerMode'
+import { LongPressSpeedController } from './LongPressSpeedController'
 
 @ObservedV2
 export class PlayerGestureController {
   @Trace seekStartTime: number = 0
-  private currentSpeedIndex: number = 0
   private scrollAxisTimeout: number = 0
-  private longPressSpeedSession: number = 0
-  private activeLongPressSpeedSession: number = 0
-  private longPressBaseSpeed: number = 1
-  private longPressPreviousSpeed: number = 1
-  private longPressPreviousLock: boolean = false
   private twoFingerMode: TwoFingerMode = TwoFingerMode.NONE
   private twoFingerDistStart: number = 0
   private twoFingerMidStartX: number = 0
@@ -41,24 +32,23 @@ export class PlayerGestureController {
   private initScaleFactor: number = 1
   private screenBrightnessTmp: number = 0
   private lastVolume: number = 0
-  private longPressStartX: number = 0
-  private longPressStartY: number = 0
   private panStartX: number = 0
   private panStartY: number = 0
   private leftSideSwipe: boolean = true
 
   private player: PlayerControllerInterface
+  readonly longPressSpeed: LongPressSpeedController
 
   constructor(player: PlayerControllerInterface) {
     this.player = player
+    this.longPressSpeed = new LongPressSpeedController(player)
   }
 
   reset(keepSpeedLock: boolean = false): void {
-    if (keepSpeedLock) this.onLongPressCancel()
-    else this.unlockSpeed()
+    if (keepSpeedLock) this.longPressSpeed.cancel()
+    else this.longPressSpeed.reset()
     clearTimeout(this.scrollAxisTimeout)
     this.scrollAxisTimeout = 0
-    this.activeLongPressSpeedSession = 0
     this.twoFingerMode = TwoFingerMode.NONE
     this.player.volumeGestureActive = false
     this.player.onSwiping = false
@@ -208,115 +198,6 @@ export class PlayerGestureController {
     this.player.isZoomed = this.player.scaleFactor !== 1
     this.player.isGesturing = false
     this.twoFingerMode = TwoFingerMode.NONE
-  }
-
-  onLongPressAction(): void {
-    if (!this.player.playing || this.activeLongPressSpeedSession !== 0) {
-      return
-    }
-    this.activeLongPressSpeedSession = ++this.longPressSpeedSession
-    this.longPressPreviousSpeed = this.requestedSpeed()
-    this.longPressPreviousLock = this.player.speedLocked
-    if (!this.player.speedLocked) {
-      this.longPressBaseSpeed = this.longPressPreviousSpeed
-      this.player.updatePlaybackSpeed(Setting.longPressSpeed)
-    }
-    this.longPressStartX = 0
-    this.longPressStartY = 0
-    XAnimation.runWithAnimation(() => {
-      this.player.longPress = true
-    })
-    ToolsUtil.startVibration()
-    this.currentSpeedIndex = this.speedIndex(this.requestedSpeed())
-  }
-
-  onLongPressEnd(): void {
-    if (this.activeLongPressSpeedSession === 0) {
-      return
-    }
-    this.activeLongPressSpeedSession = 0
-    XAnimation.runWithAnimation(() => {
-      this.player.longPress = false
-    })
-    if (!this.player.speedLocked) {
-      this.player.restoreSpeedAfterLongPress(this.longPressBaseSpeed)
-    }
-  }
-
-  onLongPressCancel(): void {
-    if (this.activeLongPressSpeedSession === 0) return
-    this.activeLongPressSpeedSession = 0
-    this.player.speedLocked = this.longPressPreviousLock
-    XAnimation.runWithAnimation(() => {
-      this.player.longPress = false
-    })
-    this.player.restoreSpeedAfterLongPress(this.longPressPreviousLock ?
-      this.longPressPreviousSpeed : this.longPressBaseSpeed)
-  }
-
-  unlockSpeed(): void {
-    if (this.activeLongPressSpeedSession === 0 && !this.player.speedLocked) return
-    this.activeLongPressSpeedSession = 0
-    this.player.speedLocked = false
-    XAnimation.runWithAnimation(() => {
-      this.player.longPress = false
-    })
-    this.player.restoreSpeedAfterLongPress(this.longPressBaseSpeed)
-  }
-
-  onLongPressPanStart(offsetX: number, offsetY: number): void {
-    if (this.activeLongPressSpeedSession === 0) return
-    this.longPressStartX = 0
-    this.longPressStartY = 0
-    this.onLongPressPanUpdate(offsetX, offsetY)
-  }
-
-  onLongPressPanUpdate(offsetX: number, offsetY: number): void {
-    if (this.activeLongPressSpeedSession === 0 || !this.player.longPress ||
-      !Number.isFinite(offsetX) || !Number.isFinite(offsetY)) return
-    const deltaX = offsetX - this.longPressStartX
-    const deltaY = offsetY - this.longPressStartY
-    if (Math.abs(deltaY) > SWIPE_THRESHOLD && Math.abs(deltaY) >= Math.abs(deltaX)) {
-      // 每次动作都更新双轴基准，反向下滑从锁定位置计算，而非最初触点。
-      this.longPressStartX = offsetX
-      this.longPressStartY = offsetY
-      if (deltaY > 0) {
-        this.unlockSpeed()
-        ToolsUtil.startVibration()
-      } else if (!this.player.speedLocked) {
-        this.player.speedLocked = true
-        ToolsUtil.startVibration()
-      }
-      return
-    }
-    if (Math.abs(deltaX) <= SWIPE_THRESHOLD) return
-    const wasLocked = this.player.speedLocked
-    // 达到最高/最低档位也能解除锁定，松手后仍恢复锁定前的常规速度。
-    this.player.speedLocked = false
-    this.longPressStartX = offsetX
-    this.longPressStartY = offsetY
-    const newIndex = Math.max(0, Math.min(this.currentSpeedIndex + Math.sign(deltaX),
-      VideoInfoUtil.videoSpeedListAll.length - 1))
-    const speedChanged = newIndex !== this.currentSpeedIndex
-    if (speedChanged) {
-      this.currentSpeedIndex = newIndex
-      this.player.updatePlaybackSpeed(VideoInfoUtil.videoSpeedListAll[this.currentSpeedIndex])
-    }
-    if (wasLocked || speedChanged) ToolsUtil.startVibration()
-  }
-
-  private requestedSpeed(): number {
-    const speed = this.player.getRequestedPlaybackSpeed?.() ?? this.player.speed
-    return Number.isFinite(speed) && speed > 0 ? speed : 1
-  }
-
-  private speedIndex(speed: number): number {
-    const speeds = VideoInfoUtil.videoSpeedListAll
-    let index = 0
-    for (let i = 1; i < speeds.length; i++) {
-      if (Math.abs(speeds[i] - speed) < Math.abs(speeds[index] - speed)) index = i
-    }
-    return index
   }
 
   onPanMoveStart(event: GestureEvent): void {

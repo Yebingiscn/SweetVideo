@@ -19,7 +19,7 @@ export struct VideoLayoutComponent {
         this.VideoTop()
       }
       .width('100%')
-      .height(HiCar.enabled || this.foldHoverPlayback ? 64 : (this.isPortrait() ? 90 : 80))
+      .height(HiCar.enabled ? 'auto' : (this.foldHoverPlayback ? 64 : (this.isPortrait() ? 90 : 80)))
       .linearGradient(this.getTopGradient())
       .padding(this.getTopPadding())
       .transition(XAnimation.getAnimation('up', 0, false))

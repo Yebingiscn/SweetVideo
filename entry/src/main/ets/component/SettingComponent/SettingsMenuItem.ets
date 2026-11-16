@@ -20,9 +20,16 @@ export struct SettingsMenuItem {
 
   aboutToAppear(): void {
     this._selected = this.selected
-    for (let text of this.list) {
-      this.select.push({ value: text })
-    }
+    this.syncOptions()
+  }
+
+  @Monitor('list')
+  onListMonitor(): void {
+    this.syncOptions()
+  }
+
+  private syncOptions(): void {
+    this.select = this.list.map((text: ResourceStr): SelectOption => ({ value: text }))
   }
 
   @Monitor('selected')
@@ -64,6 +71,9 @@ export struct SettingsMenuItem {
         .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
         .enabled(this.itemEnabled)
         .onSelect((index: number) => {
+          if (index === this._selected) {
+            return
+          }
           this._selected = index
           this.onChange(index)
         })

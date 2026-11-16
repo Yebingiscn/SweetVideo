@@ -13,6 +13,9 @@ import { handleScreenDoubleClick } from '../../common/GestureUtil'
 import { PlaybackPolicyController } from '../PlaybackPolicyController'
 import { PlaybackPolicyCallbacks, PlaybackPolicyHost } from '../PlaybackPolicyInterface'
 import { salmonLogger } from 'salmonlogger'
+import { PlaybackGestureState } from '../../common/PlaybackGestureConfig'
+import { LongPressSpeedController } from '../LongPressSpeedController'
+import type { LongPressSpeedHost } from '../LongPressSpeedController'
 
 /** 适配当前短视频，不让相邻预加载项或进度预览成为策略的数据源。 */
 class ShortVideoPolicyHost implements PlaybackPolicyHost {
@@ -85,9 +88,56 @@ class ShortVideoPolicyHost implements PlaybackPolicyHost {
   }
 }
 
+class ShortVideoSpeedHost implements LongPressSpeedHost {
+  private manager: ShortVideoPlayerManager
+
+  constructor(manager: ShortVideoPlayerManager) {
+    this.manager = manager
+  }
+
+  get playing(): boolean {
+    return !this.manager.isClosing && this.manager.playing
+  }
+
+  get longPress(): boolean {
+    return this.manager.gestureState.longPress
+  }
+
+  set longPress(value: boolean) {
+    this.manager.gestureState.longPress = value
+  }
+
+  get speedLocked(): boolean {
+    return this.manager.gestureState.speedLocked
+  }
+
+  set speedLocked(value: boolean) {
+    this.manager.gestureState.speedLocked = value
+  }
+
+  get speed(): number {
+    return this.manager.playbackSpeed
+  }
+
+  getRequestedPlaybackSpeed(): number {
+    return this.manager.playbackSpeed
+  }
+
+  updatePlaybackSpeed(speed: number): void {
+    this.manager.applyGestureSpeed(speed)
+  }
+
+  restoreSpeedAfterLongPress(speed: number): void {
+    this.manager.applyGestureSpeed(speed)
+  }
+}
+
 @ObservedV2
 export class ShortVideoPlayerManager implements PiPPlayerController {
   readonly policy: PlaybackPolicyController = new PlaybackPolicyController()
+  readonly gestureState: PlaybackGestureState = new PlaybackGestureState()
+  private readonly longPressSpeed: LongPressSpeedController = new LongPressSpeedController(new ShortVideoSpeedHost(this))
+  @Trace private longPressIndex: number = -1
   private policyHost: ShortVideoPolicyHost | undefined = undefined
   private closing: boolean = false
   private pipTask: Promise<boolean> | undefined = undefined
@@ -135,8 +185,17 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     return this.players.get(this.currentIndex)
   }
 
+  get playbackSpeed(): number {
+    return this.currentPlayer?.playbackRate ?? this.selectedSpeed
+  }
+
+  get longPressGestureActive(): boolean {
+    return this.longPressIndex >= 0
+  }
+
   configure(items: VideoMetadata[], skipHistory: boolean, onCompleted: (index: number) => void,
     initialIndex: number = 0): void {
+    this.resetLongPress()
     this.items = items.slice()
     this.itemIndices.clear()
     this.items.forEach((item: VideoMetadata, index: number) => this.itemIndices.set(item.date, index))
@@ -221,6 +280,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     if (this.isClosing || this.policy.sleepTimer.checkDeadline() || index < 0 || index >= this.items.length) {
       return
     }
+    this.resetLongPress()
     this.onSwiping = false
     this.swipingTime = 0
     this.progressSeeking = false
@@ -286,7 +346,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   beginHorizontalSeek(index: number): void {
-    if (index !== this.currentIndex) {
+    if (this.isClosing || index !== this.currentIndex) {
       return
     }
     const player = this.players.get(index)
@@ -321,6 +381,21 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     const target = this.swipingTime
     this.onSwiping = false
     this.seek(index, target)
+  }
+
+  cancelHorizontalSeek(index: number): void {
+    if (!this.onSwiping || index !== this.currentIndex) {
+      return
+    }
+    const player = this.players.get(index)
+    const position = player?.playbackPositionMs ?? this.seekStartTime
+    this.onSwiping = false
+    this.currentTime = position
+    this.swipingTime = position
+    // 取消只撤销预览，按真实位置恢复 onSeekStart 暂停的播放策略。
+    if (!this.isClosing) {
+      player?.playbackPolicy?.onSeekDone(position)
+    }
   }
 
   beginProgressSeek(): void {
@@ -418,7 +493,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     player.seek(target)
     if (index === this.currentIndex) {
       this.lastSessionPosition = target
-      AVSessionUtil.updatePlaybackSessionState(this.playing, target, this.repeatMode, this.selectedSpeed)
+      AVSessionUtil.updatePlaybackSessionState(this.playing, target, this.repeatMode, this.playbackSpeed)
     }
   }
 
@@ -429,9 +504,9 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     if (!VideoInfoUtil.videoSpeedListAll.includes(speed)) {
       return
     }
+    this.resetLongPress()
     this.selectedSpeed = speed
-    this.players.get(this.currentIndex)?.setPlaybackRate(speed)
-    AVSessionUtil.updatePlaybackSessionState(this.playing, this.currentTime, this.repeatMode, speed)
+    this.applyGestureSpeed(speed)
   }
 
   selectRepeatMode(repeatMode: SweetRepeatMode): void {
@@ -449,22 +524,56 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   beginLongPress(index: number): void {
-    if (this.isClosing) {
+    if (this.isClosing || index !== this.currentIndex) {
       return
     }
-    if (index === this.currentIndex) {
-      this.players.get(index)?.setPlaybackRate(Setting.longPressSpeed)
-      AVSessionUtil.updatePlaybackSessionState(this.playing, this.currentTime,
-        this.repeatMode, Setting.longPressSpeed)
+    this.longPressSpeed.begin()
+    if (this.gestureState.longPress) {
+      this.longPressIndex = index
     }
   }
 
   endLongPress(index: number): void {
-    this.players.get(index)?.setPlaybackRate(this.selectedSpeed)
-    if (index === this.currentIndex) {
-      AVSessionUtil.updatePlaybackSessionState(this.playing, this.currentTime,
-        this.repeatMode, this.selectedSpeed)
+    if (index !== this.longPressIndex) {
+      return
     }
+    this.longPressIndex = -1
+    this.longPressSpeed.end()
+  }
+
+  cancelLongPress(index: number): void {
+    if (index !== this.longPressIndex) {
+      return
+    }
+    this.longPressIndex = -1
+    this.longPressSpeed.cancel()
+  }
+
+  onLongPressPanStart(index: number, offsetX: number, offsetY: number): void {
+    if (this.isClosing || index !== this.longPressIndex) {
+      return
+    }
+    this.longPressSpeed.panStart(offsetX, offsetY)
+  }
+
+  onLongPressPanUpdate(index: number, offsetX: number, offsetY: number): void {
+    if (this.isClosing || index !== this.longPressIndex) {
+      return
+    }
+    this.longPressSpeed.panUpdate(offsetX, offsetY)
+  }
+
+  private resetLongPress(): void {
+    this.longPressIndex = -1
+    this.longPressSpeed.reset()
+  }
+
+  applyGestureSpeed(speed: number): void {
+    if (this.isClosing || !Number.isFinite(speed) || speed <= 0) {
+      return
+    }
+    this.players.get(this.currentIndex)?.setPlaybackRate(speed)
+    AVSessionUtil.updatePlaybackSessionState(this.playing, this.currentTime, this.repeatMode, speed)
   }
 
   saveCurrentHistory(): void {
@@ -472,6 +581,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   async pauseAll(): Promise<void> {
+    this.resetLongPress()
     const players = Array.from(this.players.values())
     players.forEach(player => player.setPlaybackRate(this.selectedSpeed))
     await Promise.all(players.map(player => player.pause()))
@@ -556,7 +666,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     if (playbackStateChanged || this.lastSessionPosition < 0) {
       this.lastSessionPlaying = playing
       this.lastSessionPosition = currentTime
-      AVSessionUtil.updatePlaybackSessionState(playing, currentTime, this.repeatMode, this.selectedSpeed)
+      AVSessionUtil.updatePlaybackSessionState(playing, currentTime, this.repeatMode, this.playbackSpeed)
     }
   }
 
@@ -601,7 +711,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     }
     const player = this.players.get(index)
     AVSessionUtil.updatePlaybackSessionState(player?.state === 'playing', player?.currentTime || 0,
-      this.repeatMode, this.selectedSpeed)
+      this.repeatMode, this.playbackSpeed)
   }
 
   private setSessionListeners(): boolean {
@@ -616,7 +726,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
         this.selectRepeatMode(AVSessionUtil.getRepeatModeFromAvSession(mode))
         Preferences.saveRepeatModeState(PathUtils.appContext!, this.repeatMode)
         AVSessionUtil.updatePlaybackSessionState(this.playing, this.currentPlayer?.currentTime || 0,
-          this.repeatMode, this.selectedSpeed)
+          this.repeatMode, this.playbackSpeed)
       }
     })
   }
@@ -674,6 +784,9 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   private releasePlayer(index: number): Promise<void> {
+    if (index === this.currentIndex) {
+      this.resetLongPress()
+    }
     const player = this.players.get(index)
     if (player && this.policyHost?.player === player) {
       this.policy.detachPlayer(this.policyHost)
@@ -708,12 +821,17 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     if (this.closing) {
       return
     }
+    this.resetLongPress()
     this.closing = true
+    this.cancelHorizontalSeek(this.currentIndex)
     AVSessionUtil.unbindPlayer(this)
     ++this.generation
     this.policy.beginClosing()
     // 取消 active 意图，异步 prepared/play 回调不能在退出时恢复声音。
     this.players.forEach((player: ShortVideoPlayer) => {
+      if (player.playbackRate !== this.selectedSpeed) {
+        player.setPlaybackRate(this.selectedSpeed)
+      }
       void player.setActive(false)
     })
   }

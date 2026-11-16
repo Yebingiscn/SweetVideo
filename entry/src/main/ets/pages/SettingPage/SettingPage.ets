@@ -6,7 +6,7 @@ import { DefaultDialogShadow, ImageFancyModifier } from '../../common/AttributeM
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
 import Preferences from '../../database/Preferences'
 import BiometricAccessUtil from '../../utils/BiometricAccessUtil'
-import { Setting } from '../../utils/ObservedUtil'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PrivacyAuthMode } from '../../common/enum/PrivacyAuthMode'
 import { userAuth } from '@kit.UserAuthenticationKit'
 import { LengthMetrics } from '@kit.ArkUI'
@@ -51,7 +51,9 @@ export struct SettingsPage { //设置页
                 Row({ space: 12 }) {
                   Image(userData.userAvatar || $r('app.media.Foreground'))
                     .attributeModifier(new ImageFancyModifier(22, 42, 42))
-                  Text(userData.isLogin ? (userData.nickName || ToolsUtil.getStringResource($r('app.string.logged_in').id)) : ToolsUtil.getStringResource($r('app.string.not_logged_in').id))
+                  Text(userData.isLogin ?
+                    (userData.nickName || ToolsUtil.getStringResource($r('app.string.logged_in').id)) :
+                    ToolsUtil.getStringResource($r('app.string.not_logged_in').id))
                     .fontSize(16)
                     .fontWeight(FontWeight.Bold)
                     .fontColor(Color.White)
@@ -210,6 +212,7 @@ export struct SettingsPage { //设置页
       .chainAnimation(true)
       .borderRadius(16)
       .margin({ left: 16, right: 16 })
+      .contentEndOffset(SafeHeight.bottomSafeHeight + 16)
       .scrollBar(BarState.Off)
       .height('100%')
       .width('95%')

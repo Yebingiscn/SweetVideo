@@ -30,6 +30,15 @@ export class VideoListController {
   @Trace listLine: number = 1
   @Trace videoDataSource: VideoDataSource
   private listeners: DataChangeListener[] = []
+  private layoutWidth: number = -1
+  private layoutMode: ListDisplayMode | undefined = undefined
+  private layoutMaxLines: number = -1
+  private layoutDirectoryMode: boolean = false
+  private layoutReady: boolean = false
+  private layoutFolder: FileFolder | undefined = undefined
+  private layoutSource: VideoDataSource | undefined = undefined
+  private layoutRevision: number = -1
+  private layoutScroller: ListScroller | undefined = undefined
 
   constructor(folder?: FileFolder) {
     if (folder) {
@@ -141,17 +150,43 @@ export class VideoListController {
     DataSyncUtil.delMultipleList = []
   }
 
-  public refresh(width: number, listDisplayMode: ListDisplayMode) {
-    const base = Math.floor(Math.abs(width) / 500)
-    let listLine = listDisplayMode === ListDisplayMode.LIST_DISPLAY ? base + 1 : base + 2
-    this.listLine = Math.min(listLine, Setting.maxListLine)
+  public refresh(width: number, listDisplayMode: ListDisplayMode, layoutOnly: boolean = false): void {
+    width = Math.floor(width)
+    if (!Number.isFinite(width) || width <= 0) {
+      return
+    }
+    const base = Math.floor(width / 500)
+    const listLine = Math.min(listDisplayMode === ListDisplayMode.LIST_DISPLAY ? base + 1 : base + 2,
+      Setting.maxListLine)
+    const scroller = this.getActiveScroller()
+    // Only pure layout notifications may be coalesced. Existing data/selection callers
+    // retain a forced check even when width and presentation mode have not changed.
+    if (layoutOnly && this.layoutWidth === width && this.layoutMode === listDisplayMode &&
+      this.layoutMaxLines === Setting.maxListLine && this.layoutDirectoryMode === this.directoryMode &&
+      this.layoutReady === this.homeReady && this.layoutFolder === this.folder &&
+      this.layoutSource === this.videoDataSource && this.layoutRevision === this.videoDataSource.revision &&
+      this.layoutScroller === scroller && this.listLine === listLine) {
+      return
+    }
+    if (this.listLine !== listLine) {
+      this.listLine = listLine
+    }
+    this.layoutWidth = width
+    this.layoutMode = listDisplayMode
+    this.layoutMaxLines = Setting.maxListLine
+    this.layoutDirectoryMode = this.directoryMode
+    this.layoutReady = this.homeReady
+    this.layoutFolder = this.folder
+    this.layoutSource = this.videoDataSource
+    this.layoutRevision = this.videoDataSource.revision
     try {
-      const scroller = this.getActiveScroller()
       if (scroller.currentOffset()?.yOffset == -90) {
         scroller.scrollEdge(Edge.Top)
       }
+      this.layoutScroller = scroller
     } catch (_error) {
-      // scroller 未绑定组件时 currentOffset 可能异常，忽略
+      // Retry when the same Scroller later binds to its component.
+      this.layoutScroller = undefined
     }
   }
 

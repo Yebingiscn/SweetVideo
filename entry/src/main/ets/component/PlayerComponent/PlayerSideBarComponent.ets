@@ -10,7 +10,8 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
 import { RepeatModeButtonComponent } from './RepeatModeButtonComponent'
 import { HiCar } from '../../utils/HiCarUtil'
-import { ColorMetrics, LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
+import { uiMaterial } from '@kit.ArkUI'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 @ComponentV2
 export struct PlayerSideBarComponent {
@@ -27,7 +28,6 @@ export struct PlayerSideBarComponent {
   }
   @Event onItemClick: (_item: VideoMetadata) => void = () => {
   }
-
   @Event onItemRename: (item: VideoMetadata) => void = () => {
   }
 
@@ -58,7 +58,6 @@ export struct PlayerSideBarComponent {
   PlaylistItemMenu(item: VideoMetadata) {
     Menu() {
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
         content: $r('app.string.rename')
       })
         .onClick(() => {
@@ -90,11 +89,18 @@ export struct PlayerSideBarComponent {
               })
             }
             .borderRadius(16)
-            .bindContextMenu(this.PlaylistItemMenu(repeatItem.item), ResponseType.LongPress)
+            .bindContextMenu(this.PlaylistItemMenu(repeatItem.item), ResponseType.LongPress, {
+              systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+              }) : undefined
+            })
+            .bindContextMenu(this.PlaylistItemMenu(repeatItem.item), ResponseType.RightClick, {
+              systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+              }) : undefined
+            })
             .focusable(true)
             .focusOnTouch(true)
-            .focusBox({ strokeColor: ColorMetrics.resourceColor($r('app.color.main_color')),
-              strokeWidth: LengthMetrics.vp(2), margin: LengthMetrics.vp(2) })
             .onClick(() => {
               if (this._sideBarStatusTmp === Visibility.Hidden) {
                 return
@@ -169,7 +175,6 @@ export struct PlayerSideBarComponent {
       this.onSideBarStatusChange(false)
     }, 250)
   }
-
 }
 
 class VideoItemValue {

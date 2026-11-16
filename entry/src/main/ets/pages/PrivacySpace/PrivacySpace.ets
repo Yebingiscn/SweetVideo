@@ -5,7 +5,7 @@ import SelectFileUtil from '../../utils/SelectFileUtil'
 import { VideoDataSource } from '../../utils/DataUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import DataSyncUtil from '../../utils/DataSyncUtil'
-import { LengthMetrics, SymbolGlyphModifier, UIUtils } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial, UIUtils } from '@kit.ArkUI'
 import { VideoDetailSheetBuilder } from '../../component/Dialog/VideoDetailDialog'
 import Preferences from '../../database/Preferences'
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
@@ -60,6 +60,7 @@ import FolderHierarchy from '../../utils/FolderHierarchy'
 import FolderDirectory from '../../utils/FolderDirectory'
 import { AddFileFolderNameDialog } from '../../component/Dialog/AddFileFolderNameDialog'
 import { FolderPickerDialog } from '../../component/Dialog/FolderPickerDialog'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 interface PrivacyFolderNavigationLabel {
   date: string
@@ -75,7 +76,6 @@ export struct PrivacySpace { // 隐私空间页
   @Local videoDataSource: VideoDataSource = new VideoDataSource([])
   @Local video_meta_data_encryption: VideoMetadata[] = []
   @Local allVideos: VideoMetadata[] = [] // 保存完整数据用于搜索
-  private folderState: PrivacyFolderState = PrivacyFolderUtil.empty()
   @Local privateFolders: FileFolder[] = []
   @Local childFolders: FileFolder[] = []
   @Local folderPath: FileFolder[] = []
@@ -83,7 +83,6 @@ export struct PrivacySpace { // 隐私空间页
   @Local currentFolderVideoCount: number = 0
   @Local folderWorking: boolean = false
   @Local folderDataReady: boolean = true
-  private folderDialog: CustomDialogController | undefined = undefined
   @Local list_line: number = 1
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Local totalItems: number = 0
@@ -181,6 +180,8 @@ export struct PrivacySpace { // 隐私空间页
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  private folderState: PrivacyFolderState = PrivacyFolderUtil.empty()
+  private folderDialog: CustomDialogController | undefined = undefined
   private batchCancelled: boolean = false
   private pageActive: boolean = false
   private pendingBatchDeleteDates: string[] = []
@@ -198,144 +199,7 @@ export struct PrivacySpace { // 隐私空间页
   })
   private listScroller: ListScroller = new ListScroller()
   private waterFlowScroller: ListScroller = new ListScroller()
-
-  private refreshLibrary(): void {
-    try {
-      this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!, true)
-      try {
-        this.folderState = Preferences.getPrivacyFolders(PathUtils.appContext!)
-        this.folderDataReady = true
-      } catch (_) {
-        // 文件夹数据读取失败时仍能访问全部视频，但禁止用空索引覆盖原有归属。
-        this.folderDataReady = false
-        this.currentFolderDate = PrivacyFolderUtil.ALL
-        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.privacy_folder_load_failed').id))
-      }
-      this.applySearch()
-    } catch (_) {
-      salmonLogger.addLog(TAG, '隐私空间数据读取失败，保留现有视图', true)
-    }
-  }
-
-  private async updateFolders(update: (state: PrivacyFolderState, videos: VideoMetadata[]) => PrivacyFolderState):
-    Promise<boolean> {
-    if (!this.pageActive || this.batchWorking || this.loading || this.folderWorking || !this.folderDataReady) return false
-    this.folderWorking = true
-    const lock = ConcurrencyManagerUtil.getLock('global_data')
-    let acquired = false
-    try {
-      await lock.acquire()
-      acquired = true
-      if (!this.pageActive) return false
-      const videos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!, true)
-      const next = update(Preferences.getPrivacyFolders(PathUtils.appContext!), videos)
-      Preferences.savePrivacyFolders(PathUtils.appContext!, next)
-      this.folderState = next
-      this.allVideos = videos
-      this.applySearch()
-      return true
-    } catch (error) {
-      const reason = (error as Error).message
-      let message: Resource = $r('app.string.privacy_folder_operation_failed')
-      if (reason === 'privacy_folder_invalid_name') message = $r('app.string.privacy_folder_invalid_name')
-      if (reason === 'same_folder_name_exists') message = $r('app.string.same_folder_name_exists')
-      if (reason === 'target_folder_not_found') message = $r('app.string.target_folder_missing')
-      if (reason === 'privacy_folder_cycle') message = $r('app.string.cannot_move_into_self')
-      salmonLogger.addLog(TAG, '隐私文件夹操作失败，保留视频和已有归属', true)
-      if (this.pageActive) ToolsUtil.showToast(ToolsUtil.getStringResource(message.id))
-      return false
-    } finally {
-      if (acquired) lock.release()
-      this.folderWorking = false
-    }
-  }
-
-  private openFolder(date: string): void {
-    if (this.batchWorking || this.loading || this.folderWorking || !this.folderDataReady) return
-    this.closeMultipleChoose()
-    this.currentFolderDate = date
-    this.searchValue = ''
-    this.applySearch()
-    try {
-      if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) this.listScroller.scrollEdge(Edge.Top)
-      else this.waterFlowScroller.scrollTo({ xOffset: 0, yOffset: 0, animation: false })
-    } catch (_) {
-      // 从空目录切回时滚动容器尚未挂载，新容器默认从顶部开始。
-    }
-  }
-
-  private createFolder(): void {
-    if (this.batchWorking || this.loading || this.folderWorking || !this.folderDataReady) return
-    this.folderDialog = new CustomDialogController({
-      builder: AddFileFolderNameDialog({
-        foldersOverride: this.privateFolders,
-        initialParentDate: this.currentFolderDate === PrivacyFolderUtil.ALL ? null : this.currentFolderDate || null,
-        onCreateFolder: (name: string, parentDate: string | null): void => {
-          void this.updateFolders((state: PrivacyFolderState): PrivacyFolderState =>
-            PrivacyFolderUtil.create(state, name, parentDate))
-        }
-      }), cornerRadius: 20, shadow: DefaultDialogShadow
-    })
-    this.folderDialog.open()
-  }
-
-  private renameFolder(folder: FileFolder): void {
-    DataSyncUtil.editingFolder = folder
-    this.folderDialog = new CustomDialogController({
-      builder: RenameDialog({
-        title: $r('app.string.rename_new_folder'), renameTarget: 'folder',
-        onConfirm: (name: string): void => {
-          void this.updateFolders((state: PrivacyFolderState): PrivacyFolderState =>
-            PrivacyFolderUtil.rename(state, folder.date, name))
-        }
-      }), cornerRadius: 20, shadow: DefaultDialogShadow
-    })
-    this.folderDialog.open()
-  }
-
-  private moveFolder(folder: FileFolder): void {
-    this.folderDialog = new CustomDialogController({
-      builder: FolderPickerDialog({
-        title: $r('app.string.move_folder'), folders: this.privateFolders,
-        initialDate: folder.parent_date ?? '',
-        excludedDates: Array.from(FolderHierarchy.descendants(this.privateFolders, folder.date)),
-        onConfirm: (date: string): void => {
-          void this.updateFolders((state: PrivacyFolderState): PrivacyFolderState =>
-            PrivacyFolderUtil.moveFolder(state, folder.date, date || null))
-        }
-      }), cornerRadius: 20, shadow: DefaultDialogShadow
-    })
-    this.folderDialog.open()
-  }
-
-  private removeFolder(folder: FileFolder): void {
-    this.folderDialog = new CustomDialogController({
-      builder: InfoConfirmDialog({
-        textInfo: $r('app.string.privacy_folder_delete_confirm'),
-        confirm: (): void => {
-          void this.runBatchOperation('delete', [], folder.date)
-        }
-      }), cornerRadius: 20, shadow: DefaultDialogShadow
-    })
-    this.folderDialog.open()
-  }
-
-  private chooseMoveTarget(dates: string[]): void {
-    if (dates.length === 0 || this.batchWorking || this.loading || this.folderWorking || !this.folderDataReady) return
-    const selected = new Set(dates)
-    this.folderDialog = new CustomDialogController({
-      builder: FolderPickerDialog({
-        folders: this.privateFolders,
-        initialDate: this.currentFolderDate === PrivacyFolderUtil.ALL ? '' : this.currentFolderDate,
-        onConfirm: async (date: string): Promise<void> => {
-          const saved = await this.updateFolders((state: PrivacyFolderState, videos: VideoMetadata[]): PrivacyFolderState =>
-            PrivacyFolderUtil.moveVideos(state, videos.filter(video => selected.has(video.date)).map(video => video.date), date))
-          if (saved && this.pageActive) this.closeMultipleChoose()
-        }
-      }), cornerRadius: 20, shadow: DefaultDialogShadow
-    })
-    this.folderDialog.open()
-  }
+  private searchSortVersion: number = 0
 
   @Builder
   FolderMenuBuilder(folder: FileFolder) {
@@ -368,37 +232,54 @@ export struct PrivacySpace { // 隐私空间页
     Column({ space: 6 }) {
       Row({ space: 8 }) {
         Button() {
-          this.FolderLabelBuilder({ date: PrivacyFolderUtil.ALL, name: $r('app.string.privacy_all_videos'),
-            videoCount: this.allVideos.length })
+          this.FolderLabelBuilder({
+            date: PrivacyFolderUtil.ALL, name: $r('app.string.privacy_all_videos'),
+            videoCount: this.allVideos.length
+          })
         }
-          .height(36)
-          .padding({ left: 16, right: 16 })
-          .flexShrink(0)
-          .backgroundColor(this.currentFolderDate === PrivacyFolderUtil.ALL ? $r('app.color.main_color') : Color.Transparent)
-          .onClick(() => this.openFolder(PrivacyFolderUtil.ALL))
+        .height(36)
+        .padding({ left: 16, right: 16 })
+        .flexShrink(0)
+        .backgroundColor(
+          this.currentFolderDate === PrivacyFolderUtil.ALL ? $r('app.color.main_color') : Color.Transparent)
+        .onClick(() => this.openFolder(PrivacyFolderUtil.ALL))
+
         Scroll() {
           Row({ space: 4 }) {
             Button() {
-              this.FolderLabelBuilder({ date: '', name: $r('app.string.root_folder'),
-                videoCount: this.currentFolderVideoCount })
+              this.FolderLabelBuilder({
+                date: '', name: $r('app.string.root_folder'),
+                videoCount: this.currentFolderVideoCount
+              })
             }
-              .height(36)
-              .backgroundColor(Color.Transparent)
-              .onClick(() => this.openFolder(''))
+            .height(36)
+            .backgroundColor(Color.Transparent)
+            .onClick(() => this.openFolder(''))
+
             Repeat<FileFolder>(this.folderPath)
               .each((entry: RepeatItem<FileFolder>) => {
                 Row({ space: 4 }) {
                   SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(10)
                     .fontColor([$r('app.color.text_color')])
                   Button() {
-                    this.FolderLabelBuilder({ date: entry.item.date, name: entry.item.name,
-                      videoCount: entry.item.video_list.length })
+                    this.FolderLabelBuilder({
+                      date: entry.item.date, name: entry.item.name,
+                      videoCount: entry.item.video_list.length
+                    })
                   }
-                    .height(36)
-                    .backgroundColor(Color.Transparent)
-                    .onClick(() => this.openFolder(entry.item.date))
-                    .bindContextMenu(this.FolderMenuBuilder(entry.item), ResponseType.LongPress)
-                    .bindContextMenu(this.FolderMenuBuilder(entry.item), ResponseType.RightClick)
+                  .height(36)
+                  .backgroundColor(Color.Transparent)
+                  .onClick(() => this.openFolder(entry.item.date))
+                  .bindContextMenu(this.FolderMenuBuilder(entry.item), ResponseType.LongPress, {
+                    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                      style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                    }) : undefined
+                  })
+                  .bindContextMenu(this.FolderMenuBuilder(entry.item), ResponseType.RightClick, {
+                    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                      style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                    }) : undefined
+                  })
                 }
               })
               .key((folder: FileFolder) => folder.date)
@@ -406,28 +287,42 @@ export struct PrivacySpace { // 隐私空间页
         }
         .scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off).height(36).layoutWeight(1)
       }.padding({ left: 16, right: 16 }).width('100%')
+
       if (this.childFolders.length > 0 && this.folderDataReady) {
         List({ space: 8 }) {
           Repeat<FileFolder>(this.childFolders)
             .each((entry: RepeatItem<FileFolder>) => {
               ListItem() {
                 Button({ type: ButtonType.Normal }) {
-                  this.FolderLabelBuilder({ date: entry.item.date, name: entry.item.name,
-                    videoCount: entry.item.video_list.length })
+                  this.FolderLabelBuilder({
+                    date: entry.item.date, name: entry.item.name,
+                    videoCount: entry.item.video_list.length
+                  })
                 }
                 .attributeModifier(new ButtonFancyModifier('', 38))
                 .attributeModifier(new LightMaterialModifier())
                 .padding({ left: 12, right: 12 })
                 .onClick(() => this.openFolder(entry.item.date))
-                .bindContextMenu(this.FolderMenuBuilder(entry.item), ResponseType.LongPress)
-                .bindContextMenu(this.FolderMenuBuilder(entry.item), ResponseType.RightClick)
+                .bindContextMenu(this.FolderMenuBuilder(entry.item), ResponseType.LongPress, {
+                  systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                    style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                  }) : undefined
+                })
+                .bindContextMenu(this.FolderMenuBuilder(entry.item), ResponseType.RightClick, {
+                  systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                    style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                  }) : undefined
+                })
               }
             })
             .key((folder: FileFolder) => folder.date)
             .virtualScroll()
         }
-        .listDirection(Axis.Horizontal).height(40).width('100%')
-        .padding({ left: 16, right: 16 }).scrollBar(BarState.Off)
+        .listDirection(Axis.Horizontal)
+        .height(40)
+        .width('100%')
+        .padding({ left: 16, right: 16 })
+        .scrollBar(BarState.Off)
       }
     }
     .enabled(!this.batchWorking && !this.loading && !this.folderWorking && this.folderDataReady)
@@ -475,7 +370,11 @@ export struct PrivacySpace { // 隐私空间页
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .enabled(!this.batchWorking && !this.loading)
         .transition(XAnimation.getAnimation('right', 0, false))
-        .bindMenu(this.SortMenuBuilder, { showInSubWindow: false })
+        .bindMenu(this.SortMenuBuilder, {
+          showInSubWindow: false, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+            style: uiMaterial.ImmersiveStyle.THICK
+          }) : undefined
+        })
         .attributeModifier(new LightMaterialModifier())
 
         if (this.multipleChooseState === Visibility.Visible) {
@@ -485,7 +384,11 @@ export struct PrivacySpace { // 隐私空间页
           }
           .attributeModifier(new ButtonFancyModifier(40, 40))
           .transition(XAnimation.getAnimation('right', 0, false))
-          .bindMenu(this.SelectItemMenuBuilder, { showInSubWindow: false })
+          .bindMenu(this.SelectItemMenuBuilder, {
+            showInSubWindow: false, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+              style: uiMaterial.ImmersiveStyle.THICK
+            }) : undefined
+          })
           .attributeModifier(new LightMaterialModifier())
         }
       }
@@ -506,25 +409,21 @@ export struct PrivacySpace { // 隐私空间页
       items: [
         {
           field: SortField.RECENT_PLAY,
-          icon: $r('sys.symbol.play_round_triangle_fill'),
           textResource: $r('app.string.sort_by_recent_play'),
           onAction: (): void => this.handleSort(SortField.RECENT_PLAY, false)
         },
         {
           field: SortField.DATETIME,
-          icon: $r('sys.symbol.calendar'),
           textResource: $r('app.string.sort_by_datetime'),
           onAction: (): void => this.handleSort(SortField.DATETIME, false)
         },
         {
           field: SortField.TIME,
-          icon: $r('sys.symbol.clock'),
           textResource: $r('app.string.sort_by_time'),
           onAction: (): void => this.handleSort(SortField.TIME, false)
         },
         {
           field: SortField.NAME,
-          icon: $r('sys.symbol.textformat'),
           textResource: $r('app.string.sort_by_name'),
           onAction: (): void => this.handleSort(SortField.NAME, true)
         }
@@ -555,13 +454,11 @@ export struct PrivacySpace { // 隐私空间页
         .onClick(() => {
           this.confirmBatchDelete()
         })
-      MenuItem({ content: $r('app.string.move_to_folder'),
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder')) })
+      MenuItem({ content: $r('app.string.move_to_folder') })
         .enabled(this.delMultipleList.length > 0 && !this.batchWorking && !this.loading &&
           !this.folderWorking && this.folderDataReady)
         .onClick(() => this.chooseMoveTarget(this.delMultipleList.map(item => item.date)))
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
         content: $r('app.string.privacy_export_selected')
       })
         .enabled(this.delMultipleList.length > 0 && !this.batchWorking && !this.loading)
@@ -575,7 +472,6 @@ export struct PrivacySpace { // 隐私空间页
   MenuBuilder(item: VideoMetadata | undefined) {
     Menu() {
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_triangle')),
         content: VideoOperateUtil.getPlayerName(Setting.defaultPlayerEngine, true)
       })
         .onClick(() => {
@@ -584,7 +480,6 @@ export struct PrivacySpace { // 隐私空间页
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_rectangle')),
         content: $r('app.string.short_video_mode')
       })
         .onClick(() => {
@@ -595,7 +490,6 @@ export struct PrivacySpace { // 隐私空间页
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')),
         content: $r('app.string.menu_detail')
       })
         .onClick(() => {
@@ -603,7 +497,7 @@ export struct PrivacySpace { // 隐私空间页
           this.showDetailSheet = true
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
+        content: $r('app.string.delete')
       })
         .onClick(() => {
           if (this.multipleChooseState === Visibility.Visible) {
@@ -618,7 +512,6 @@ export struct PrivacySpace { // 隐私空间页
           }
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.checkmark_square_on_square')),
         content: this.multipleChooseState === Visibility.Visible ? $r('app.string.multi_select_off') :
           $r('app.string.multiple_choice')
       })
@@ -630,29 +523,27 @@ export struct PrivacySpace { // 隐私空间页
           this.delMultipleList = this.multipleChooseState === Visibility.Visible && item ? [item] : []
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
         content: $r('app.string.rename')
       })
         .onClick(() => {
           DataSyncUtil.editingVideo = item
           this.editMetadataDialogController.open()
         })
-      MenuItem({ content: $r('app.string.move_to_folder'),
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder')) })
+      MenuItem({ content: $r('app.string.move_to_folder') })
         .enabled(this.folderDataReady)
         .onClick(() => {
-          if (item) this.chooseMoveTarget(this.multipleChooseState === Visibility.Visible ?
-            Array.from(new Set([...this.delMultipleList.map(video => video.date), item.date])) : [item.date])
+          if (item) {
+            this.chooseMoveTarget(this.multipleChooseState === Visibility.Visible ?
+              Array.from(new Set([...this.delMultipleList.map(video => video.date), item.date])) : [item.date])
+          }
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
         content: $r('app.string.export')
       })
         .onClick(async () => {
           await SelectFileUtil.exportFile(item!.uri, item!.title, item!.format, PathUtils.appContext!)
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')),
         content: $r('app.string.import_or_delete_subtitle')
       })
         .onClick(async () => {
@@ -669,7 +560,6 @@ export struct PrivacySpace { // 隐私空间页
           }
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.share')),
         content: $r('app.string.share')
       })
         .onClick(async () => {
@@ -703,7 +593,9 @@ export struct PrivacySpace { // 隐私空间页
       fileFolder === undefined ? this.privateFolders.find(folder => folder.date === this.currentFolderDate) :
         fileFolder ?? undefined,
       () => {
-        if (this.pageActive) this.refreshLibrary()
+        if (this.pageActive) {
+          this.refreshLibrary()
+        }
       }
     )
   }
@@ -714,7 +606,9 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   onKnockFilesReceived(_mon: IMonitor): void {
-    if (this.pageActive) this.refreshLibrary()
+    if (this.pageActive) {
+      this.refreshLibrary()
+    }
   }
 
   async aboutToAppear(): Promise<void> {
@@ -848,7 +742,6 @@ export struct PrivacySpace { // 隐私空间页
                     })
                     .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
                       {
-                        backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                         preview: VideoItemPreviewBuilder(repeatItem.item),
                         previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
                         layoutRegionMargin: {
@@ -858,11 +751,13 @@ export struct PrivacySpace { // 隐私空间页
                           bottom: 4
                         },
                         hapticFeedbackMode: HapticFeedbackMode.ENABLED,
-                        mask: true
+                        mask: true,
+                        systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                          style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                        }) : undefined
                       })
                     .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
                       {
-                        backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                         preview: VideoItemPreviewBuilder(repeatItem.item),
                         previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
                         layoutRegionMargin: {
@@ -871,7 +766,10 @@ export struct PrivacySpace { // 隐私空间页
                           top: 16,
                           bottom: 4
                         },
-                        mask: true
+                        mask: true,
+                        systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                          style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                        }) : undefined
                       })
                     .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
                     .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
@@ -961,7 +859,6 @@ export struct PrivacySpace { // 隐私空间页
                     })
                     .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
                       {
-                        backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                         preview: VideoItemPreviewBuilder(repeatItem.item),
                         previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
                         layoutRegionMargin: {
@@ -971,11 +868,13 @@ export struct PrivacySpace { // 隐私空间页
                           bottom: 4
                         },
                         hapticFeedbackMode: HapticFeedbackMode.ENABLED,
-                        mask: true
+                        mask: true,
+                        systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                          style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                        }) : undefined
                       })
                     .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
                       {
-                        backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                         preview: VideoItemPreviewBuilder(repeatItem.item),
                         previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
                         layoutRegionMargin: {
@@ -984,7 +883,10 @@ export struct PrivacySpace { // 隐私空间页
                           top: 16,
                           bottom: 4
                         },
-                        mask: true
+                        mask: true,
+                        systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                          style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+                        }) : undefined
                       })
                   })
                   .key((item: VideoMetadata, _index: number) => item.date + item.title + item.last_play +
@@ -1054,7 +956,10 @@ export struct PrivacySpace { // 隐私空间页
         title: { title: $r('app.string.privacy_space_settings') },
         onWillDismiss: () => {
           this.isPresent = false
-        }
+        },
+        systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+          style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+        }) : undefined
       })
     }
     .onWillDisappear(() => {
@@ -1184,7 +1089,9 @@ export struct PrivacySpace { // 隐私空间页
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
     .onBackPressed(() => {
-      if (this.folderWorking) return true
+      if (this.folderWorking) {
+        return true
+      }
       if (this.batchWorking) {
         this.batchStopping = true
         this.batchCancelled = true
@@ -1224,15 +1131,15 @@ export struct PrivacySpace { // 隐私空间页
       mode: HideMode.SCROLL_UP
     })
     .hideBackButton(false)
-
     .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
       detents: [SheetSize.LARGE],
-      backgroundColor: $r('app.color.start_window_background'),
-      blurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
       showClose: true,
       onWillDismiss: () => {
         this.showDetailSheet = false
-      }
+      },
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+      }) : undefined
     })
   }
 
@@ -1263,6 +1170,176 @@ export struct PrivacySpace { // 隐私空间页
     } else {
       this.activeAlphabet = []
     }
+  }
+
+  private refreshLibrary(): void {
+    try {
+      this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!, true)
+      try {
+        this.folderState = Preferences.getPrivacyFolders(PathUtils.appContext!)
+        this.folderDataReady = true
+      } catch (_) {
+        // 文件夹数据读取失败时仍能访问全部视频，但禁止用空索引覆盖原有归属。
+        this.folderDataReady = false
+        this.currentFolderDate = PrivacyFolderUtil.ALL
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.privacy_folder_load_failed').id))
+      }
+      this.applySearch()
+    } catch (_) {
+      salmonLogger.addLog(TAG, '隐私空间数据读取失败，保留现有视图', true)
+    }
+  }
+
+  private async updateFolders(update: (state: PrivacyFolderState, videos: VideoMetadata[]) => PrivacyFolderState):
+    Promise<boolean> {
+    if (!this.pageActive || this.batchWorking || this.loading || this.folderWorking ||
+      !this.folderDataReady) {
+      return false
+    }
+    this.folderWorking = true
+    const lock = ConcurrencyManagerUtil.getLock('global_data')
+    let acquired = false
+    try {
+      await lock.acquire()
+      acquired = true
+      if (!this.pageActive) {
+        return false
+      }
+      const videos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!, true)
+      const next = update(Preferences.getPrivacyFolders(PathUtils.appContext!), videos)
+      Preferences.savePrivacyFolders(PathUtils.appContext!, next)
+      this.folderState = next
+      this.allVideos = videos
+      this.applySearch()
+      return true
+    } catch (error) {
+      const reason = (error as Error).message
+      let message: Resource = $r('app.string.privacy_folder_operation_failed')
+      if (reason === 'privacy_folder_invalid_name') {
+        message = $r('app.string.privacy_folder_invalid_name')
+      }
+      if (reason === 'same_folder_name_exists') {
+        message = $r('app.string.same_folder_name_exists')
+      }
+      if (reason === 'target_folder_not_found') {
+        message = $r('app.string.target_folder_missing')
+      }
+      if (reason === 'privacy_folder_cycle') {
+        message = $r('app.string.cannot_move_into_self')
+      }
+      salmonLogger.addLog(TAG, '隐私文件夹操作失败，保留视频和已有归属', true)
+      if (this.pageActive) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource(message.id))
+      }
+      return false
+    } finally {
+      if (acquired) {
+        lock.release()
+      }
+      this.folderWorking = false
+    }
+  }
+
+  private openFolder(date: string): void {
+    if (this.batchWorking || this.loading || this.folderWorking || !this.folderDataReady) {
+      return
+    }
+    this.closeMultipleChoose()
+    this.currentFolderDate = date
+    this.searchValue = ''
+    this.applySearch()
+    try {
+      if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
+        this.listScroller.scrollEdge(
+          Edge.Top)
+      } else {
+        this.waterFlowScroller.scrollTo({ xOffset: 0, yOffset: 0, animation: false })
+      }
+    } catch (_) {
+      // 从空目录切回时滚动容器尚未挂载，新容器默认从顶部开始。
+    }
+  }
+
+  private createFolder(): void {
+    if (this.batchWorking || this.loading || this.folderWorking || !this.folderDataReady) {
+      return
+    }
+    this.folderDialog = new CustomDialogController({
+      builder: AddFileFolderNameDialog({
+        foldersOverride: this.privateFolders,
+        initialParentDate: this.currentFolderDate === PrivacyFolderUtil.ALL ? null : this.currentFolderDate || null,
+        onCreateFolder: (name: string, parentDate: string | null): void => {
+          void this.updateFolders((state: PrivacyFolderState): PrivacyFolderState =>
+          PrivacyFolderUtil.create(state, name, parentDate))
+        }
+      }), cornerRadius: 20, shadow: DefaultDialogShadow
+    })
+    this.folderDialog.open()
+  }
+
+  private renameFolder(folder: FileFolder): void {
+    DataSyncUtil.editingFolder = folder
+    this.folderDialog = new CustomDialogController({
+      builder: RenameDialog({
+        title: $r('app.string.rename_new_folder'), renameTarget: 'folder',
+        onConfirm: (name: string): void => {
+          void this.updateFolders((state: PrivacyFolderState): PrivacyFolderState =>
+          PrivacyFolderUtil.rename(state, folder.date, name))
+        }
+      }), cornerRadius: 20, shadow: DefaultDialogShadow
+    })
+    this.folderDialog.open()
+  }
+
+  private moveFolder(folder: FileFolder): void {
+    this.folderDialog = new CustomDialogController({
+      builder: FolderPickerDialog({
+        title: $r('app.string.move_folder'),
+        folders: this.privateFolders,
+        initialDate: folder.parent_date ?? '',
+        excludedDates: Array.from(FolderHierarchy.descendants(this.privateFolders, folder.date)),
+        onConfirm: (date: string): void => {
+          void this.updateFolders((state: PrivacyFolderState): PrivacyFolderState =>
+          PrivacyFolderUtil.moveFolder(state, folder.date, date || null))
+        }
+      }), cornerRadius: 20, shadow: DefaultDialogShadow
+    })
+    this.folderDialog.open()
+  }
+
+  private removeFolder(folder: FileFolder): void {
+    this.folderDialog = new CustomDialogController({
+      builder: InfoConfirmDialog({
+        textInfo: $r('app.string.privacy_folder_delete_confirm'),
+        confirm: (): void => {
+          void this.runBatchOperation('delete', [], folder.date)
+        }
+      }), cornerRadius: 20, shadow: DefaultDialogShadow
+    })
+    this.folderDialog.open()
+  }
+
+  private chooseMoveTarget(dates: string[]): void {
+    if (dates.length === 0 || this.batchWorking || this.loading || this.folderWorking || !this.folderDataReady) {
+      return
+    }
+    const selected = new Set(dates)
+    this.folderDialog = new CustomDialogController({
+      builder: FolderPickerDialog({
+        folders: this.privateFolders,
+        initialDate: this.currentFolderDate === PrivacyFolderUtil.ALL ? '' : this.currentFolderDate,
+        onConfirm: async (date: string): Promise<void> => {
+          const saved =
+            await this.updateFolders((state: PrivacyFolderState, videos: VideoMetadata[]): PrivacyFolderState =>
+            PrivacyFolderUtil.moveVideos(state,
+              videos.filter(video => selected.has(video.date)).map(video => video.date), date))
+          if (saved && this.pageActive) {
+            this.closeMultipleChoose()
+          }
+        }
+      }), cornerRadius: 20, shadow: DefaultDialogShadow
+    })
+    this.folderDialog.open()
   }
 
   private registerKnockFilesMonitor(): void {
@@ -1389,9 +1466,10 @@ export struct PrivacySpace { // 隐私空间页
       if (this.pageActive) {
         this.refreshLibrary()
         ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2(
-          (result.cancelled ? $r('app.string.privacy_batch_cancelled') : folderDate !== undefined && result.failedCount > 0 ?
-            $r('app.string.privacy_folder_delete_incomplete') : operation === 'delete' ?
-            $r('app.string.privacy_batch_delete_result') : $r('app.string.privacy_batch_export_result')).id,
+          (result.cancelled ? $r('app.string.privacy_batch_cancelled') :
+            folderDate !== undefined && result.failedCount > 0 ?
+              $r('app.string.privacy_folder_delete_incomplete') : operation === 'delete' ?
+              $r('app.string.privacy_batch_delete_result') : $r('app.string.privacy_batch_export_result')).id,
           result.successDates.length, result.failedCount))
       }
     } catch (_) {
@@ -1474,8 +1552,6 @@ export struct PrivacySpace { // 隐私空间页
     }
   }
 
-  private searchSortVersion: number = 0
-
   private async applySearch(): Promise<void> {
     const version = ++this.searchSortVersion
     this.privateFolders = PrivacyFolderUtil.project(this.folderState, this.allVideos)
@@ -1490,7 +1566,9 @@ export struct PrivacySpace { // 隐私空间页
     const query = this.searchValue.trim().toLocaleLowerCase()
     const childFolders = await MediaSortUtil.sortFolderByNameProcess(directory.childFolders(parent)
       .filter(folder => !query || folder.name.toLocaleLowerCase().includes(query)), true, this.pinyinSort)
-    if (!this.pageActive || version !== this.searchSortVersion) return
+    if (!this.pageActive || version !== this.searchSortVersion) {
+      return
+    }
     this.childFolders = childFolders
     const scoped = PrivacyFolderUtil.videosIn(this.folderState, this.allVideos, this.currentFolderDate)
     this.currentFolderVideoCount = scoped.length
@@ -1499,14 +1577,19 @@ export struct PrivacySpace { // 隐私空间页
     if (this.currentSortField === SortField.NAME) {
       const source = this.video_meta_data_encryption
       const sorted = await MediaSortUtil.sortByNameProcess(source, this.currentSortAsc, this.pinyinSort)
-      if (!this.pageActive || version !== this.searchSortVersion) return
+      if (!this.pageActive || version !== this.searchSortVersion) {
+        return
+      }
       this.video_meta_data_encryption = sorted
     } else if (this.currentSortField === SortField.DATETIME) {
-      this.video_meta_data_encryption = MediaSortUtil.sortByDatetimeProcess(this.video_meta_data_encryption, this.currentSortAsc)
+      this.video_meta_data_encryption =
+        MediaSortUtil.sortByDatetimeProcess(this.video_meta_data_encryption, this.currentSortAsc)
     } else if (this.currentSortField === SortField.TIME) {
-      this.video_meta_data_encryption = MediaSortUtil.sortByTimeProcess(this.video_meta_data_encryption, this.currentSortAsc)
+      this.video_meta_data_encryption =
+        MediaSortUtil.sortByTimeProcess(this.video_meta_data_encryption, this.currentSortAsc)
     } else if (this.currentSortField === SortField.RECENT_PLAY) {
-      this.video_meta_data_encryption = MediaSortUtil.sortByRecentPlayProcess(this.video_meta_data_encryption, this.currentSortAsc)
+      this.video_meta_data_encryption =
+        MediaSortUtil.sortByRecentPlayProcess(this.video_meta_data_encryption, this.currentSortAsc)
     }
     this.videoDataSource.updateData(this.video_meta_data_encryption)
     this.syncSelectedItems()

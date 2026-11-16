@@ -5,7 +5,7 @@ import {
 } from '../../component/PlayerComponent/PlaybackRangeDialog'
 import { playbackPolicyMarkers } from '../../component/PlayerComponent/PlaybackPolicyMarkers'
 import MediaLibraryService from '../../utils/MediaLibraryService'
-import { BaseGestureHandlingProposal, PageSwitchActionProposal, window } from '@kit.ArkUI'
+import { BaseGestureHandlingProposal, PageSwitchActionProposal, uiMaterial, window } from '@kit.ArkUI'
 import { BusinessError, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { ShortVideoItem } from '../../component/ShortVideo/ShortVideoItem'
 import NavigationAddress, { PlayerEngine, PlayerParams, ShortVideoParams } from '../../common/NavigationCommon'
@@ -36,6 +36,7 @@ import { AUTO_HIDE_SHOW_CONTROL_TIME } from '../../common/Constants'
 import { MediaSmartGestureSession, SHORT_VIDEO_SMART_SWIPER_ID } from '../../utils/MediaSmartGestureUtil'
 import { salmonLogger } from 'salmonlogger'
 import KnockShareUtil, { KNOCK_SHARE_VIDEO_PLAYER_OWNER, KnockCoordinate } from '../../utils/KnockShareUtil'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 @ComponentV2
 export struct ShortVideoPage {
@@ -159,7 +160,7 @@ export struct ShortVideoPage {
   @Builder
   PlaybackSpeedMenuBuilder() {
     PlaybackSpeedListComponent({
-      selectedSpeed: this.manager.selectedSpeed,
+      selectedSpeed: this.manager.playbackSpeed,
       onSpeedChange: (speed: number) => this.manager.selectSpeed(speed)
     })
   }
@@ -214,7 +215,7 @@ export struct ShortVideoPage {
         .onClick(() => this.openPip())
 
         Button({ type: ButtonType.Circle, stateEffect: false }) {
-          Text(`${this.manager.selectedSpeed}x`)
+          Text(`${this.manager.playbackSpeed}x`)
             .fontSize(13)
             .fontColor(Color.White)
             .maxLines(1)
@@ -234,7 +235,10 @@ export struct ShortVideoPage {
             if (!this.disposed) {
               this.showControls()
             }
-          }
+          },
+          systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+            style: uiMaterial.ImmersiveStyle.THICK
+          }) : undefined
         })
 
         RepeatModeButtonComponent({
@@ -347,6 +351,7 @@ export struct ShortVideoPage {
           .id(SHORT_VIDEO_SMART_SWIPER_ID)
           .index(Math.max(0, this.manager.getSwiperIndex(this.currentIndex)))
           .vertical(true)
+          .disableSwipe(this.manager.longPressGestureActive)
           .loop(this.shouldLoopSwiper())
           .indicator(false)
           .cachedCount(3)

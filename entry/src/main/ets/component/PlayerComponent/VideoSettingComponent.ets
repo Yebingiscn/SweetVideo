@@ -113,19 +113,16 @@ export struct VideoSettingComponent {
       MenuItem({ content: $r('app.string.bluray_titles'), builder: (): void => this.DiscTitleMenu() })
     }
     MenuItem({
-      symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.fast_forward')),
       content: $r('app.string.forward_80s')
     }).onClick(() => {
       this.forward_80_s(this.player.playTime + 80 * 1000)
     })
     MenuItem({
-      symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trapezoid_and_line_vertical')),
       content: $r('app.string.screen_mirror')
     }).onClick(() => {
       this.onScreenMirror()
     })
     MenuItem({
-      symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_left_arrow_right')),
       content: this.player.isMpvPlayer() ? $r('app.string.switch_to_system_player') :
         $r('app.string.switch_to_mpv_player')
     }).onClick(() => {
@@ -134,14 +131,12 @@ export struct VideoSettingComponent {
 
     if (this.player instanceof AVPlayerController || this.player instanceof MpvController) {
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.headphones')),
         content: $r('app.string.listen_video')
       }).onClick(() => {
         this.toggleListenVideo()
       })
     }
     MenuItem({
-      symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.camera_master_ai')),
       content: this.player.superResolutionState ? $r('app.string.disable_super_resolution') :
         $r('app.string.enable_super_resolution'),
     }).onClick(() => {
@@ -149,7 +144,6 @@ export struct VideoSettingComponent {
     })
     if (this.player instanceof MpvController) {
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.doc_plaintext')),
         content: this.player.debugInfoVisible ? $r('app.string.hide_debug_info') : $r('app.string.show_debug_info'),
       }).onClick(() => {
         if (this.player instanceof MpvController) {

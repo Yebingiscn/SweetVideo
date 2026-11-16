@@ -34,13 +34,14 @@ import { FolderMenuActions } from '../FileFolderComponent/FileFolderSelectBuilde
 import { MaskComponent } from '../SideBarComponent/MaskComponent'
 import { SearchComponent } from './SearchComponent'
 import { SortMenuComponent } from '../common/SortMenuComponent'
-import { SymbolGlyphModifier } from '@kit.ArkUI'
+import { uiMaterial } from '@kit.ArkUI'
 import MediaLibraryService from '../../utils/MediaLibraryService'
 import { HiCar } from '../../utils/HiCarUtil'
 import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
 import { KeyboardShortcuts, LibraryKeyboard } from '../../utils/KeyboardShortcuts'
 import HomeSidebarLayout from '../../utils/HomeSidebarLayout'
 import { salmonLogger } from 'salmonlogger'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 @ComponentV2
 export struct VideoView {
@@ -416,8 +417,10 @@ export struct VideoView {
           .attributeModifier(new ButtonFancyModifier(HiCar.enabled ? 56 : 40, HiCar.enabled ? 56 : 40))
           .bindMenu(this.SortMenuBuilder,
             {
-              backgroundBlurStyle: BlurStyle.Regular,
-              hapticFeedbackMode: HapticFeedbackMode.ENABLED
+              hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+              systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                style: uiMaterial.ImmersiveStyle.THICK
+              }) : undefined
             })
           .attributeModifier(new LightMaterialModifier())
           .transition(XAnimation.getAnimation('right', 0, false))
@@ -435,7 +438,10 @@ export struct VideoView {
           .bindMenu(this.SelectItemMenuBuilder,
             {
               backgroundBlurStyle: BlurStyle.Regular,
-              hapticFeedbackMode: HapticFeedbackMode.ENABLED
+              hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+              systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+                style: uiMaterial.ImmersiveStyle.THICK
+              }) : undefined
             })
           .attributeModifier(new LightMaterialModifier())
           .transition(XAnimation.getAnimation('right', 0, false))
@@ -557,25 +563,21 @@ export struct VideoView {
       items: [
         {
           field: SortField.RECENT_PLAY,
-          icon: $r('sys.symbol.play_round_triangle_fill'),
           textResource: $r('app.string.sort_by_recent_play'),
           onAction: (): void => this.handleSort(SortField.RECENT_PLAY, false)
         },
         {
           field: SortField.DATETIME,
-          icon: $r('sys.symbol.calendar'),
           textResource: $r('app.string.sort_by_datetime'),
           onAction: (): void => this.handleSort(SortField.DATETIME, false)
         },
         {
           field: SortField.TIME,
-          icon: $r('sys.symbol.clock'),
           textResource: $r('app.string.sort_by_time'),
           onAction: (): void => this.handleSort(SortField.TIME, false)
         },
         {
           field: SortField.NAME,
-          icon: $r('sys.symbol.textformat'),
           textResource: $r('app.string.sort_by_name'),
           onAction: (): void => this.handleSort(SortField.NAME, true)
         }
@@ -588,7 +590,6 @@ export struct VideoView {
   SelectItemMenuBuilder() {
     Menu() {
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.xmark')),
         content: $r('app.string.cancel')
       })
         .onClick(() => {
@@ -599,7 +600,6 @@ export struct VideoView {
           }
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.checkmark_square_on_square')),
         content: this.allSelectionItemsSelected ? $r('app.string.deselect_all') : $r('app.string.select_all')
       })
         .onClick(() => {
@@ -614,7 +614,6 @@ export struct VideoView {
           }
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),
         content: $r('app.string.delete_selected'),
         labelInfo: 'Delete'
       })
@@ -631,7 +630,6 @@ export struct VideoView {
         })
       if (!this.videoListController.directoryFolderSelection) {
         MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
           content: $r('app.string.move_to_folder'),
           builder: (): void => this.MoveToFolderMenuBuilder()
         })

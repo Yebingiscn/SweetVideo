@@ -1,16 +1,22 @@
-import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
+import type { PlaybackGestureHost } from '../../common/PlaybackGestureConfig'
+import { PLAYBACK_GESTURE_INPUTS, PLAYBACK_VERTICAL_GESTURE_INPUTS } from '../../common/PlaybackGestureConfig'
 
 import { MediaSmartGestureModifier } from '../../utils/MediaSmartGestureUtil'
 import { Setting } from '../../utils/ObservedUtil'
 
-
 @ComponentV2
 export struct GestureComponent {
-  @Require @Param player: PlayerControllerInterface
+  @Require @Param player: PlaybackGestureHost
+  @Param gestureEnabled: boolean = true
+  @Param extendedGestures: boolean = true
+  @Param touchAreaHeight: Length | undefined = undefined
+  @Param smartGestureEnabled: boolean = true
+  @Param gestureSurfaceId: string = 'video_player_smart_gesture_surface'
   private activePointerCount: number = 0
   private verticalPanCancelled: boolean = false
   private verticalPanActive: boolean = false
   private horizonPanCancelled: boolean = false
+  private horizonPanActive: boolean = false
   private longPressGestureActive: boolean = false
 
   @Event onDoubleClickAction: (_tapX: number) => void = () => {
@@ -85,24 +91,44 @@ export struct GestureComponent {
   @Event onScrollAxisEnd: () => void = () => {
   }
 
+  @Monitor('gestureEnabled')
+  onGestureEnabledChanged(): void {
+    if (!this.gestureEnabled) {
+      this.activePointerCount = 0
+      this.cancelLongPressGesture()
+      this.cancelHorizonPanGesture()
+    }
+  }
+
   build() {
     Column()
-      .id('video_player_smart_gesture_surface')
-      .attributeModifier(new MediaSmartGestureModifier(Setting.smartGestureEnabled && !this.player.isLock))
+      .id(this.gestureSurfaceId)
+      .attributeModifier(new MediaSmartGestureModifier(
+        this.smartGestureEnabled && Setting.smartGestureEnabled && !this.player.isLock))
       .width('100%')
-      .height(this.player.showControl ? '50%' : '80%')//触控区域
+      .height(this.touchAreaHeight ?? (this.player.showControl ? '50%' : '80%'))
       .onTouch((event: TouchEvent) => {
         if (event.type === TouchType.Cancel) {
           this.activePointerCount = 0
           this.cancelLongPressGesture()
+          this.cancelHorizonPanGesture()
           return
         }
         this.activePointerCount = event.touches.length
         if (this.activePointerCount > 1) {
           this.cancelLongPressGesture()
+          this.cancelHorizonPanGesture()
         }
       })
       .onGestureJudgeBegin((gestureInfo: GestureInfo, event: BaseGestureEvent) => {
+        if (!this.gestureEnabled) {
+          return GestureJudgeResult.REJECT
+        }
+        // 短视频保留长按调速，普通垂直调节和缩放交给各自界面。
+        if (!this.extendedGestures && (gestureInfo.tag === 'pan_single_vertical' ||
+          gestureInfo.tag === 'pinch_zoom' || gestureInfo.tag === 'pan_double_move')) {
+          return GestureJudgeResult.REJECT
+        }
         // 已有多指按下时，拒绝单指Pan参与识别，避免双指操作被抢先识别为单指手势
         if (gestureInfo.type === GestureControl.GestureType.PAN_GESTURE &&
           gestureInfo.tag?.startsWith('pan_single')) {
@@ -121,8 +147,7 @@ export struct GestureComponent {
         GestureGroup(GestureMode.Exclusive, // 将触摸事件跟滑动、长按分成两个手势组解绑互斥,触摸事件手势组为互斥事件
           GestureGroup(GestureMode.Exclusive, //双击事件组和单击事件组互斥独立
             TapGesture({ count: 2 })// 双击事件
-              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
-                SourceTool.JOYSTICK])
+              .allowedTypes(PLAYBACK_GESTURE_INPUTS)
               .onAction((event: GestureEvent) => {
                 if (this.player.isLock) {
                   return
@@ -134,15 +159,13 @@ export struct GestureComponent {
                 this.onDoubleClickAction(tapX)
               }),
             TapGesture({ count: 1 })// 单击事件
-              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
-                SourceTool.JOYSTICK])
+              .allowedTypes(PLAYBACK_GESTURE_INPUTS)
               .onAction(() => { //单击屏幕
                 this.onSingleClickAction()
               }),
             PanGesture({ fingers: 1, direction: PanDirection.Vertical })// 垂直滑动
               .tag('pan_single_vertical')
-              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.TOUCHPAD,
-                SourceTool.JOYSTICK])
+              .allowedTypes(PLAYBACK_VERTICAL_GESTURE_INPUTS)
               .onActionStart((event: GestureEvent) => { // 滑动屏幕
                 if (this.player.isLock) {
                   return
@@ -192,14 +215,14 @@ export struct GestureComponent {
               }),
             PanGesture({ fingers: 1, direction: PanDirection.Horizontal })// 水平滑动事件滑动调整进度
               .tag('pan_single_horizontal')
-              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
-                SourceTool.JOYSTICK])
+              .allowedTypes(PLAYBACK_GESTURE_INPUTS)
               .onActionStart((_event: GestureEvent) => { // 长按且滑动屏幕
                 if (this.player.isLock) {
                   return
                 }
                 this.horizonPanCancelled = false
                 this.onHorizonPanStart()
+                this.horizonPanActive = true
               })
               .onActionUpdate((event: GestureEvent) => {
                 if (this.player.isLock) {
@@ -209,8 +232,7 @@ export struct GestureComponent {
                   return
                 }
                 if (this.activePointerCount > 1) { // 第二指落下，取消进度调整并回滚
-                  this.horizonPanCancelled = true
-                  this.onHorizonPanCancel()
+                  this.cancelHorizonPanGesture()
                   return
                 }
                 if (typeof event?.fingerList?.[0]?.localX !== 'number') {
@@ -219,18 +241,22 @@ export struct GestureComponent {
                 this.onHorizonPanUpdate(event?.offsetX)
               })
               .onActionEnd(() => {
-                if (this.player.isLock) {
-                  return
-                }
-                if (this.horizonPanCancelled) {
+                if (this.player.isLock || this.horizonPanCancelled) {
+                  this.cancelHorizonPanGesture()
                   this.horizonPanCancelled = false
                   return
                 }
-                this.onHorizonPanEnd()
+                if (this.horizonPanActive) {
+                  this.horizonPanActive = false
+                  this.onHorizonPanEnd()
+                }
+              })
+              .onActionCancel(() => {
+                this.cancelHorizonPanGesture()
               }),
             PinchGesture({ fingers: 2, distance: 2 })//手势缩放
-              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
-                SourceTool.JOYSTICK])
+              .tag('pinch_zoom')
+              .allowedTypes(PLAYBACK_GESTURE_INPUTS)
               .onActionStart((event: GestureEvent) => {
                 if (this.player.isLock) {
                   return
@@ -252,8 +278,7 @@ export struct GestureComponent {
           ),
           GestureGroup(GestureMode.Parallel, // 不用互斥事件，会导致左右滑动调节倍速的功能失效
             LongPressGesture()// 长按手势
-              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
-                SourceTool.JOYSTICK])
+              .allowedTypes(PLAYBACK_GESTURE_INPUTS)
               .onAction((event: GestureEvent) => { //长按
                 if (this.player.isLock || this.activePointerCount > 1 || event.fingerList.length > 1) {
                   return
@@ -272,8 +297,7 @@ export struct GestureComponent {
               direction: PanDirection.All,
             })//同一次长按内支持横滑调速、上滑锁定和下滑解锁，转向无需更换识别器。
               .tag('pan_single_longpress')
-              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
-                SourceTool.JOYSTICK])
+              .allowedTypes(PLAYBACK_GESTURE_INPUTS)
               .onActionStart((event: GestureEvent) => { // 长按且滑动屏幕
                 if (this.player.isLock || this.activePointerCount > 1 || event.fingerList.length > 1) {
                   this.cancelLongPressGesture()
@@ -305,8 +329,7 @@ export struct GestureComponent {
       .parallelGesture(
         PanGesture({ fingers: 2, direction: PanDirection.All })
           .tag('pan_double_move')
-          .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
-            SourceTool.JOYSTICK])
+          .allowedTypes(PLAYBACK_GESTURE_INPUTS)
           .onActionStart((event: GestureEvent) => {
             if (this.player.isLock) {
               return
@@ -341,7 +364,7 @@ export struct GestureComponent {
           })
       )
       .onAxisEvent((event: AxisEvent) => {
-        if (this.player.isLock) {
+        if (!this.gestureEnabled || !this.extendedGestures || this.player.isLock) {
           return
         }
         const isLeftSide = event.x < this.player.screenWidth / 2
@@ -359,6 +382,15 @@ export struct GestureComponent {
           this.onScrollAxisEnd()
         }
       })
+  }
+
+  private cancelHorizonPanGesture(): void {
+    if (!this.horizonPanActive) {
+      return
+    }
+    this.horizonPanActive = false
+    this.horizonPanCancelled = true
+    this.onHorizonPanCancel()
   }
 
   private cancelLongPressGesture(): void {

@@ -293,8 +293,11 @@ struct Index {
           }
         }
         .backgroundColor(Setting.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
-        .onAreaChange(async (_oldValue: Area, newValue: Area) => {
-          const width = Number(newValue.width)
+        .onAreaChange((_oldValue: Area, newValue: Area) => {
+          const width = Math.floor(Number(newValue.width))
+          if (!Number.isFinite(width) || width <= 0 || width === this.contentWidth) {
+            return
+          }
           this.contentWidth = width
           this.scheduleHomeResume()
         })
@@ -349,8 +352,8 @@ struct Index {
       .width('100%')
       .allowDrop(MediaDropUtil.allowedTypes)
       .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
-        const windowWidth = Number(newValue.width)
-        if (!Number.isFinite(windowWidth) || windowWidth <= 0) {
+        const windowWidth = Math.floor(Number(newValue.width))
+        if (!Number.isFinite(windowWidth) || windowWidth <= 0 || windowWidth === this.homeWindowWidth) {
           return
         }
         this.homeWindowWidth = windowWidth
@@ -642,8 +645,7 @@ struct Index {
 
   @Monitor('carState.leftInset', 'carState.rightInset')
   onHiCarLayoutChange(): void {
-    this.updateHomeLayout()
-    this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
+    this.scheduleHomeResume()
   }
 
   @Builder
@@ -1216,7 +1218,10 @@ struct Index {
     if (width <= 0) {
       return
     }
-    this.homeSidebarWidth = HomeSidebarLayout.getWidth(width)
+    const sidebarWidth = HomeSidebarLayout.getWidth(width)
+    if (this.homeSidebarWidth !== sidebarWidth) {
+      this.homeSidebarWidth = sidebarWidth
+    }
     const embedded = HomeSidebarLayout.isEmbedded(width)
     const mode = embedded ? SideBarContainerType.Embed : SideBarContainerType.Overlay
     if (!this.isSizeInitialized || this.sideBarController.mode !== mode) {
@@ -1266,7 +1271,7 @@ struct Index {
       }
       this.updateHomeLayout()
       if (this.contentWidth > 0) {
-        this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
+        this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode, !this.homeRefreshPending)
       }
       if (!this.homeRefreshPending || !this.homeReady) {
         return
