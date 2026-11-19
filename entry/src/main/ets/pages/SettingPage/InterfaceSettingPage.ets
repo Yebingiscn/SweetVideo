@@ -3,7 +3,6 @@ import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuI
 import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
 import { DefaultStartupFolderDialog } from '../../component/Dialog/DefaultStartupFolderDialog'
-import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { CoverLayoutMode, ListDisplayMode } from '../../common/enum/DisplayMode'
 import Preferences from '../../database/Preferences'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
@@ -11,10 +10,11 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { userData } from '../../component/common/UserLoginComponent'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
-import { LengthMetrics } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { VideoListController } from '../../controller/VideoListController'
 import StartupPageUtil from '../../utils/StartupPageUtil'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 @ComponentV2
 export struct InterfaceSettingPage {
@@ -25,7 +25,9 @@ export struct InterfaceSettingPage {
       onFolderSelected: (folderDate: string) => {
         this.updateDefaultStartupFolderName(folderDate)
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   private listScroller: Scroller = new Scroller()
 
@@ -249,8 +251,6 @@ export struct InterfaceSettingPage {
       Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
         Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(
-      Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length === 0 ? Setting.backgroundDropBlur : 0)
     .backgroundImagePosition(Alignment.Center)
     .hideBackButton(false)
     .bindToScrollable([this.listScroller])

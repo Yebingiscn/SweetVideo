@@ -17,7 +17,7 @@ import { DanmakuSession } from '../../utils/DanmakuSession'
 import { DanmakuOverlay } from '../../component/PlayerComponent/DanmakuOverlay'
 import { DanmakuMenuComponent } from '../../component/PlayerComponent/DanmakuMenuBuilder'
 import PermissionUtil from '../../utils/PermissionUtil'
-import { BaseGestureHandlingProposal, UIUtils, window } from '@kit.ArkUI'
+import { BaseGestureHandlingProposal, uiMaterial, UIUtils, window } from '@kit.ArkUI'
 import { KeyCode, pointer } from '@kit.InputKit'
 import { KeyboardShortcuts, ShortcutAction } from '../../utils/KeyboardShortcuts'
 import ToolsUtil from '../../utils/ToolsUtil'
@@ -56,7 +56,6 @@ import {
   VOLUME_STEP
 } from '../../common/Constants'
 import PiPWindowUtil from '../../utils/PiPWindowUtil'
-import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
 import { RenameDialog } from '../../component/Dialog/RenameDialog'
 import { AudioEffectDialog } from '../../component/Dialog/AudioEffectDialog'
@@ -83,6 +82,7 @@ import { motion } from '@kit.MultimodalAwarenessKit'
 import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
 import KnockShareUtil, { KNOCK_SHARE_VIDEO_PLAYER_OWNER, KnockCoordinate } from '../../utils/KnockShareUtil'
 import { AudioEffectConfig } from '../../interfaces/AudioEffectInterface'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 const TAG = 'VideoPlayer'
 const FOLD_HOVER_VIDEO_ID = 'fold_hover_video'
@@ -98,8 +98,6 @@ export struct VideoPlayer {
   @Local importingSubtitle: boolean = false
   @Local autoListenVideoEnabled: boolean = false
   @Local player: PlayerType = PlayerControllerFactory.createController(this.initialPlayerEngine)
-  @Local private renamedPlayingVideo: VideoMetadata | undefined = undefined
-  private playlistRenameDialog: CustomDialogController | undefined = undefined
   subtitleManager: SubtitleManager = new SubtitleManager(this.player)
   audioEffectDialog: CustomDialogController = new CustomDialogController({
     builder: AudioEffectDialog({
@@ -125,7 +123,9 @@ export struct VideoPlayer {
       }
     }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
     onWillAppear: () => this.onKeyboardOverlay('audio-dialog', true),
     onDidDisappear: () => this.onKeyboardOverlay('audio-dialog', false)
   })
@@ -144,7 +144,9 @@ export struct VideoPlayer {
       },
     }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
     onWillAppear: () => this.onKeyboardOverlay('aspect-dialog', true),
     onDidDisappear: () => this.onKeyboardOverlay('aspect-dialog', false)
   })
@@ -158,36 +160,16 @@ export struct VideoPlayer {
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Local isAdjustingSubtitleOffset: boolean = false
   @Local lockRotation: boolean = false
-  @Local private foldHoverPlayback: boolean = false
   @Local playerExitTransitionEnabled: boolean = false
   @Local danmaku: DanmakuSession = new DanmakuSession()
   @Local playbackSession: PlaybackSessionController = new PlaybackSessionController()
   @Local keyboardSubtitleMenuVisible: boolean = false
   @Local holdingHand: motion.HoldingHandStatus | null = null
-  private sleepTimerDialog: CustomDialogController = new CustomDialogController({
-    builder: NumberInputDialog({
-      title: ToolsUtil.getStringResource($r('app.string.timer_custom_minutes').id),
-      placeholderColor: ToolsUtil.getStringResource($r('app.string.timer_minutes_range').id),
-      confirm: (minutes: number): void => {
-        if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
-          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.timer_minutes_range').id))
-          return
-        }
-        if (this.isPageDisappearing || this.playbackSession.isClosing) {
-          return
-        }
-        this.playbackSession.sleepTimer.start(minutes * 60000)
-        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.timer_set_minutes').id, minutes))
-      }
-    }),
-    cornerRadius: 20,
-    shadow: DefaultDialogShadow,
-    onWillAppear: () => this.onKeyboardOverlay('sleep-timer', true),
-    onDidDisappear: () => this.onKeyboardOverlay('sleep-timer', false)
-  })
+  @Local private renamedPlayingVideo: VideoMetadata | undefined = undefined
+  private playlistRenameDialog: CustomDialogController | undefined = undefined
+  @Local private foldHoverPlayback: boolean = false
   private rangeMode: PlaybackRangeMode = 'ab'
   private rangeMediaKey: string = ''
-  private rangeDuration: number = 0
   private rangeEditorDialog: CustomDialogController = new CustomDialogController({
     builder: PlaybackRangeDialog({
       options: {
@@ -206,7 +188,9 @@ export struct VideoPlayer {
       }
     }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
     onWillAppear: () => {
       this.onKeyboardOverlay('playback-range', true)
     },
@@ -214,10 +198,34 @@ export struct VideoPlayer {
       this.onKeyboardOverlay('playback-range', false)
     }
   })
+  private rangeDuration: number = 0
   private containerWidth: number = 0
   private containerHeight: number = 0
   private gestures: PlayerGestureController = new PlayerGestureController(this.player)
   private isPageDisappearing: boolean = false
+  private sleepTimerDialog: CustomDialogController = new CustomDialogController({
+    builder: NumberInputDialog({
+      title: ToolsUtil.getStringResource($r('app.string.timer_custom_minutes').id),
+      placeholderColor: ToolsUtil.getStringResource($r('app.string.timer_minutes_range').id),
+      confirm: (minutes: number): void => {
+        if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.timer_minutes_range').id))
+          return
+        }
+        if (this.isPageDisappearing || this.playbackSession.isClosing) {
+          return
+        }
+        this.playbackSession.sleepTimer.start(minutes * 60000)
+        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.timer_set_minutes').id, minutes))
+      }
+    }),
+    cornerRadius: 20,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
+    onWillAppear: () => this.onKeyboardOverlay('sleep-timer', true),
+    onDidDisappear: () => this.onKeyboardOverlay('sleep-timer', false)
+  })
   @Available({ minApiVersion: 'HarmonyOS 26.0.0' }) private smartGestures: MediaSmartGestureSession =
     new MediaSmartGestureSession({
       canHandle: (): boolean => this.isPlayerConfigured && !this.isPageDisappearing &&
@@ -293,7 +301,9 @@ export struct VideoPlayer {
       },
     }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
     onWillAppear: () => this.onKeyboardOverlay('subtitle-offset-dialog', true),
     onDidDisappear: () => this.onKeyboardOverlay('subtitle-offset-dialog', false),
     maskColor: '#00000000',
@@ -311,6 +321,13 @@ export struct VideoPlayer {
   private playerMonitorVersion: number = 0
   private subtitleSelectedMonitorCallback: ((mon: IMonitor) => void) | undefined = undefined
   private danmakuMediaMonitorCallback: ((mon: IMonitor) => void) | undefined = undefined
+
+  private get playlistTitleOverride(): string | undefined {
+    const renamed = this.renamedPlayingVideo
+    const current = this.player.nowPlaying
+    return renamed && current && renamed.date === current.date && renamed.uri === current.uri ? renamed.title :
+      undefined
+  }
 
   @Monitor('sideBarStatus', 'importingSubtitle', 'isAdjustingSubtitleOffset',
     'player.onSwiping', 'player.isSliderPlayTimeChange', 'player.isGesturing', 'player.longPress',
@@ -435,69 +452,6 @@ export struct VideoPlayer {
     }
     salmonLogger.addLog(TAG, "播放页退出清理结束", false)
     salmonLogger.addLog(TAG, "aboutToDisappear方法执行完成", false)
-  }
-
-  private openPlaylistRename(item: VideoMetadata): void {
-    if (this.isPageDisappearing || this.playbackSession.isClosing || this.playlistRenameDialog) {
-      return
-    }
-    const target = this.player.videoMetaDataList.find(video => video.date === item.date && video.uri === item.uri)
-    if (!target) {
-      return
-    }
-    this.playlistRenameDialog = new CustomDialogController({
-      builder: RenameDialog({
-        initialVideoTitle: target.title,
-        preserveExtension: VideoInfoUtil.getVideoTitle(target.title, target.format ?? '') !== target.title,
-        onConfirm: (title: string) => this.renamePlaylistVideo(target, title)
-      }),
-      cornerRadius: 20,
-      shadow: DefaultDialogShadow,
-      onWillAppear: () => this.onKeyboardOverlay('playlist-rename', true),
-      onDidDisappear: () => {
-        this.playlistRenameDialog = undefined
-        this.onKeyboardOverlay('playlist-rename', false)
-      }
-    })
-    this.playlistRenameDialog.open()
-  }
-
-  private renamePlaylistVideo(item: VideoMetadata, title: string): void {
-    if (this.isPageDisappearing || this.playbackSession.isClosing) {
-      return
-    }
-    const player = this.player
-    const matches = (video: VideoMetadata): boolean => video.date === item.date && video.uri === item.uri
-    const target = player.videoMetaDataList.find(matches)
-    if (!target) {
-      throw new Error('Video no longer exists in the playlist')
-    }
-    if (title === target.title) {
-      return
-    }
-
-    MediaLibraryService.renameVideo(PathUtils.appContext!, target, title)
-    const renamed = Preferences.copyPlaybackMetadata(target)
-    renamed.title = title
-    renamed.size = target.size
-    renamed.network_http_headers = target.network_http_headers
-    player.videoMetaDataList = player.videoMetaDataList.map(video => matches(video) ? renamed : video)
-    const current = player.nowPlaying
-    if (current && matches(current)) {
-      // 引擎用当前媒体的对象身份判断异步任务是否过期。
-      current.title = title
-      this.renamedPlayingVideo = renamed
-      void AVSessionUtil.setSessionInfo(current, () => player.playbackPositionMs, player,
-        () => this.player === player && player.nowPlaying === current && !this.isPageDisappearing).catch(() => {
-        salmonLogger.addLog(TAG, 'Could not refresh the playback title in AVSession', true)
-      })
-    }
-  }
-
-  private get playlistTitleOverride(): string | undefined {
-    const renamed = this.renamedPlayingVideo
-    const current = this.player.nowPlaying
-    return renamed && current && renamed.date === current.date && renamed.uri === current.uri ? renamed.title : undefined
   }
 
   closeSideBar(isPlayAnimation: boolean) {
@@ -643,7 +597,8 @@ export struct VideoPlayer {
               onPanMoveUpdate: (event: GestureEvent) => this.gestures.onPanMoveUpdate(event),
               onPanMoveEnd: () => this.gestures.onPanMoveEnd(),
               onScrollAxisBegin: (isLeftSide: boolean) => this.gestures.onScrollAxisBegin(isLeftSide),
-              onScrollAxisUpdate: (axisValue: number, isLeftSide: boolean) => this.gestures.onScrollAxisUpdate(axisValue,
+              onScrollAxisUpdate: (axisValue: number, isLeftSide: boolean) => this.gestures.onScrollAxisUpdate(
+                axisValue,
                 isLeftSide),
               onScrollAxisEnd: () => this.gestures.onScrollAxisEnd()
             })
@@ -743,7 +698,9 @@ export struct VideoPlayer {
         .enableAnimation(false)
         .autoHalfFold(!this.lockRotation && !HiCar.enabled)
         .onHoverStatusChange((event: HoverEventParam) => {
-          if (this.isPageDisappearing || this.foldHoverPlayback === event.isHoverMode) return
+          if (this.isPageDisappearing || this.foldHoverPlayback === event.isHoverMode) {
+            return
+          }
           this.foldHoverPlayback = event.isHoverMode
           this.controlsIdle.refresh()
         })
@@ -1090,8 +1047,6 @@ export struct VideoPlayer {
     })
   }
 
-
-
   @Builder
   AudioTrackMenuBuilder() {
     AudioTrackComponent({
@@ -1231,6 +1186,65 @@ export struct VideoPlayer {
   @Builder
   AVCastPickerBuilderBridge() {
     AVCastPickerBuilder()
+  }
+
+  private openPlaylistRename(item: VideoMetadata): void {
+    if (this.isPageDisappearing || this.playbackSession.isClosing || this.playlistRenameDialog) {
+      return
+    }
+    const target = this.player.videoMetaDataList.find(video => video.date === item.date && video.uri === item.uri)
+    if (!target) {
+      return
+    }
+    this.playlistRenameDialog = new CustomDialogController({
+      builder: RenameDialog({
+        initialVideoTitle: target.title,
+        preserveExtension: VideoInfoUtil.getVideoTitle(target.title, target.format ?? '') !== target.title,
+        onConfirm: (title: string) => this.renamePlaylistVideo(target, title)
+      }),
+      cornerRadius: 20,
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+      }) : undefined,
+      onWillAppear: () => this.onKeyboardOverlay('playlist-rename', true),
+      onDidDisappear: () => {
+        this.playlistRenameDialog = undefined
+        this.onKeyboardOverlay('playlist-rename', false)
+      }
+    })
+    this.playlistRenameDialog.open()
+  }
+
+  private renamePlaylistVideo(item: VideoMetadata, title: string): void {
+    if (this.isPageDisappearing || this.playbackSession.isClosing) {
+      return
+    }
+    const player = this.player
+    const matches = (video: VideoMetadata): boolean => video.date === item.date && video.uri === item.uri
+    const target = player.videoMetaDataList.find(matches)
+    if (!target) {
+      throw new Error('Video no longer exists in the playlist')
+    }
+    if (title === target.title) {
+      return
+    }
+
+    MediaLibraryService.renameVideo(PathUtils.appContext!, target, title)
+    const renamed = Preferences.copyPlaybackMetadata(target)
+    renamed.title = title
+    renamed.size = target.size
+    renamed.network_http_headers = target.network_http_headers
+    player.videoMetaDataList = player.videoMetaDataList.map(video => matches(video) ? renamed : video)
+    const current = player.nowPlaying
+    if (current && matches(current)) {
+      // 引擎用当前媒体的对象身份判断异步任务是否过期。
+      current.title = title
+      this.renamedPlayingVideo = renamed
+      void AVSessionUtil.setSessionInfo(current, () => player.playbackPositionMs, player,
+        () => this.player === player && player.nowPlaying === current && !this.isPageDisappearing).catch(() => {
+        salmonLogger.addLog(TAG, 'Could not refresh the playback title in AVSession', true)
+      })
+    }
   }
 
   private canAutoHideControls(): boolean {

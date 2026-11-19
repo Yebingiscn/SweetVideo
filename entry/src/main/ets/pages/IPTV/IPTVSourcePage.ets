@@ -1,6 +1,6 @@
 import NavigationAddress, { IPTVChannelParams } from '../../common/NavigationCommon'
 import {
-  DefaultDialogShadow, ImageFancyModifier, MenuFancyModifier
+  ImageFancyModifier, MenuFancyModifier
 } from '../../common/AttributeModifierConfig'
 import { IPTVSource } from '../../interfaces/IPTVInterface'
 import { IPTVSourceDialog } from '../../component/Dialog/IPTVSourceDialog'
@@ -26,8 +26,10 @@ export struct IPTVSourcePage {
       onSaved: (source: IPTVSource) => this.upsertSource(source)
     }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow,
-    cancel: () => IPTVSourceService.editingSource = undefined
+    cancel: () => IPTVSourceService.editingSource = undefined,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   private pendingDelete: IPTVSource | undefined = undefined
   deleteDialogController: CustomDialogController = new CustomDialogController({
@@ -42,7 +44,9 @@ export struct IPTVSourcePage {
       }
     }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   private listScroller: Scroller = new Scroller()
 
@@ -135,8 +139,6 @@ export struct IPTVSourcePage {
                         .layoutWeight(1)
                       if (this.refreshingIds.has(item.item.id)) {
                         LoadingProgress().width(18).height(18).color($r('app.color.main_color'))
-                      } else {
-                        SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(17).opacity(0.45)
                       }
                     }.width('100%')
                   }.alignItems(HorizontalAlign.Start).layoutWeight(1)

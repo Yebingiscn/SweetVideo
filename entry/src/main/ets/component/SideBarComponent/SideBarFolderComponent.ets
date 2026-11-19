@@ -3,9 +3,7 @@ import { FileFolderDataSource } from '../../utils/DataUtil'
 import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import {
-  ButtonFancyModifier,
-  DefaultDialogShadow,
-  SymbolGlyphFancyModifier
+  ButtonFancyModifier, SymbolGlyphFancyModifier
 } from '../../common/AttributeModifierConfig'
 import { PathUtils } from '../../utils/PathUtils'
 import { VideoListController } from '../../controller/VideoListController'
@@ -77,7 +75,9 @@ export struct SideBarFolderComponent {
       }
     }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
     onDidDisappear: () => this.libraryKeyboard.reset()
   })
 
@@ -470,20 +470,18 @@ export struct SideBarFolderComponent {
       return
     }
     this.searchValueClear()
-    if (this.videoListController.folder?.date === folder.date && !this.videoListController.directoryOverview) {
-      return
-    }
+    const sameFolder =
+      this.videoListController.folder?.date === folder.date && !this.videoListController.directoryOverview
     const currentFolder = Preferences.getFileFolder(PathUtils.appContext!).find(item => item.date === folder.date)
     if (!currentFolder) {
       return
     }
-    let videos = currentFolder.video_list
     this.videoListController.directoryFolderSelection = undefined
-    this.videoListController.videoDataSource.updateData(videos)
     this.videoListController.directoryOverview = false
-    this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder)
     VideoUtils.refresh(this.videoListController, this.fileFolderSource, currentFolder)
-    this.scrollToFolderDateChange(folder.date)
+    if (!sameFolder) {
+      this.scrollToFolderDateChange(folder.date)
+    }
     this.sideBarController.closeIfOverlay(true)
   }
 

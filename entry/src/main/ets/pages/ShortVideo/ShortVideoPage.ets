@@ -27,7 +27,7 @@ import {
   AnimatedPlaybackTimeBuilder,
   PlaybackProgressSliderBuilder
 } from '../../component/PlayerComponent/PlaybackProgressComponent'
-import { ButtonFancyModifier, DefaultDialogShadow } from '../../common/AttributeModifierConfig'
+import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 import { PlaybackPolicyMenuComponent } from '../../component/PlayerComponent/PlaybackPolicyMenuComponent'
 import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
 import TimeUtil from '../../utils/TimeUtil'
@@ -57,21 +57,6 @@ export struct ShortVideoPage {
   private isSpeedMenuOpen: boolean = false
   private isPolicyMenuOpen: boolean = false
   private isTimerDialogOpen: boolean = false
-  private isRangeDialogOpen: boolean = false
-  private isProgressSeeking: boolean = false
-  private smartGestures: MediaSmartGestureSession =
-    new MediaSmartGestureSession({
-      canHandle: (): boolean => this.ready && !this.disposed && this.items.length > 0 &&
-        !PiPWindowUtil.pipOpenState && !this.isSwiperAnimating && !this.isSpeedMenuOpen &&
-        !this.isPolicyMenuOpen && !this.isTimerDialogOpen && !this.isRangeDialogOpen &&
-        !this.isProgressSeeking && !this.manager.onSwiping && !this.smartTapPending,
-      onTap: (): void => {
-        void this.togglePlaybackFromSmartGesture()
-      },
-      onSlide: (): BaseGestureHandlingProposal | undefined => this.createSmartSwipeProposal()
-    })
-  private smartTapPending: boolean = false
-  private pageParams: ShortVideoParams | undefined = undefined
   private sleepTimerDialog: CustomDialogController = new CustomDialogController({
     builder: NumberInputDialog({
       title: ToolsUtil.getStringResource($r('app.string.timer_custom_minutes').id),
@@ -89,7 +74,9 @@ export struct ShortVideoPage {
       }
     }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
     onWillAppear: () => {
       this.isTimerDialogOpen = true;
       this.clearShowControlTimer()
@@ -101,7 +88,23 @@ export struct ShortVideoPage {
       }
     }
   })
+  private isRangeDialogOpen: boolean = false
+  private isProgressSeeking: boolean = false
+  private smartTapPending: boolean = false
+  private smartGestures: MediaSmartGestureSession =
+    new MediaSmartGestureSession({
+      canHandle: (): boolean => this.ready && !this.disposed && this.items.length > 0 &&
+        !PiPWindowUtil.pipOpenState && !this.isSwiperAnimating && !this.isSpeedMenuOpen &&
+        !this.isPolicyMenuOpen && !this.isTimerDialogOpen && !this.isRangeDialogOpen &&
+        !this.isProgressSeeking && !this.manager.onSwiping && !this.smartTapPending,
+      onTap: (): void => {
+        void this.togglePlaybackFromSmartGesture()
+      },
+      onSlide: (): BaseGestureHandlingProposal | undefined => this.createSmartSwipeProposal()
+    })
+  private pageParams: ShortVideoParams | undefined = undefined
   private rangeMode: PlaybackRangeMode = 'ab'
+  private rangeMediaKey: string = ''
   private rangeEditorDialog: CustomDialogController = new CustomDialogController({
     builder: PlaybackRangeDialog({
       options: {
@@ -117,7 +120,9 @@ export struct ShortVideoPage {
       }
     }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
     onWillAppear: () => {
       this.isRangeDialogOpen = true;
       this.clearShowControlTimer()
@@ -129,7 +134,6 @@ export struct ShortVideoPage {
       }
     }
   })
-  private rangeMediaKey: string = ''
   private rangeDuration: number = 0
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
@@ -269,7 +273,10 @@ export struct ShortVideoPage {
             if (!this.disposed) {
               this.showControls()
             }
-          }
+          },
+          systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+            style: uiMaterial.ImmersiveStyle.THICK
+          }) : undefined
         })
 
         Button({ type: ButtonType.Circle, stateEffect: false }) {

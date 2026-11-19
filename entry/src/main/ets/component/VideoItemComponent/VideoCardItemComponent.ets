@@ -3,6 +3,7 @@ import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
+import ImageStorage from '../../utils/ImageStorage'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoInfoBuilder } from './VideoInfoBuilder'
 import { VideoListController } from '../../controller/VideoListController'
@@ -18,26 +19,85 @@ export default struct VideoCardItem {
   @Param compact: boolean = false
   @Param coverTransition: boolean = false
   @Local coverSrc: string = ''
+  private coverDate: string = ''
+  private coverLoadFailed: boolean = false
+  private coverActive: boolean = false
+  private coverReloadTimer: number | undefined = undefined
 
   aboutToAppear(): void {
+    this.coverActive = true
+    this.onItemChange()
     this.coverSrc = PathUtils.coverUri(this.item.date)
+  }
+
+  aboutToDisappear(): void {
+    this.coverActive = false
+    this.clearCoverReloadTimer()
   }
 
   @Monitor('item')
-  onItemChange() {
+  onItemChange(): void {
+    if (this.coverDate === this.item.date) {
+      return
+    }
+    this.clearCoverReloadTimer()
+    this.coverDate = this.item.date
+    this.coverLoadFailed = false
     this.coverSrc = PathUtils.coverUri(this.item.date)
   }
 
-  // 封面文件被覆盖后文件名不变，先清空再重设地址，强制 Image 重新读取文件
-  @Monitor('coverRefreshToken')
-  onCoverRefreshTokenChange() {
-    if (this.coverRefreshDate !== this.item.date) {
+  @Monitor('videoListController.videoDataSource.revision')
+  onCoverDataRevisionChange(): void {
+    if (!this.coverActive || !this.coverLoadFailed || this.coverDate !== this.item.date ||
+      this.coverReloadTimer !== undefined) {
       return
     }
+    // 重复导入可能补回原文件名的封面，只重试已经加载失败且现已存在的图片。
+    if (ImageStorage.getExistingImageUri(PathUtils.coverPath + this.item.date)) {
+      this.reloadCover()
+    }
+  }
+
+  @Monitor('coverRefreshToken')
+  onCoverRefreshTokenChange(): void {
+    if (this.coverRefreshDate === this.item.date) {
+      this.reloadCover()
+    }
+  }
+
+  // 文件名未变，先清空再重设地址；列表复用或退出后不能写回旧封面。
+  private reloadCover(): void {
+    if (!this.coverActive) {
+      return
+    }
+    this.clearCoverReloadTimer()
+    const date = this.item.date
     this.coverSrc = ''
-    setTimeout(() => {
-      this.coverSrc = PathUtils.coverUri(this.item.date)
+    this.coverReloadTimer = setTimeout(() => {
+      this.coverReloadTimer = undefined
+      if (this.coverActive && this.item.date === date && this.coverDate === date) {
+        this.coverSrc = PathUtils.coverUri(date)
+      }
     }, 100)
+  }
+
+  private clearCoverReloadTimer(): void {
+    if (this.coverReloadTimer !== undefined) {
+      clearTimeout(this.coverReloadTimer)
+      this.coverReloadTimer = undefined
+    }
+  }
+
+  private onCoverLoadError(): void {
+    if (this.coverSrc.length > 0) {
+      this.coverLoadFailed = true
+    }
+  }
+
+  private onCoverLoadComplete(): void {
+    if (this.coverSrc.length > 0) {
+      this.coverLoadFailed = false
+    }
   }
 
   @Monitor('delMultipleList')
@@ -63,6 +123,8 @@ export default struct VideoCardItem {
       .objectFit(this.compact ? ImageFit.Cover : ImageFit.Auto)
       .id(`video_cover_${this.item.date}`)
       .geometryTransition(this.coverTransition ? `home-video-cover:${this.item.date}` : '')
+      .onError(() => this.onCoverLoadError())
+      .onComplete(() => this.onCoverLoadComplete())
   }
 
   build() {

@@ -9,7 +9,7 @@ import SelectFileUtil from '../../utils/SelectFileUtil'
 import { SortField } from '../../common/enum/SortField'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import { VideoDetailSheetBuilder } from '../../component/Dialog/VideoDetailDialog'
-import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
+import { MenuFancyModifier } from '../../common/AttributeModifierConfig'
 import { RenameDialog } from '../../component/Dialog/RenameDialog'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import { SideBarController } from '../SideBarComponent/SideBar'
@@ -78,7 +78,9 @@ export struct VideoList {
         updatedVideo.title = title
         this.saveEditedVideo(updatedVideo)
       },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   // 显式接收结果数组，避免 @Monitor 依赖跨继承层的数据源路径。
   @Param directoryVideos: VideoMetadata[] = []
@@ -105,7 +107,9 @@ export struct VideoList {
       }
     }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
     onDidDisappear: () => this.libraryKeyboard.reset()
   })
   @Consumer() file_folder_list: FileFolder[] = []
@@ -133,7 +137,9 @@ export struct VideoList {
       }
     }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
     onDidDisappear: () => this.libraryKeyboard.reset()
   })
   @Local showDetailSheet: boolean = false
@@ -158,7 +164,9 @@ export struct VideoList {
           ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_failed_retry').id))
         }
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
 
   private get displayMode(): ListDisplayMode {
@@ -626,12 +634,10 @@ export struct VideoList {
         .onClick(() => {
           this.changeVideoCover(item)
         })
-      // TODO 调整文件夹转移
       MenuItem({
         content: $r('app.string.move_to_folder'),
         builder: (): void => this.FileFolderMenuBuilder(item)
       })
-      // TODO  调整删除的方法
       MenuItem({
         content: $r('app.string.delete')
       })

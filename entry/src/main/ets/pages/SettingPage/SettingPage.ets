@@ -2,18 +2,19 @@ import NavigationAddress from '../../common/NavigationCommon'
 import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
-import { DefaultDialogShadow, ImageFancyModifier } from '../../common/AttributeModifierConfig'
+import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
 import Preferences from '../../database/Preferences'
 import BiometricAccessUtil from '../../utils/BiometricAccessUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PrivacyAuthMode } from '../../common/enum/PrivacyAuthMode'
 import { userAuth } from '@kit.UserAuthenticationKit'
-import { LengthMetrics } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { IapVerifyUtil } from '../../utils/IapVerifyUtil'
 import { userData } from '../../component/common/UserLoginComponent'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 @ComponentV2
 export struct SettingsPage { //设置页
@@ -32,7 +33,9 @@ export struct SettingsPage { //设置页
           ToolsUtil.TOAST_LONG_MS)
         this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, { "needGotoSetting": true })
       },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   private listScroller: Scroller = new Scroller()
 

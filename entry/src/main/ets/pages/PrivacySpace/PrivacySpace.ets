@@ -12,7 +12,6 @@ import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import {
   ButtonFancyModifier,
-  DefaultDialogShadow,
   LightMaterialModifier,
   MenuFancyModifier,
   SymbolGlyphFancyModifier
@@ -120,7 +119,9 @@ export struct PrivacySpace { // 隐私空间页
         this.searchValue = ''
         this.applySearch()
       },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   @Local is_edit: boolean = false
   @Local currentSortField: SortField | '' = ''
@@ -140,7 +141,9 @@ export struct PrivacySpace { // 隐私空间页
         ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id),
           ToolsUtil.TOAST_LONG_MS)
       },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   @Local delMultipleList: VideoMetadata[] = []
   @Local multipleChooseState: Visibility = Visibility.None
@@ -166,7 +169,9 @@ export struct PrivacySpace { // 隐私空间页
         const target = this.privateFolders.find(folder => folder.date === this.currentFolderDate) ?? null
         await this.toMetaData(await SelectFileUtil.selectFromFileManager("audio"), target)
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   searchController: SearchController = new SearchController()
   @Local showDetailSheet: boolean = false
@@ -178,7 +183,9 @@ export struct PrivacySpace { // 隐私空间页
       confirm: async () => {
         await this.batchDeleteItems()
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   private folderState: PrivacyFolderState = PrivacyFolderUtil.empty()
   private folderDialog: CustomDialogController | undefined = undefined
@@ -195,7 +202,9 @@ export struct PrivacySpace { // 隐私空间页
           this.deleteItem(this.pendingDeleteItem.date, this.pendingDeleteItem.title)
         }
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   private listScroller: ListScroller = new ListScroller()
   private waterFlowScroller: ListScroller = new ListScroller()
@@ -1272,7 +1281,9 @@ export struct PrivacySpace { // 隐私空间页
           void this.updateFolders((state: PrivacyFolderState): PrivacyFolderState =>
           PrivacyFolderUtil.create(state, name, parentDate))
         }
-      }), cornerRadius: 20, shadow: DefaultDialogShadow
+      }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+      }) : undefined
     })
     this.folderDialog.open()
   }
@@ -1286,7 +1297,9 @@ export struct PrivacySpace { // 隐私空间页
           void this.updateFolders((state: PrivacyFolderState): PrivacyFolderState =>
           PrivacyFolderUtil.rename(state, folder.date, name))
         }
-      }), cornerRadius: 20, shadow: DefaultDialogShadow
+      }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+      }) : undefined
     })
     this.folderDialog.open()
   }
@@ -1302,7 +1315,9 @@ export struct PrivacySpace { // 隐私空间页
           void this.updateFolders((state: PrivacyFolderState): PrivacyFolderState =>
           PrivacyFolderUtil.moveFolder(state, folder.date, date || null))
         }
-      }), cornerRadius: 20, shadow: DefaultDialogShadow
+      }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+      }) : undefined
     })
     this.folderDialog.open()
   }
@@ -1314,7 +1329,9 @@ export struct PrivacySpace { // 隐私空间页
         confirm: (): void => {
           void this.runBatchOperation('delete', [], folder.date)
         }
-      }), cornerRadius: 20, shadow: DefaultDialogShadow
+      }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+      }) : undefined
     })
     this.folderDialog.open()
   }
@@ -1337,7 +1354,9 @@ export struct PrivacySpace { // 隐私空间页
             this.closeMultipleChoose()
           }
         }
-      }), cornerRadius: 20, shadow: DefaultDialogShadow
+      }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+      }) : undefined
     })
     this.folderDialog.open()
   }

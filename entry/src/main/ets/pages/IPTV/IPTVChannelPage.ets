@@ -153,7 +153,7 @@ export struct IPTVChannelPage {
     .bindToScrollable([this.groupScroller, this.channelScroller]) // 绑定导航组件和可滚动容器组件
     .dynamicHideTitleBar({
       hideTitleArea: false,
-      hideBottomBuilder: true,
+      hideBottomBuilder: false,
       hideStatusBar: false,
       mode: HideMode.SCROLL_UP
     })
@@ -180,6 +180,24 @@ export struct IPTVChannelPage {
 
   @Builder
   GroupList() {
+    Column() {
+      this.GroupCard()
+    }
+    .width(148)
+    // 跟随两列容器实际分配的高度，避免横屏时滚动视口超出可见区域。
+    .alignSelf(ItemAlign.Stretch)
+    .padding({
+      left: 12,
+      right: 12,
+      // 与频道列表顶部对齐，底部仅保留系统安全区。
+      top: 0,
+      bottom: SafeHeight.bottomSafeHeight
+    })
+    .backgroundColor(Color.Transparent)
+  }
+
+  @Builder
+  GroupCard() {
     List({ scroller: this.groupScroller, space: 5 }) {
       Repeat<string>(this.groups)
         .each((item: RepeatItem<string>) => {
@@ -188,7 +206,7 @@ export struct IPTVChannelPage {
               .fontSize(13)
               .fontWeight(this.selectedGroup === item.item ? FontWeight.Medium : FontWeight.Normal)
               .fontColor(this.selectedGroup === item.item ? Color.White : $r('app.color.text_color'))
-              .padding({ left: 10, right: 10 })
+              .padding({ left: 8, right: 8 })
               .width('100%')
               .height(44)
               .borderRadius(12)
@@ -197,18 +215,27 @@ export struct IPTVChannelPage {
               .maxLines(1)
           }
           .onClick(() => this.scrollToGroup(item.item))
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.96 })
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
         })
         .key((group: string) => group)
     }
-    .clip(false)
-    .borderRadius(12)
-    .width(124)
+    .clip(true)
     .height('100%')
-    .padding({ left: 10, right: 6 })
-    .contentEndOffset(SafeHeight.bottomSafeHeight)
+    .width('100%')
+    .layoutWeight(1)
+    .padding({
+      left: 4,
+      right: 4,
+      top: 8,
+      bottom: 8
+    })
+    .fadingEdge(true)
     .scrollBar(BarState.Off)
-    .backgroundColor($r('app.color.list_item_background'))
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: false })
+    .backgroundColor(
+      Setting.backgroundImageSrc.length > 0 ? Color.Transparent : $r('app.color.start_window_background'))
+    .borderRadius(16)
+    .border({ width: 1, color: $r('app.color.sidebar_card_border') })
   }
 
   @Builder
@@ -308,9 +335,18 @@ export struct IPTVChannelPage {
         .each((item: RepeatItem<IPTVLine>) => {
           MenuItem({
             content: $r('app.string.line_n', item.index + 1),
-            labelInfo: item.index === (channel.selectedLineIndex ?? 0) ? $r('app.string.current_label') :
-              this.lineHost(item.item)
-          }).onClick(() => this.selectLine(channel, item.index))
+            labelInfo: this.lineHost(item.item)
+          })
+            .contentFontColor(item.index === (channel.selectedLineIndex ?? 0) ? $r('sys.color.white') :
+              $r('app.color.text_color'))
+            .labelFontColor(item.index === (channel.selectedLineIndex ?? 0) ? $r('sys.color.white') :
+              $r('app.color.text_color'))
+            .height(40)
+            .backgroundColor(item.index === (channel.selectedLineIndex ?? 0) ? $r('app.color.main_color') :
+              Color.Transparent)
+            .borderRadius(16)
+            .onClick(() => this.selectLine(channel, item.index))
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
         })
         .key((line: IPTVLine, index: number) => `${line.url}_${index}`)
     }
@@ -486,11 +522,14 @@ export struct IPTVChannelPage {
     if (!this.source) {
       return ToolsUtil.getStringResource($r('app.string.zero_channels').id)
     }
-    const multiLineCount = this.source.channels.filter(channel => this.lineCount(channel) > 1).length
+    // 分组只控制滚动定位，标题统计需单独跟随当前选中分组。
+    const channels = this.selectedGroup === allChannelsLabel() ? this.source.channels :
+      this.source.channels.filter(channel => channel.groupName === this.selectedGroup)
+    const multiLineCount = channels.filter(channel => this.lineCount(channel) > 1).length
     return multiLineCount > 0 ?
-      ToolsUtil.getStringResourceArgs2($r('app.string.channels_with_multiline').id, this.source.channelCount,
+      ToolsUtil.getStringResourceArgs2($r('app.string.channels_with_multiline').id, channels.length,
         multiLineCount) :
-      ToolsUtil.getStringResourceArgs($r('app.string.channels_count').id, this.source.channelCount)
+      ToolsUtil.getStringResourceArgs($r('app.string.channels_count').id, channels.length)
   }
 
   private groupLabel(group: string): string {

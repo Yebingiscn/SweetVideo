@@ -3,7 +3,6 @@ import { AddNetworkStreamDialog } from '../Dialog/AddNetworkStreamDialog'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import {
   ButtonFancyModifier,
-  DefaultDialogShadow,
   ImageFancyModifier,
   SymbolGlyphFancyModifier
 } from '../../common/AttributeModifierConfig'
@@ -62,7 +61,9 @@ export struct SideBarContentComponent {
     builder: AddNetworkStreamDialog({
       onStreamAdded: () => {
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
 
   @Computed

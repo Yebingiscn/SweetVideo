@@ -353,7 +353,14 @@ export default class SelectFileUtil {
       const fileSize = fileInfoResult.fileSize
       const fileName = disc ? disc.title : fileInfoResult.fileName
       if (!(privateMode && allowDuplicateTitle)) {
-        if (FileFolderUtil.existsVideoInFolders(context, uri, fileName, privateMode)) return true
+        if (FileFolderUtil.existsVideoInFolders(context, uri, fileName, privateMode)) {
+          if (!disc) {
+            await ConcurrencyManagerUtil.getFileQueue(uri).run(async () => {
+              await SelectFileUtil.restoreMissingCover(context, sandbox_path, uri, fileName, privateMode)
+            })
+          }
+          return true
+        }
         if (importBatch?.hasUri(uri)) {
           FileFolderUtil.duplicateVideo++
           return true
@@ -370,7 +377,7 @@ export default class SelectFileUtil {
       const pixelMap = mediaResult?.thumbnail.success ? mediaResult.thumbnail.pixelMap : undefined
       unusedPixelMap = pixelMap
       if (mediaResult && mediaProbe && !mediaResult.thumbnail.success && mediaResult.thumbnail.error) {
-        salmonLogger.addLog(TAG, 'FFmpeg 封面提取失败: ' + mediaResult.thumbnail.error, true)
+        salmonLogger.addLog(TAG, `FFmpeg 封面提取失败 ${fileName}: ${mediaResult.thumbnail.error}`, true)
       }
 
       if (!disc) preparedSubtitle = await subtitles.prepare(uri, fileName)
@@ -381,6 +388,7 @@ export default class SelectFileUtil {
         const dataLock = ConcurrencyManagerUtil.getLock('global_data')
         await dataLock.acquire()
         let shouldSaveCover = false
+        let shouldRestoreCover = false
         let coverUri = ''
         let coverSandboxPath = ''
         let coverDate = ''
@@ -444,6 +452,7 @@ export default class SelectFileUtil {
                 if (Preferences.appendImportedVideos(context, additions) === 0) {
                   FileFolderUtil.duplicateVideo++
                   importHandled = true
+                  shouldRestoreCover = !disc
                   return
                 }
               }
@@ -458,10 +467,15 @@ export default class SelectFileUtil {
             importHandled = true
           } else {
             importHandled = true
+            shouldRestoreCover = !disc
             salmonLogger.addLog(TAG, `跳过已导入文件: ${fileName}`, true)
           }
         } finally {
           dataLock.release()
+          if (shouldRestoreCover) {
+            // 仍在 URI 队列内，但解图和编码不能占用媒体库全局锁。
+            await SelectFileUtil.restoreMissingCover(context, sandbox_path, uri, fileName, privateMode, pixelMap)
+          }
         }
         if (shouldSaveCover) {
           unusedPixelMap = undefined
@@ -477,6 +491,62 @@ export default class SelectFileUtil {
       if (!subtitleRetained) await subtitles.discard(preparedSubtitle)
       if (!subtitleImport) await subtitles.finish(context, privateMode)
       await ImageStorage.releaseImageSafely(unusedPixelMap, '未使用的导入封面')
+    }
+  }
+
+  private static async restoreMissingCover(context: Context, sandboxPath: string, uri: string,
+    fileName: string, privateMode: boolean, pixelMap?: image.PixelMap): Promise<void> {
+    try {
+      let existing: VideoMetadata | undefined
+      if (privateMode) {
+        existing = Preferences.getVideoMetaDataEncryption(context, true).find(item => item.title === fileName)
+      } else {
+        for (const folder of Preferences.getFileFolder(context, true)) {
+          existing = folder.video_list.find(item => item.uri === uri)
+          if (existing) break
+        }
+      }
+      if (!existing?.date) return
+      // 隐私导入按标题查重，来自不同 URI 的任务也可能命中同一条旧记录。
+      const coverLock = ConcurrencyManagerUtil.getLock(`cover_${existing.date}`)
+      await coverLock.acquire()
+      let extractedPixelMap: image.PixelMap | undefined
+      const coverPath = sandboxPath + existing.date
+      const temporaryName = `${existing.date}.cover-repair.tmp`
+      const temporaryPath = sandboxPath + temporaryName
+      try {
+        if (fs.accessSync(coverPath)) return
+        // 隐私空间同名文件不一定是同一媒体，只从原有副本恢复封面。
+        let coverPixelMap = existing.uri === uri ? pixelMap : undefined
+        if (!coverPixelMap) {
+          const result = await FFmpegThumbnailUtil.extractCover(existing.uri, existing.time)
+          extractedPixelMap = result.pixelMap
+          if (!result.success || !extractedPixelMap) {
+            if (result.error) salmonLogger.addLog(TAG, '恢复已导入媒体封面失败: ' + result.error, true)
+            return
+          }
+          coverPixelMap = extractedPixelMap
+        }
+        const saved = await ImageStorage.savePixelMapToFile(sandboxPath, temporaryName, coverPixelMap,
+          { deleteOnFail: true })
+        if (!saved) return
+        // 解图期间用户可能设置封面；同步复查和发布，保留任何已存在的封面。
+        if (!fs.accessSync(coverPath)) {
+          fs.renameSync(temporaryPath, coverPath)
+          salmonLogger.addLog(TAG, '已补全已导入媒体的缺失封面', false)
+        }
+      } finally {
+        try {
+          if (fs.accessSync(temporaryPath)) fs.unlinkSync(temporaryPath)
+        } catch (error) {
+          salmonLogger.addLog(TAG, '清理补图临时文件失败: ' + error, true)
+        }
+        await ImageStorage.releaseImageSafely(extractedPixelMap, '补全封面图片')
+        coverLock.release()
+      }
+    } catch (error) {
+      // 旧媒体本身已导入成功，补图失败只记日志，不改变导入结果及重复计数。
+      salmonLogger.addLog(TAG, '恢复已导入媒体封面失败: ' + error, true)
     }
   }
 

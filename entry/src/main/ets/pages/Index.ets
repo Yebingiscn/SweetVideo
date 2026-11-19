@@ -1,7 +1,6 @@
 import MediaLibraryService from '../utils/MediaLibraryService'
 import { FileFolderDataSource } from '../utils/DataUtil'
 import { FileFolder } from '../interfaces/FileFolderInterface'
-import { DefaultDialogShadow } from '../common/AttributeModifierConfig'
 import { VideoListController } from '../controller/VideoListController'
 import { SideBarController } from '../component/SideBarComponent/SideBar'
 import { FolderMenuAction, FolderMenuActions } from '../component/FileFolderComponent/FileFolderSelectBuilder'
@@ -70,7 +69,7 @@ import lazy { FtpPage } from './FTP/FtpPage'
 import lazy { HarmonyFeaturePage } from './SettingPage/HarmonyFeaturePage'
 import lazy { PersonalizeSettingPage } from './SettingPage/PersonalizeSettingPage'
 import lazy { EngineSettingPage } from './SettingPage/EngineSettingPage'
-import { LengthMetrics } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavigation, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import KnockShareUtil, { KNOCK_SHARE_INDEX_OWNER, KnockCoordinate, KnockReceivePayload } from '../utils/KnockShareUtil'
 import KnockReceiveStorage from '../utils/KnockReceiveStorage'
@@ -79,6 +78,7 @@ import PermissionUtil from '../utils/PermissionUtil'
 import PlaybackExitCoordinator from '../utils/PlaybackExitCoordinator'
 import { KeyboardShortcuts, LibraryKeyboard, ShortcutAction } from '../utils/KeyboardShortcuts'
 import { ListDisplayMode } from '../common/enum/DisplayMode'
+import { MaterialCapability } from '../common/MaterialCapability'
 
 const TAG = 'Index'
 
@@ -107,7 +107,11 @@ struct Index {
   @Provider() folderMenuActions: FolderMenuActions = new FolderMenuActions()
   @Local scrollToFolderDate: string = ''
   deletedVideosDialogController: CustomDialogController = new CustomDialogController({
-    builder: DeletedVideosDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
+    builder: DeletedVideosDialog(),
+    cornerRadius: 20,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   sideBarScroller: Scroller = new Scroller()
   sidebarHeaderScroller: Scroller = new Scroller()
@@ -124,20 +128,26 @@ struct Index {
       }
     }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
     onDidDisappear: () => this.libraryKeyboard.reset()
   })
   private folderMoveDialog = new CustomDialogController({
     builder: MoveFileFolderDialog({
       onFolderMoved: (folders: FileFolder[]) => this.publishFolderChanges(folders)
     }),
-    cornerRadius: 20, shadow: DefaultDialogShadow
+    cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   private folderTimingDialog = new CustomDialogController({
     builder: FolderOpeningEndingDialog({
       onConfirm: (date: string, start: number, end: number) => this.updateFolderTiming(date, start, end)
     }),
-    cornerRadius: 20, shadow: DefaultDialogShadow
+    cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   private folderDeleteDialog: CustomDialogController | undefined = undefined
   private sidebarFolderIndices: Map<string, number> = new Map()
@@ -752,7 +762,9 @@ struct Index {
         }
       }),
       cornerRadius: 20,
-      shadow: DefaultDialogShadow,
+      systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+      }) : undefined,
       onDidDisappear: () => this.libraryKeyboard.reset()
     })
     this.folderDeleteDialog.open()

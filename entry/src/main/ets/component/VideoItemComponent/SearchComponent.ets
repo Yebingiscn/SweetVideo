@@ -1,4 +1,3 @@
-import { Available } from '@kit.BasicServicesKit'
 import { LightMaterialModifier } from '../../common/AttributeModifierConfig'
 
 @ComponentV2

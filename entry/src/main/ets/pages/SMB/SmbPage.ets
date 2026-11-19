@@ -6,7 +6,6 @@ import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { PathUtils } from '../../utils/PathUtils'
 import FFmpegThumbnailUtil from '../../utils/FFmpegThumbnailUtil'
 import { salmonLogger } from 'salmonlogger'
-import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 import { SmbServerDialog } from '../../component/Dialog/SmbServerDialog'
 import { SmbServer } from '../../interfaces/SmbInterface'
@@ -55,13 +54,17 @@ export struct SmbPage {
   private dialog: CustomDialogController = new CustomDialogController({
     builder: SmbServerDialog({ onSaved: () => this.reloadServers() }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
     autoCancel: false
   })
   private deleteDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog(
       { textInfo: $r('app.string.delete_smb_connection'), confirm: () => this.removeServer() }),
-    cornerRadius: 20, shadow: DefaultDialogShadow
+    cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
 
   aboutToAppear(): void {
@@ -227,7 +230,6 @@ export struct SmbPage {
                       }.layoutWeight(1).alignItems(HorizontalAlign.Start)
 
                       Button($r('app.string.edit')).onClick(() => this.edit(item.item))
-                      SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(16)
                     }.padding(16).width('100%').backgroundColor($r('app.color.list_item_background')).borderRadius(16)
                   }.onClick(() => this.browse(item.item, item.item.initialPath ?? '')).enabled(!this.loading)
                   .bindContextMenu(this.ServerMenu(item.item), ResponseType.LongPress, {

@@ -384,13 +384,6 @@ export struct HuaweiDrivePage {
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
-
-      if (HuaweiDriveUtil.isFolder(file)) {
-        SymbolGlyph($r('sys.symbol.chevron_right'))
-          .fontSize(17)
-          .fontColor([$r('app.color.text_color')])
-          .opacity(0.45)
-      }
     }
     .padding(14)
     .width('100%')

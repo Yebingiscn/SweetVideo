@@ -10,7 +10,7 @@ import { PathUtils } from './PathUtils'
 import { SortField } from '../common/enum/SortField'
 import { salmonLogger } from 'salmonlogger'
 import { GB, KB, MB } from '../common/Constants'
-import { PromptAction, window } from '@kit.ArkUI'
+import { PromptAction, uiMaterial, window } from '@kit.ArkUI'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import NavigationAddress, { PlayerParams, ShortVideoParams } from '../common/NavigationCommon'
 import Preferences from '../database/Preferences'
@@ -25,14 +25,17 @@ import { util } from '@kit.ArkTS'
 import { fileIo } from '@kit.CoreFileKit'
 import { vibrator } from '@kit.SensorServiceKit'
 import { thermal } from '@kit.BasicServicesKit'
+import { MaterialCapability } from '../common/MaterialCapability'
 
 const TAG = 'ToolsUtil'
 
 // 工具类
 export default class ToolsUtil {
-  private static sortRequests: Map<string, number> = new Map()
   static BASE64_PADDING_MOD: number = 4;
   static BASE64_PADDING_INVALID: number = 1;
+  static readonly TOAST_SHORT_MS: number = 1500
+  static readonly TOAST_LONG_MS: number = 3500
+  private static sortRequests: Map<string, number> = new Map()
   private static cachedPromptAction: PromptAction | null = null
   // 震动设置
   private static vibrationEnabled: boolean = true
@@ -46,9 +49,6 @@ export default class ToolsUtil {
     return isVip
   }
 
-  static readonly TOAST_SHORT_MS: number = 1500
-  static readonly TOAST_LONG_MS: number = 3500
-
   static showToast(text: string, duration: number = 2000) {
     try {
       const show = (action: PromptAction): void => {
@@ -56,7 +56,10 @@ export default class ToolsUtil {
           message: text,
           duration: duration,
           alignment: Alignment.Bottom,
-          offset: { dx: 0, dy: -100 }
+          offset: { dx: 0, dy: -100 },
+          systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+            style: uiMaterial.ImmersiveStyle.REGULAR,
+          }) : undefined,
         })
       }
       if (ToolsUtil.cachedPromptAction) {
@@ -186,7 +189,9 @@ export default class ToolsUtil {
       ? Preferences.getFileFolder(context).find(folder => folder.date === file_folder.date)
       : Preferences.getFileFolder(context).find(folder => folder.name === '首页')
     const latestVideos = privateMode ? Preferences.getVideoMetaDataEncryption(context) : latestFolder?.video_list
-    if (!latestVideos) return []
+    if (!latestVideos) {
+      return []
+    }
     const key = privateMode ? 'private' : latestFolder?.date ?? 'home'
     const version = (ToolsUtil.sortRequests.get(key) ?? 0) + 1
     ToolsUtil.sortRequests.set(key, version)
@@ -215,10 +220,13 @@ export default class ToolsUtil {
     const currentFolder = privateMode ? undefined : Preferences.getFileFolder(context)
       .find(folder => folder.date === latestFolder?.date)
     const current = privateMode ? Preferences.getVideoMetaDataEncryption(context) : currentFolder?.video_list
-    if (!current) return []
+    if (!current) {
+      return []
+    }
     if (ToolsUtil.sortRequests.get(key) !== version ||
       (PrivacySpaceUtil.getPrivacyMode() === true) !== privacyAtStart || current.length !== signature.length ||
-      current.some((video, index) => video.date !== order[index] || video.date + '\n' + video.title !== signature[index])) {
+      current.some(
+        (video, index) => video.date !== order[index] || video.date + '\n' + video.title !== signature[index])) {
       return current
     }
     sorted_list = ToolsUtil.reorderLatestVideos(sorted_list, current)
@@ -239,31 +247,6 @@ export default class ToolsUtil {
     return sorted_list
   }
 
-  private static reorderLatestVideos(order: VideoMetadata[], latest: VideoMetadata[]): VideoMetadata[] {
-    const byDate = new Map<string, VideoMetadata[]>()
-    latest.forEach(video => {
-      const group = byDate.get(video.date)
-      if (group) group.push(video)
-      else byDate.set(video.date, [video])
-    })
-    const result: VideoMetadata[] = []
-    const included = new Set<string>()
-    order.forEach(video => {
-      const current = byDate.get(video.date)
-      if (current && !included.has(video.date)) {
-        result.push(...current)
-        included.add(video.date)
-      }
-    })
-    latest.forEach(video => {
-      if (!included.has(video.date)) {
-        result.push(...byDate.get(video.date)!)
-        included.add(video.date)
-      }
-    })
-    return result
-  }
-
   // 保存密码
   static savePwd(context: Context, passwd: string) {
     Preferences.savePassword(context, passwd)
@@ -280,9 +263,10 @@ export default class ToolsUtil {
     const latestItem = findResult[0] ?? item
     const folder_date = findResult[2]
     const playerType = VideoOperateUtil.resolvePlayerType(latestItem, reverse)
-    if (!HiCar.enabled && Setting.shortVideoMode && !reverse && !BluRayDirectory.isEntry(latestItem.uri) && !VideoInfoUtil.isMxf(latestItem)) {
+    if (!HiCar.enabled && Setting.shortVideoMode && !reverse && !BluRayDirectory.isEntry(latestItem.uri) &&
+      !VideoInfoUtil.isMxf(latestItem)) {
       const latestList = list.map(video => video.date === latestItem.date ? latestItem : video)
-      .filter(video => !VideoInfoUtil.isMxf(video))
+        .filter(video => !VideoInfoUtil.isMxf(video))
       const initialIndex = Math.max(0, latestList.findIndex(video => video.date === latestItem.date))
       const shortVideoParams = new ShortVideoParams(latestList, initialIndex, skipHistory)
       pathStack.pushPathByName(NavigationAddress.SHORT_VIDEO, shortVideoParams, true)
@@ -479,5 +463,33 @@ export default class ToolsUtil {
     } catch (e) {
       return uri
     }
+  }
+
+  private static reorderLatestVideos(order: VideoMetadata[], latest: VideoMetadata[]): VideoMetadata[] {
+    const byDate = new Map<string, VideoMetadata[]>()
+    latest.forEach(video => {
+      const group = byDate.get(video.date)
+      if (group) {
+        group.push(video)
+      } else {
+        byDate.set(video.date, [video])
+      }
+    })
+    const result: VideoMetadata[] = []
+    const included = new Set<string>()
+    order.forEach(video => {
+      const current = byDate.get(video.date)
+      if (current && !included.has(video.date)) {
+        result.push(...current)
+        included.add(video.date)
+      }
+    })
+    latest.forEach(video => {
+      if (!included.has(video.date)) {
+        result.push(...byDate.get(video.date)!)
+        included.add(video.date)
+      }
+    })
+    return result
   }
 }

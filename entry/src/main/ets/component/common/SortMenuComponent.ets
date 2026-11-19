@@ -29,14 +29,25 @@ export struct SortMenuComponent {
         MenuItem({
           content: ToolsUtil.getStringResource(ri.item.textResource.id) + this.getSortIndicator(ri.item.field)
         })
+          .contentFontColor(this.currentSortField === ri.item.field ? $r('sys.color.white') :
+            $r('app.color.text_color'))
+          .backgroundColor(this.currentSortField === ri.item.field ? $r('app.color.main_color') : Color.Transparent)
+          .height(40)
+          .margin({ top: 2, bottom: 2 })
+          .borderRadius(16)
           .onClick(() => {
             ri.item.onAction()
           })
       }).key((item: SortMenuItem) => item.field)
       if (this.currentSortField === this.pinyinSortField) {
         MenuItem({
-          content: this.pinyinSortText + (this.pinyinSort ? ' ✓' : '')
+          content: this.pinyinSortText
         })
+          .contentFontColor(this.pinyinSort ? $r('sys.color.white') : $r('app.color.text_color'))
+          .backgroundColor(this.pinyinSort ? $r('app.color.main_color') : Color.Transparent)
+          .height(40)
+          .margin({ top: 2, bottom: 2 })
+          .borderRadius(16)
           .onClick(() => {
             this.onPinyinSortChange(!this.pinyinSort)
           })

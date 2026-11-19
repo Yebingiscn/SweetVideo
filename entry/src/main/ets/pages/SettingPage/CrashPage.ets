@@ -109,7 +109,6 @@ export struct CrashPage {
                             bottom: 2
                           })
                           .backgroundColor(repeatItem.item.isError ? '#26ff4d4f' : '#2652c41a')
-                          .backdropBlur(12)
                           .borderRadius(4)
 
                         Text(`[${new Date(repeatItem.item.time).toLocaleTimeString(undefined, { hour12: false })}]`)
@@ -161,8 +160,7 @@ export struct CrashPage {
             .height('100%')
             .padding({ left: 8, right: 8, bottom: 8 })
             .scrollBar(BarState.Auto)
-          }.backgroundColor($r('app.color.start_window_background_blur'))
-          .borderRadius(16)
+          }
           .width('100%')
           .height('100%')
 
@@ -213,8 +211,6 @@ export struct CrashPage {
                   .key((item: hiAppEvent.AppEventGroup, index: number) => item.name + (index ?? 0))
                   .virtualScroll()
               }
-              .backgroundColor($r('app.color.start_window_background_blur'))
-              .borderRadius(16)
               .width('100%')
               .height('100%')
               .layoutWeight(1)
@@ -225,8 +221,12 @@ export struct CrashPage {
             .height('100%')
           }
         }
+        .backgroundColor($r('app.color.start_window_background_blur'))
+        .borderRadius(16)
+        .clip(true)
         .index(this.currentTabIndex)
         .indicator(false)
+        .loop(false)
         .layoutWeight(1)
         .width('100%')
         .onChange((index: number) => {

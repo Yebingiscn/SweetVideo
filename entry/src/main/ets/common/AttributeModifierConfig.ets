@@ -123,13 +123,6 @@ export class MenuFancyModifier extends CommonModifier {
   }
 }
 
-export const DefaultDialogShadow: ShadowFancy = {
-  radius: 26,
-  color: $r('app.color.shadow_color'),
-  offsetX: 0,
-  offsetY: 0
-}
-
 @ObservedV2
 export class HdsGL {
   @Trace static lightIntensity: number = 10;

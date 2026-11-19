@@ -6,7 +6,6 @@ import { SideBarController } from '../SideBarComponent/SideBar'
 import { motion } from '@kit.MultimodalAwarenessKit'
 import {
   ButtonFancyModifier,
-  DefaultDialogShadow,
   LightMaterialModifier,
   MenuFancyModifier,
   SymbolGlyphFancyModifier
@@ -82,7 +81,9 @@ export struct VideoView {
       }
     }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
     onDidDisappear: () => this.libraryKeyboard.reset()
   })
   @Local currentSortField: SortField | '' = ''
@@ -202,6 +203,7 @@ export struct VideoView {
 
   aboutToDisappear(): void {
     this.viewAlive = false
+    DebounceUtil.cancel('search')
     if (this.folderNavigationTimer !== undefined) {
       clearTimeout(this.folderNavigationTimer)
       this.folderNavigationTimer = undefined
@@ -218,6 +220,55 @@ export struct VideoView {
   @Monitor('searchValue')
   onSearchValueMonitor() {
     this._searchValue = this.searchValue
+  }
+
+  @Monitor('videoListController.directoryTransitioning', 'videoListController.directoryMode',
+    'videoListController.directoryOverview')
+  onSearchContextReady(): void {
+    // 过渡期间输入的查询在目标目录就绪后补做；空查询不覆盖目录自己的排序结果。
+    if (this._searchValue.trim()) {
+      this.onSearchQueryChanged()
+    }
+  }
+
+  @Monitor('_searchValue')
+  onSearchQueryChanged(): void {
+    // 输入和程序赋值共用入口；清空必须立即恢复数据，不能等待 Search.onChange。
+    DebounceUtil.cancel('search')
+    const controller = this.videoListController
+    const folderDate = controller.folder?.date
+    if (!this.viewAlive || !folderDate || (controller.directoryMode &&
+      (controller.directoryOverview || controller.directoryTransitioning))) {
+      return
+    }
+    const query = this._searchValue
+    const apply = (): void => {
+      if (!this.viewAlive || this._searchValue !== query || controller.folder?.date !== folderDate ||
+        (controller.directoryMode && (controller.directoryOverview || controller.directoryTransitioning))) {
+        return
+      }
+      const folder = FolderOperator.getFolderByDate(folderDate)
+      if (!folder) {
+        return
+      }
+      if (!query.trim()) {
+        const visible = controller.videoDataSource.data
+        // 侧栏可能已同步恢复，避免同一次清空重复刷新和排序。
+        if (controller.folder !== folder || visible.length !== folder.video_list.length ||
+          visible.some((video, index) => video !== folder.video_list[index])) {
+          VideoUtils.refresh(controller, this.fileFolderSource, folder)
+        }
+      } else {
+        const videos = MediaLibraryService.getItemFromSearch(folder.video_list, query)
+        controller.videoDataSource.updateData(videos)
+        controller.updateData(controller.videoDataSource, folder)
+      }
+    }
+    if (!query.trim()) {
+      apply()
+    } else {
+      DebounceUtil.debounce('search', apply, 300)
+    }
   }
 
   @Monitor('videoListController.folder', 'videoListController.directoryMode',
@@ -350,25 +401,6 @@ export struct VideoView {
           onSearchValueChange: (v: string) => {
             this._searchValue = v
             this.onSearchValueChange(v)
-          },
-          onChange: () => {
-            DebounceUtil.debounce('search', () => {
-              if (this._searchValue === '') {
-                const videoMetaDataList: VideoMetadata[] =
-                  FolderOperator.getFolderByDate(this.videoListController.folder.date)!.video_list
-                this.videoListController.videoDataSource.updateData(videoMetaDataList)
-                this.videoListController.updateData(this.videoListController.videoDataSource,
-                  this.videoListController.folder)
-              } else {
-                const videoMetaDataList: VideoMetadata[] =
-                  MediaLibraryService.getItemFromSearch(
-                    FolderOperator.getFolderByDate(this.videoListController.folder.date)!
-                      .video_list, this._searchValue)
-                this.videoListController.videoDataSource.updateData(videoMetaDataList)
-                this.videoListController.updateData(this.videoListController.videoDataSource,
-                  this.videoListController.folder)
-              }
-            }, 300)
           },
           onSubmit: (value: string) => {
             if (value == '') {
@@ -661,7 +693,7 @@ export struct VideoView {
             }
             .attributeModifier(new LightMaterialModifier())
             .backgroundColor(this.videoListController?.folder?.date === repeatItem.item.date ?
-              'rgba(21, 85, 154, 0.5)' : Color.Transparent)
+              $r('app.color.main_color') : Color.Transparent)
             .height(this.FOLDER_TAB_HEIGHT)
             .constraintSize({ minWidth: this.FOLDER_TAB_MIN_WIDTH })
             .borderRadius(16)

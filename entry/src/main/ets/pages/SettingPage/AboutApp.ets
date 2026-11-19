@@ -1,15 +1,16 @@
 import WantProcessUtil from '../../utils/WantProcessUtil'
 import { PathUtils } from '../../utils/PathUtils'
-import { DefaultDialogShadow, ImageFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import { ImageFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 import { DocMarkdown } from '../../component/common/DocMarkdown'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { LiqD } from '../../component/common/LiqD'
 import { PrivacyPolicyComponent } from '../../component/VideoItemComponent/PrivacyPolicyComponent'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { LengthMetrics } from '@kit.ArkUI'
+import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 // 链接项数据结构
 interface LinkItem {
@@ -59,7 +60,9 @@ export struct AboutApp {
         this.tempLink = ''
       },
       textInfo: $r('app.string.external_link_confirm')
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   private listScroller: Scroller = new Scroller()
 

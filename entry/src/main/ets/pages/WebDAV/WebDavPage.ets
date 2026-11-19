@@ -1,6 +1,5 @@
 import BluRayDirectory from '../../utils/BluRayDirectory'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
-import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 import { WebDavServerDialog } from '../../component/Dialog/WebDavServerDialog'
 import { WebDavEntry, WebDavServer } from '../../interfaces/WebDavInterface'
@@ -38,13 +37,17 @@ export struct WebDavPage {
   private dialog: CustomDialogController = new CustomDialogController({
     builder: WebDavServerDialog({ onSaved: () => this.reloadServers() }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
     autoCancel: false
   })
   private deleteDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog(
       { textInfo: $r('app.string.delete_webdav_connection'), confirm: () => this.removeServer() }),
-    cornerRadius: 20, shadow: DefaultDialogShadow
+    cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
 
   aboutToAppear(): void {
@@ -56,11 +59,6 @@ export struct WebDavPage {
     this.request?.close()
   }
 
-  private columns(): number {
-    return Math.max(1, Math.floor(this.contentWidth / 500) +
-      (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? 1 : 2))
-  }
-
   @Builder
   EntryCover(entry: WebDavEntry, list: boolean) {
     Stack() {
@@ -69,7 +67,9 @@ export struct WebDavPage {
     }
     .width(list ? 112 : '100%')
     .aspectRatio(16 / 9)
-    .backgroundColor($r('app.color.list_item_background')).borderRadius(12).clip(true)
+    .backgroundColor($r('app.color.list_item_background'))
+    .borderRadius(12)
+    .clip(true)
   }
 
   @Builder
@@ -88,13 +88,17 @@ export struct WebDavPage {
     if (list) {
       Row({ space: 12 }) {
         this.EntryCover(entry, true)
-        Column() { this.EntryText(entry) }.layoutWeight(1)
+        Column() {
+          this.EntryText(entry)
+        }.layoutWeight(1)
       }.width('100%').padding(10).borderRadius(12)
       .backgroundColor($r('app.color.list_item_background'))
     } else {
       Column({ space: 8 }) {
         this.EntryCover(entry, false)
-        Column() { this.EntryText(entry) }.padding({ left: 8, right: 8, bottom: 10 })
+        Column() {
+          this.EntryText(entry)
+        }.padding({ left: 8, right: 8, bottom: 10 })
       }.width('100%').borderRadius(12).backgroundColor($r('app.color.list_item_background'))
     }
   }
@@ -116,15 +120,20 @@ export struct WebDavPage {
       Column({ space: 12 }) {
         if (this.server) {
           Row({ space: 12 }) {
-            Button(this.folder ? $r('app.string.go_up') : $r('app.string.server')).onClick(() => this.back()).enabled(!this.loading)
+            Button(this.folder ? $r('app.string.go_up') : $r('app.string.server'))
+              .onClick(() => this.back())
+              .enabled(!this.loading)
             Text(`${this.server.name} / ${this.folder || ToolsUtil.getStringResource($r('app.string.root_folder').id)}`)
               .fontSize(14)
               .fontColor($r('app.color.text_color'))
               .layoutWeight(1)
               .maxLines(2)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Button($r('app.string.refresh')).onClick(() => this.browse(this.server!, this.folder)).enabled(!this.loading)
+            Button($r('app.string.refresh'))
+              .onClick(() => this.browse(this.server!, this.folder))
+              .enabled(!this.loading)
           }.width('100%').padding({ left: 16, right: 16 })
+
           if (this.discIndexPath !== undefined) {
             Button($r('app.string.play_bluray')).onClick(() => this.playDisc()).enabled(!this.loading)
           }
@@ -144,15 +153,24 @@ export struct WebDavPage {
         } else if (this.server && Setting.listDisplayMode !== ListDisplayMode.LIST_DISPLAY) {
           WaterFlow({ scroller: this.scroller, layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW }) {
             Repeat<WebDavEntry>(this.entries).each((item: RepeatItem<WebDavEntry>) => {
-              FlowItem() { this.EntryItem(item.item, false) }
-                .onClick(() => this.select(item.item)).enabled(!this.loading)
-            }).key((item: WebDavEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`).virtualScroll()
+              FlowItem() {
+                this.EntryItem(item.item, false)
+              }
+              .onClick(() => this.select(item.item)).enabled(!this.loading)
+            })
+              .key((item: WebDavEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`)
+              .virtualScroll()
           }
-          .columnsTemplate('1fr '.repeat(this.columns()).trim()).columnsGap(16).rowsGap(16)
+          .columnsTemplate('1fr '.repeat(this.columns()).trim())
+          .columnsGap(16)
+          .rowsGap(16)
           .padding({ left: 16, right: 16 })
           .contentEndOffset(SafeHeight.bottomSafeHeight)
-          .width('100%').height('100%').layoutWeight(1)
+          .width('100%')
+          .height('100%')
+          .layoutWeight(1)
           .scrollBar(BarState.Off)
+
           if (!this.loading && this.entries.length === 0) {
             Text($r('app.string.no_playable_files')).fontColor($r('app.color.text_color')).padding(24)
           }
@@ -173,7 +191,6 @@ export struct WebDavPage {
                       }.layoutWeight(1).alignItems(HorizontalAlign.Start)
 
                       Button($r('app.string.edit')).onClick(() => this.edit(item.item))
-                      SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(16)
                     }.padding(16).width('100%').backgroundColor($r('app.color.list_item_background')).borderRadius(16)
                   }.onClick(() => this.browse(item.item, '')).enabled(!this.loading)
                   .bindContextMenu(this.ServerMenu(item.item), ResponseType.LongPress, {
@@ -191,10 +208,13 @@ export struct WebDavPage {
             } else {
               Repeat<WebDavEntry>(this.entries)
                 .each((item: RepeatItem<WebDavEntry>) => {
-                  ListItem() { this.EntryItem(item.item, true) }
-                    .onClick(() => this.select(item.item)).enabled(!this.loading)
+                  ListItem() {
+                    this.EntryItem(item.item, true)
+                  }
+                  .onClick(() => this.select(item.item)).enabled(!this.loading)
                 })
-                .key((item: WebDavEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`).virtualScroll()
+                .key((item: WebDavEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`)
+                .virtualScroll()
               if (!this.loading && this.entries.length === 0) {
                 ListItem() {
                   Text($r('app.string.no_playable_files')).fontColor($r('app.color.text_color')).padding(24)
@@ -212,7 +232,9 @@ export struct WebDavPage {
           .scrollBar(BarState.Off)
         }
       }.width('100%').height('100%').clip(false)
-      .onAreaChange((_old: Area, area: Area) => { this.contentWidth = Number(area.width) })
+      .onAreaChange((_old: Area, area: Area) => {
+        this.contentWidth = Number(area.width)
+      })
     }
     .titleBar({
       avoidLayoutSafeArea: true,
@@ -314,6 +336,11 @@ export struct WebDavPage {
     })
   }
 
+  private columns(): number {
+    return Math.max(1, Math.floor(this.contentWidth / 500) +
+      (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? 1 : 2))
+  }
+
   private reloadServers(): void {
     try {
       this.servers = WebDavUtil.servers()
@@ -362,7 +389,8 @@ export struct WebDavPage {
       this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
     } catch (error) {
       if (version === this.requestVersion) {
-        this.error = error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.read_webdav_failed').id)
+        this.error =
+          error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.read_webdav_failed').id)
       }
     } finally {
       request.close()
@@ -412,7 +440,9 @@ export struct WebDavPage {
   private async playDisc(): Promise<void> {
     const server = this.server
     const indexPath = this.discIndexPath
-    if (!server || indexPath === undefined || this.loading) return
+    if (!server || indexPath === undefined || this.loading) {
+      return
+    }
     const version = ++this.requestVersion
     this.loading = true
     this.error = ''
@@ -421,15 +451,23 @@ export struct WebDavPage {
       const previous = RecentPlayUtil.getRecentPlaybacks().find((item: VideoMetadata) => item.uri === uri)
       const root = indexPath.replace(/(?:^|\/)BDMV\/index\.bdmv$/, '')
       const title = root.substring(root.lastIndexOf('/') + 1) || server.name
-      const item = previous ?? VideoInfoUtil.buildNetworkVideoMetadata(uri, await WebDavUtil.fileId(uri), title, '', [0, 0])
+      const item =
+        previous ?? VideoInfoUtil.buildNetworkVideoMetadata(uri, await WebDavUtil.fileId(uri), title, '', [0, 0])
       item.format = 'BDMV'
       item.has_video_track = true
-      if (version !== this.requestVersion) return
+      if (version !== this.requestVersion) {
+        return
+      }
       await ToolsUtil.routerWhere(this.pathStack, item, [item])
     } catch (_error) {
-      if (version === this.requestVersion) this.error = ToolsUtil.getStringResource($r('app.string.network_bluray_prepare_failed').id)
+      if (version === this.requestVersion) {
+        this.error =
+          ToolsUtil.getStringResource($r('app.string.network_bluray_prepare_failed').id)
+      }
     } finally {
-      if (version === this.requestVersion) this.loading = false
+      if (version === this.requestVersion) {
+        this.loading = false
+      }
     }
   }
 
@@ -458,7 +496,8 @@ export struct WebDavPage {
       await ToolsUtil.routerWhere(this.pathStack, item, list)
     } catch (error) {
       if (version === this.requestVersion) {
-        this.error = error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.open_video_failed').id)
+        this.error =
+          error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.open_video_failed').id)
       }
     } finally {
       if (version === this.requestVersion) {
@@ -466,5 +505,4 @@ export struct WebDavPage {
       }
     }
   }
-
 }

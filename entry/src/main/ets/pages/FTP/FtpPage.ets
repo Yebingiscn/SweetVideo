@@ -1,5 +1,4 @@
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
-import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 import { FtpServerDialog } from '../../component/Dialog/FtpServerDialog'
 import { FtpEntry, FtpServer } from '../../interfaces/FtpInterface'
@@ -36,13 +35,17 @@ export struct FtpPage {
   private dialog: CustomDialogController = new CustomDialogController({
     builder: FtpServerDialog({ onSaved: () => this.reloadServers() }),
     cornerRadius: 20,
-    shadow: DefaultDialogShadow,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
     autoCancel: false
   })
   private deleteDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog(
       { textInfo: $r('app.string.delete_ftp_connection'), confirm: () => this.removeServer() }),
-    cornerRadius: 20, shadow: DefaultDialogShadow
+    cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
 
   aboutToAppear(): void {
@@ -182,7 +185,6 @@ export struct FtpPage {
                       }.layoutWeight(1).alignItems(HorizontalAlign.Start)
 
                       Button($r('app.string.edit')).onClick(() => this.edit(item.item))
-                      SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(16)
                     }.padding(16).width('100%').backgroundColor($r('app.color.list_item_background')).borderRadius(16)
                   }.onClick(() => this.browse(item.item, '')).enabled(!this.loading)
                   .bindContextMenu(this.ServerMenu(item.item), ResponseType.LongPress, {

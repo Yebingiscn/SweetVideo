@@ -8,7 +8,6 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import {
   ButtonFancyModifier,
-  DefaultDialogShadow,
   LightMaterialModifier,
   MenuFancyModifier,
   SymbolGlyphFancyModifier
@@ -58,7 +57,9 @@ export struct StreamPage {
           this.applySearch()
         }
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   addNetworkStreamDialogController: CustomDialogController = new CustomDialogController({
     builder: AddNetworkStreamDialog({
@@ -66,7 +67,9 @@ export struct StreamPage {
         this.allStreams = Preferences.getNetworkStreams(PathUtils.appContext!)
         this.applySearch()
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   @Local searchValue: string = ''
   @Local is_edit: boolean = false
@@ -91,7 +94,9 @@ export struct StreamPage {
           this.pendingDeleteStream = null
         }
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   private listScroller: ListScroller = new ListScroller()
   private cardScroller: ListScroller = new ListScroller()

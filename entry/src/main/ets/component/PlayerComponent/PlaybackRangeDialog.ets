@@ -124,7 +124,6 @@ export class PlaybackRangeDraft {
   }
 }
 
-// CustomDialogController 沿用项目的 V1 外壳；编辑器使用 V2 单向输入和本地草稿。
 @CustomDialog
 export struct PlaybackRangeDialog {
   controller?: CustomDialogController

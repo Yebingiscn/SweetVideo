@@ -131,18 +131,34 @@ export struct DanmakuMenuComponent {
   @Builder
   DanmakuAreaMenu() {
     Menu() {
-      MenuItem({ content: $r('app.string.area_fullscreen') }).danmakuItemStyle().onClick(() => {
-        this.session.area = 1
-      })
-      MenuItem({ content: $r('app.string.area_top_quarter') }).danmakuItemStyle().onClick(() => {
-        this.session.area = 0.25
-      })
-      MenuItem({ content: $r('app.string.area_top_half') }).danmakuItemStyle().onClick(() => {
-        this.session.area = 0.5
-      })
-      MenuItem({ content: $r('app.string.area_top_three_quarter') }).danmakuItemStyle().onClick(() => {
-        this.session.area = 0.75
-      })
+      MenuItem({ content: $r('app.string.area_fullscreen') })
+        .danmakuItemStyle()
+        .contentFontColor(this.session.area === 1 ? $r('sys.color.white') : $r('app.color.text_color'))
+        .backgroundColor(this.session.area === 1 ? $r('app.color.main_color') : Color.Transparent)
+        .onClick(() => {
+          this.session.area = 1
+        })
+      MenuItem({ content: $r('app.string.area_top_quarter') })
+        .danmakuItemStyle()
+        .contentFontColor(this.session.area === 0.25 ? $r('sys.color.white') : $r('app.color.text_color'))
+        .backgroundColor(this.session.area === 0.25 ? $r('app.color.main_color') : Color.Transparent)
+        .onClick(() => {
+          this.session.area = 0.25
+        })
+      MenuItem({ content: $r('app.string.area_top_half') })
+        .danmakuItemStyle()
+        .contentFontColor(this.session.area === 0.5 ? $r('sys.color.white') : $r('app.color.text_color'))
+        .backgroundColor(this.session.area === 0.5 ? $r('app.color.main_color') : Color.Transparent)
+        .onClick(() => {
+          this.session.area = 0.5
+        })
+      MenuItem({ content: $r('app.string.area_top_three_quarter') })
+        .danmakuItemStyle()
+        .contentFontColor(this.session.area === 0.75 ? $r('sys.color.white') : $r('app.color.text_color'))
+        .backgroundColor(this.session.area === 0.75 ? $r('app.color.main_color') : Color.Transparent)
+        .onClick(() => {
+          this.session.area = 0.75
+        })
     }
   }
 

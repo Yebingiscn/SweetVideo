@@ -1,7 +1,6 @@
 import { VideoDataSource } from '../utils/DataUtil'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { PathUtils } from '../utils/PathUtils'
-import { DefaultDialogShadow } from '../common/AttributeModifierConfig'
 import { VideoDetailSheetBuilder } from '../component/Dialog/VideoDetailDialog'
 import { InfoConfirmDialog } from '../component/Dialog/InfoConfirmDialog'
 import { Context } from '@kit.AbilityKit'
@@ -35,7 +34,11 @@ export struct RecentPlay { // 最近播放页
         }
         this.publishRecentPlay([])
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }),
+    cornerRadius: 20,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Local showDetailSheet: boolean = false
@@ -49,7 +52,9 @@ export struct RecentPlay { // 最近播放页
           this.delData(PathUtils.appContext!, this.pendingDeleteItem)
         }
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined
   })
   private listScroller: Scroller = new Scroller()
   private historySnapshot: RecentPlaybackSnapshot = new RecentPlaybackSnapshot()

@@ -1,6 +1,6 @@
 import { DeleteType } from '../../common/enum/DeleteType'
 import { DANGER_COLOR, DANGER_COLOR_ALPHA_15, WARNING_COLOR, WARNING_COLOR_ALPHA_15 } from '../../common/Constants'
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 
 @ComponentV2
 export struct DeleteOptionsGroup {
@@ -109,30 +109,26 @@ export struct DeleteOptionsGroup {
 
       Row({ space: 20 }) {
         Button({ type: ButtonType.Normal, stateEffect: true }) {
-          Row({ space: 5 }) {
-            SymbolGlyph($r('sys.symbol.xmark')).attributeModifier(new SymbolGlyphFancyModifier(16, '', ''))
-            Text($r('app.string.cancel'))
-              .fontSize(15)
-              .fontColor($r('app.color.text_color'))
-              .fontWeight(FontWeight.Medium)
-          }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
+          Text($r('app.string.cancel'))
+            .fontSize(15)
+            .fontColor($r('app.color.text_color'))
+            .fontWeight(FontWeight.Medium)
+            .padding({ left: 12, right: 12 })
         }
         .attributeModifier(new ButtonFancyModifier('', 36))
+        .constraintSize({ minWidth: 76 })
         .backgroundColor($r('sys.color.button_background_color_transparent'))
         .onClick(() => this.onCancel())
 
         Button({ type: ButtonType.Normal, stateEffect: true }) {
-          Row({ space: 5 }) {
-            SymbolGlyph($r('sys.symbol.trash_fill'))
-              .fontSize(16)
-              .fontColor(this.getActionColor())
-            Text($r('app.string.sure'))
-              .fontSize(15)
-              .fontColor(this.getActionTextColor())
-              .fontWeight(FontWeight.Medium)
-          }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
+          Text($r('app.string.sure'))
+            .fontSize(15)
+            .fontColor(this.getActionTextColor())
+            .fontWeight(FontWeight.Medium)
+            .padding({ left: 12, right: 12 })
         }
         .attributeModifier(new ButtonFancyModifier('', 36))
+        .constraintSize({ minWidth: 76 })
         .backgroundColor(this.getActionBgColor())
         .onClick(() => {
           let deleteType = DeleteType.SOFT
@@ -160,16 +156,6 @@ export struct DeleteOptionsGroup {
       return WARNING_COLOR
     }
     return $r('app.color.text_color')
-  }
-
-  private getActionColor(): ResourceColor[] {
-    if (this.deleteOption === 'hard') {
-      return [DANGER_COLOR]
-    }
-    if (this.deleteOption === 'recent') {
-      return [WARNING_COLOR]
-    }
-    return [$r('app.color.text_color')]
   }
 
   private getActionBgColor(): ResourceColor {

@@ -4,6 +4,8 @@ import {
   SymbolGlyphFancyModifier
 } from '../../common/AttributeModifierConfig'
 import ToolsUtil from '../../utils/ToolsUtil'
+import { uiMaterial } from '@kit.ArkUI'
+import { MaterialCapability } from '../../common/MaterialCapability'
 
 @ComponentV2
 export struct SettingsMenuItem {
@@ -26,10 +28,6 @@ export struct SettingsMenuItem {
   @Monitor('list')
   onListMonitor(): void {
     this.syncOptions()
-  }
-
-  private syncOptions(): void {
-    this.select = this.list.map((text: ResourceStr): SelectOption => ({ value: text }))
   }
 
   @Monitor('selected')
@@ -68,7 +66,12 @@ export struct SettingsMenuItem {
         .selectedOptionFontColor($r('app.color.text_color'))
         .selectedOptionBgColor($r('app.color.main_color'))
         .selectedOptionFontColor($r('sys.color.white'))
-        .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+        .systemMaterial(MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+          style: uiMaterial.ImmersiveStyle.ULTRA_THIN
+        }) : undefined)
+        .menuSystemMaterial(MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+          style: uiMaterial.ImmersiveStyle.THICK
+        }) : undefined)
         .enabled(this.itemEnabled)
         .onSelect((index: number) => {
           if (index === this._selected) {
@@ -91,6 +94,10 @@ export struct SettingsMenuItem {
         ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.vip_feature_only').id))
       }
     })
+  }
+
+  private syncOptions(): void {
+    this.select = this.list.map((text: ResourceStr): SelectOption => ({ value: text }))
   }
 }
 

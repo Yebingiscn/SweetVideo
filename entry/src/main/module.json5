@@ -20,10 +20,10 @@
         "name": "client_id",
         "value": "6917561535749426059"
       },
-      {
-        "name": "ohos.arkui.UIMaterial.state",
-        "value": "enable"
-      }
+//      {
+//        "name": "ohos.arkui.UIMaterial.state",
+//        "value": "enable"
+//      }
     ],
     // 压缩so包。减少包体积
     "abilities": [

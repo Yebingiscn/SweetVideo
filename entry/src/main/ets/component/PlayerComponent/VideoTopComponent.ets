@@ -229,12 +229,24 @@ export struct VideoTopComponent {
       Repeat<SelectOption>(SCREEN_EXTEND_LIST)
         .each((option: RepeatItem<SelectOption>) => {
           MenuItem({ content: option.item.value })
+            .contentFontColor(this.isAspectRatioSelected(option.item.value as string) ? $r('sys.color.white') :
+              $r('app.color.text_color'))
+            .height(40)
+            .backgroundColor(this.isAspectRatioSelected(option.item.value as string) ? $r('app.color.main_color') :
+              Color.Transparent)
+            .borderRadius(16)
             .onClick(() => {
               this.selectAspectRatio(option.item.value as string)
             })
         })
         .key((option: SelectOption) => option.value as string)
     }
+  }
+
+  private isAspectRatioSelected(text: string): boolean {
+    const selected = this.player.selectedText
+    return selected === text || (text === VideoInfoUtil.screenExtendMap[4] &&
+      selected?.startsWith('自定义比例:') === true)
   }
 
   private selectAspectRatio(text: string): void {

@@ -278,17 +278,24 @@ export struct GlobalSearch {
   SearchModeMenuBuilder() {
     Menu() {
       MenuItem({
-        content: $r('app.string.search_by_name'),
-        labelInfo: !this.byPicture ? $r('app.string.current_label') : ''
+        content: $r('app.string.search_by_name')
       })
+        .contentFontColor(!this.byPicture ? $r('sys.color.white') : $r('app.color.text_color'))
+        .backgroundColor(!this.byPicture ? $r('app.color.main_color') : Color.Transparent)
+        .height(40)
+        .borderRadius(16)
         .onClick(() => {
           this.byPicture = false
           this.updateResults()
         })
       MenuItem({
-        content: $r('app.string.search_by_cover'),
-        labelInfo: this.byPicture ? $r('app.string.current_label') : ''
+        content: $r('app.string.search_by_cover')
       })
+        .enabled(this.pictureSupported)
+        .contentFontColor(this.byPicture ? $r('sys.color.white') : $r('app.color.text_color'))
+        .backgroundColor(this.byPicture ? $r('app.color.main_color') : Color.Transparent)
+        .height(40)
+        .borderRadius(16)
         .onClick(() => {
           if (this.pictureSupported) {
             this.byPicture = true

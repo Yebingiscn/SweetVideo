@@ -2,7 +2,7 @@ import { FileFolderDataSource } from '../../utils/DataUtil'
 import { VideoListController } from '../../controller/VideoListController'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
-import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
+import { MenuFancyModifier } from '../../common/AttributeModifierConfig'
 import { FolderOperator } from '../../database/VideoMetaData'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import FileFolderUtil from '../../utils/FileFolderUtil'
@@ -11,6 +11,8 @@ import VideoUtils from '../../utils/VideoUtil'
 import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { salmonLogger } from 'salmonlogger'
+import { MaterialCapability } from '../../common/MaterialCapability'
+import { uiMaterial } from '@kit.ArkUI'
 
 
 @ComponentV2
@@ -27,7 +29,9 @@ export struct FileFolderMenu {
         onFolderAdded: (folders: FileFolder[]) => {
           this.file_folder_list = folders
         }
-      }), cornerRadius: 20, shadow: DefaultDialogShadow
+      }), cornerRadius: 20, systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+      }) : undefined
     })
   }
 
