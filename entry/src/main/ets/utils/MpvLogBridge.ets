@@ -29,6 +29,16 @@ export class MpvLogBridge {
     salmonLogger.addLog('MPV/log', `详细诊断开关: enabled=${enabled}`, false)
   }
 
+  static isDiagnosticsEnabled(): boolean {
+    return MpvLogBridge.diagnosticsEnabled
+  }
+
+  static logPreviewDiagnostic(message: string): void {
+    if (MpvLogBridge.isDiagnosticsEnabled()) {
+      salmonLogger.addLog('MPV/preview', sanitizeMpvLog(message), false)
+    }
+  }
+
   static start(): void {
     if (MpvLogBridge.started) {
       return

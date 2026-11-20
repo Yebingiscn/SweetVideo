@@ -429,7 +429,10 @@ declare module 'libmpvnative.so' {
 
   export const extractThumbnailFrame: (extractorId: number, timeUs: number,
     maxWidth: number, maxHeight: number, preferEmbeddedCover?: boolean,
-    keyframeCover?: boolean, preserveHdr?: boolean, originalSize?: boolean) => Promise<FFmpegThumbnailFrame>;
+    keyframeCover?: boolean, preserveHdr?: boolean, originalSize?: boolean,
+    previewDiagnostics?: boolean, fastPreview?: boolean) => Promise<FFmpegThumbnailFrame>;
+
+  export const cancelThumbnailPreview: (extractorId: number) => void;
 
   export const releaseThumbnailExtractor: (extractorId: number) => boolean;
 }

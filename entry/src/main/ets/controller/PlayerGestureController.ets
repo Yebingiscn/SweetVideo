@@ -45,6 +45,7 @@ export class PlayerGestureController {
   }
 
   reset(keepSpeedLock: boolean = false): void {
+    framePreviewSession.cancelRequests(this.player)
     if (keepSpeedLock) this.longPressSpeed.cancel()
     else this.longPressSpeed.reset()
     clearTimeout(this.scrollAxisTimeout)
@@ -119,11 +120,13 @@ export class PlayerGestureController {
   }
 
   onHorizonPanEnd(): void {
+    framePreviewSession.cancelRequests(this.player)
     this.player.seekTime(this.player.playTime)
     this.player.onSwiping = false
   }
 
   onHorizonPanCancel(): void {
+    framePreviewSession.cancelRequests(this.player)
     this.player.playTime = this.seekStartTime
     this.player.seekTime(this.player.playTime)
     this.player.onSwiping = false

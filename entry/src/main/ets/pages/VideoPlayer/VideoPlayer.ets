@@ -991,6 +991,7 @@ export struct VideoPlayer {
         this.player.isSliderPlayTimeChange = !finished
         this.player.playTime = value
         if (finished) {
+          framePreviewSession.cancelRequests(this.player)
           this.player.seekTime(value)
           this.player.onSwiping = false
           this.controlsIdle.refresh()
@@ -1005,6 +1006,7 @@ export struct VideoPlayer {
           framePreviewSession.requestFrame(this.player, this.player.playTime, true)
         }
         if (event.type == TouchType.Up || event.type == TouchType.Cancel) {
+          framePreviewSession.cancelRequests(this.player)
           this.player.isSliderPlayTimeChange = false
           this.player.onSwiping = false
         }

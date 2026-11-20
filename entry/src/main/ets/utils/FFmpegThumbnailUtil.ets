@@ -3,10 +3,12 @@ import VideoInfoUtil from './VideoInfoUtil'
 import { FrameSize } from '../interfaces/FrameSizeInterface'
 import { salmonLogger } from 'salmonlogger'
 import { Setting } from './ObservedUtil'
+import { MpvLogBridge } from './MpvLogBridge'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
 import { media } from '@kit.MediaKit'
 import {
+  cancelThumbnailPreview,
   createThumbnailExtractor,
   extractThumbnailFrame,
   FFmpegMediaInfo,
@@ -217,7 +219,8 @@ export default class FFmpegThumbnailUtil {
 
   static async extractFrame(extractorId: number, timeUs: number, maxWidth: number,
     maxHeight: number, preferEmbeddedCover: boolean = false, keyframeCover: boolean = false,
-    originalSize: boolean = false, screenshotRequestId: number = 0): Promise<FFmpegThumbnailResult> {
+    originalSize: boolean = false, screenshotRequestId: number = 0,
+    previewRequestId: number = 0, fastPreview: boolean = false): Promise<FFmpegThumbnailResult> {
     const startedAt = Date.now()
     let stage = 'native_extract'
     let stageStartedAt = startedAt
@@ -234,13 +237,20 @@ export default class FFmpegThumbnailUtil {
         preferEmbeddedCover,
         keyframeCover,
         true,
-        originalSize
+        originalSize,
+        previewRequestId > 0,
+        fastPreview
       )
       const frame = await frameTask
       if (originalSize) {
         salmonLogger.addLog(TAG, `[Screenshot#${screenshotRequestId}] stage=${stage} event=end ` +
           `extractor=${extractorId}, elapsedMs=${Date.now() - stageStartedAt}, ` +
           `size=${frame.width}x${frame.height}, frameUs=${frame.timeUs}, hdrPreserved=${frame.hdrPreserved}`, false)
+      }
+      if (previewRequestId > 0) {
+        MpvLogBridge.logPreviewDiagnostic(
+          `request=${previewRequestId} phase=native-return extractor=${extractorId} targetUs=${timeUs} ` +
+          `frameUs=${frame.timeUs} elapsedMs=${Date.now() - stageStartedAt} nativePixelMap=${frame.pixelMap !== undefined}`)
       }
       stage = 'pixelmap'
       stageStartedAt = Date.now()
@@ -261,6 +271,10 @@ export default class FFmpegThumbnailUtil {
       if (originalSize) {
         salmonLogger.addLog(TAG, `[Screenshot#${screenshotRequestId}] stage=${stage} event=end ` +
           `extractor=${extractorId}, elapsedMs=${Date.now() - stageStartedAt}`, false)
+      }
+      if (previewRequestId > 0) {
+        MpvLogBridge.logPreviewDiagnostic(
+          `request=${previewRequestId} phase=pixelmap elapsedMs=${Date.now() - stageStartedAt}`)
       }
       if (frame.hdrFallbackReason) {
         salmonLogger.addLog(TAG, originalSize ?
@@ -285,6 +299,11 @@ export default class FFmpegThumbnailUtil {
         hdrFallbackReason: frame.hdrFallbackReason
       }
     } catch (error) {
+      if (previewRequestId > 0) {
+        MpvLogBridge.logPreviewDiagnostic(
+          `request=${previewRequestId} phase=failed stage=${stage} elapsedMs=${Date.now() - stageStartedAt} ` +
+          `category=${screenshotFailureCategory(String(error))}`)
+      }
       if (originalSize) {
         salmonLogger.addLog(TAG, `[Screenshot#${screenshotRequestId}] failed: stage=${stage}, ` +
           `extractor=${extractorId}, category=${screenshotFailureCategory(String(error))}, ` +
@@ -460,12 +479,16 @@ interface FramePreviewRequest {
   time: number
   generation: number
   requestVersion: number
+  diagnosticId: number
+  queuedAt: number
+  coalesced: number
 }
 
 export class FramePreviewSession {
   private requestOwner: FramePreviewTarget | undefined = undefined
   private pendingRequest: FramePreviewRequest | undefined = undefined
   private requestVersion: number = 0
+  private previewDiagnosticId: number = 0
   private lastFrameFetchTime: number = 0
   private lastFrameFetchPlayTime: number = -1
   private frameFetchTimer: number = 0
@@ -477,11 +500,17 @@ export class FramePreviewSession {
       this.cancelRequests()
       this.requestOwner = target
     }
+    const trace = MpvLogBridge.isDiagnosticsEnabled()
     this.pendingRequest = {
       target: target, media: target.nowPlaying, time: time,
-      generation: this.generation, requestVersion: this.requestVersion
+      generation: this.generation, requestVersion: this.requestVersion,
+      diagnosticId: trace ? ++this.previewDiagnosticId : 0,
+      queuedAt: trace ? Date.now() : 0,
+      coalesced: this.pendingRequest ? this.pendingRequest.coalesced + 1 : 0
     }
     if (isFirstFrame) {
+      this.logRequest(this.pendingRequest, 'first-request',
+        `busy=${this.busy} extractorReady=${this.frameExtractorId !== undefined}`)
       clearTimeout(this.frameFetchTimer)
       this.frameFetchTimer = 0
       await this.fetchPendingFrame()
@@ -492,13 +521,30 @@ export class FramePreviewSession {
 
   cancelRequests(target?: FramePreviewTarget): void {
     if (target && this.requestOwner !== target) { return }
+    if (this.pendingRequest) {
+      this.logRequest(this.pendingRequest, 'dropped', 'reason=cancelled')
+    }
     this.requestVersion++
+    if (this.busy && this.frameExtractorId !== undefined) {
+      cancelThumbnailPreview(this.frameExtractorId)
+    }
+    if (this.requestOwner) {
+      this.requestOwner.pixelMap = null
+    }
     clearTimeout(this.frameFetchTimer)
     this.frameFetchTimer = 0
     this.pendingRequest = undefined
     this.requestOwner = undefined
     this.lastFrameFetchTime = 0
     this.lastFrameFetchPlayTime = -1
+  }
+
+  private logRequest(request: FramePreviewRequest, phase: string, details: string): void {
+    if (request.diagnosticId > 0) {
+      MpvLogBridge.logPreviewDiagnostic(
+        `request=${request.diagnosticId} phase=${phase} generation=${request.generation} ` +
+        `targetMs=${request.time} ${details}`)
+    }
   }
 
   private schedulePendingFrameFetch(): void {
@@ -521,21 +567,32 @@ export class FramePreviewSession {
     if (request.media.uri !== this.frameExtractorUri ||
       request.generation !== this.generation || request.requestVersion !== this.requestVersion ||
       request.media !== request.target.nowPlaying) {
+      this.logRequest(request, 'dropped', 'reason=stale-extractor-or-request')
       this.schedulePendingFrameFetch()
       return
     }
     if (Math.floor(request.time) === Math.floor(this.lastFrameFetchPlayTime)) {
+      this.logRequest(request, 'dropped', 'reason=duplicate-timestamp')
       this.schedulePendingFrameFetch()
       return
     }
     this.lastFrameFetchTime = Date.now()
-    this.lastFrameFetchPlayTime = request.time
+    this.logRequest(request, 'fetch', `queueMs=${this.lastFrameFetchTime - request.queuedAt} ` +
+      `coalesced=${request.coalesced} extractor=${this.frameExtractorId}`)
     try {
-      const img = await this.fetchFrame(request.time, request.media.size, VideoInfoUtil.hasVideoTrack(request.media))
-      if (img && request.generation === this.generation && request.requestVersion === this.requestVersion &&
-        request.media === request.target.nowPlaying && Math.abs(request.target.playTime - request.time) < 3000) {
+      const img = await this.fetchFrame(request, request.media.size, VideoInfoUtil.hasVideoTrack(request.media))
+      const sameSession = request.generation === this.generation && request.requestVersion === this.requestVersion &&
+        request.media === request.target.nowPlaying
+      const deltaMs = Math.abs(request.target.playTime - request.time)
+      if (img && sameSession && Setting.showFrameImgStatus) {
+        // Requests run in order. Show the newest completed keyframe while
+        // newer positions are pending, even during a fast-moving drag.
         request.target.pixelMap = img
+        this.lastFrameFetchPlayTime = request.time
+        this.logRequest(request, 'applied', `deltaMs=${deltaMs}`)
       } else {
+        const reason = !sameSession ? 'stale-request' : !img ? 'no-image' : 'disabled'
+        this.logRequest(request, 'dropped', `reason=${reason} deltaMs=${deltaMs}`)
         await img?.release()
       }
     } catch (error) {
@@ -597,19 +654,22 @@ export class FramePreviewSession {
     await task
   }
 
-  private async fetchFrame(time: number, videoSize?: number[], hasVideoTrack: boolean = true):
+  private async fetchFrame(request: FramePreviewRequest, videoSize?: number[], hasVideoTrack: boolean = true):
     Promise<image.PixelMap | undefined> {
     const generation = this.generation
     this.busy = true
     // 抽帧也进入同一队列；释放不能抢在 native 异步抽帧结束之前关闭句柄。
     const task = this.frameExtractorLifecycleTask.catch(() => {}).then(async (): Promise<image.PixelMap | undefined> => {
-      if (!Setting.showFrameImgStatus || generation !== this.generation) { return undefined }
+      if (!Setting.showFrameImgStatus || generation !== this.generation ||
+        request.requestVersion !== this.requestVersion) { return undefined }
       try {
         let size: FrameSize
         if (!videoSize || !hasVideoTrack) {
+          this.logRequest(request, 'skipped', 'reason=missing-video-track-or-size')
           return undefined
         }
         if (videoSize[0] <= 0 || videoSize[1] <= 0) {
+          this.logRequest(request, 'skipped', 'reason=invalid-video-size')
           return undefined
         }
         if (videoSize.length >= 2) {
@@ -622,8 +682,9 @@ export class FramePreviewSession {
         if (extractorId === undefined) {
           return undefined
         }
-        const result = await FFmpegThumbnailUtil.extractFrame(extractorId, time * 1000, size.width, size.height)
-        if (generation !== this.generation) {
+        const result = await FFmpegThumbnailUtil.extractFrame(extractorId, request.time * 1000,
+          size.width, size.height, false, false, false, 0, request.diagnosticId, true)
+        if (generation !== this.generation || request.requestVersion !== this.requestVersion) {
           await result.pixelMap?.release()
           return undefined
         }
