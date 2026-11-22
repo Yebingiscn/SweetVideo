@@ -5,6 +5,7 @@ import type { PlayerControllerInterface } from '../../controller/PlayerControlle
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { AudioChannelComponent } from './AudioChannelComponent'
 import { AUDIO_TYPE } from '../../common/enum/HDR_TYPE'
 import { PathUtils } from '../../utils/PathUtils'
@@ -33,6 +34,8 @@ export struct AudioTrackComponent {
   @Event onSelect: (_index: number) => void = () => {
   }
   @Event onAudioEffects: () => void = () => {
+  }
+  @Event onOffset: () => void = () => {
   }
 
   isCurrentTrackStereo(): boolean {
@@ -363,6 +366,20 @@ export struct AudioTrackComponent {
         }
       })
 
+      if (this.player.audioTrack.length > 0 && VideoInfoUtil.hasVideoTrack(this.player.nowPlaying)) {
+        Button({ type: ButtonType.Normal, stateEffect: true }) {
+          Text($r('app.string.audio_track_offset'))
+            .fontSize(16)
+            .fontColor($r('app.color.text_color'))
+            .width('100%')
+            .textAlign(TextAlign.Start)
+        }
+        .attributeModifier(new ButtonFancyModifier('100%', 40))
+        .padding({ left: 20, right: 10 })
+        .backgroundColor(Color.Transparent)
+        .onClick(() => this.onOffset())
+      }
+
       if (this.player instanceof MpvController) {
         Button({ type: ButtonType.Normal, stateEffect: true }) {
           Text(this.player.externalAudioImporting ? $r('app.string.audio_external_importing') :
@@ -383,36 +400,6 @@ export struct AudioTrackComponent {
           }
         })
 
-        if (this.player.nowPlaying?.external_audio_file) {
-          Row({ space: 8 }) {
-            Text(`${ToolsUtil.getStringResource(
-              $r('app.string.audio_external_sync').id)} ${this.player.externalAudioOffsetMs} ms`)
-              .fontSize(14).fontColor($r('app.color.text_color'))
-            Button({ type: ButtonType.Circle }) {
-              SymbolGlyph($r('sys.symbol.undo')).fontSize(16).fontColor([$r('app.color.text_color')])
-            }.attributeModifier(new ButtonFancyModifier(28, 28)).backgroundColor(Color.Transparent)
-            .onClick(() => {
-              if (this.player instanceof MpvController) {
-                this.player.audioController.setExternalAudioOffset(0)
-              }
-            })
-          }
-
-          Slider({
-            value: this.player.externalAudioOffsetMs,
-            min: -5000,
-            max: 5000,
-            step: 100
-          })
-            .selectedColor($r('app.color.main_color')).width('100%')
-            .onChange((value: number, mode: SliderChangeMode) => {
-              if (this.player instanceof MpvController) {
-                this.player.audioController.setExternalAudioOffset(value,
-                  mode === SliderChangeMode.End || mode === SliderChangeMode.Click)
-              }
-            })
-          Text($r('app.string.audio_external_sync_help')).fontSize(12).fontColor($r('app.color.text_color'))
-        }
       }
     }
     .width(270)

@@ -887,6 +887,14 @@
       "value": "Progress preview thumbnails"
     },
     {
+      "name": "mpv_exact_seek",
+      "value": "Exact seeking (MPV)"
+    },
+    {
+      "name": "mpv_exact_seek_description",
+      "value": "Seek to the selected time. Playback may take longer to resume after seeking."
+    },
+    {
       "name": "remember_playback_position",
       "value": "Remember playback position"
     },
@@ -1199,16 +1207,12 @@
       "value": "Top 3/4"
     },
     {
-      "name": "danmaku_earlier",
-      "value": "0.5s earlier"
+      "name": "danmaku_offset_title",
+      "value": "弹幕偏移"
     },
     {
-      "name": "danmaku_later",
-      "value": "0.5s later"
-    },
-    {
-      "name": "danmaku_reset_offset",
-      "value": "Reset offset"
+      "name": "danmaku_time_offset",
+      "value": "时间偏移：%d ms"
     },
     {
       "name": "no_chapters",
@@ -4143,12 +4147,28 @@
       "value": "音频"
     },
     {
-      "name": "audio_external_sync",
-      "value": "同步"
+      "name": "audio_track_offset",
+      "value": "音轨延时"
     },
     {
-      "name": "audio_external_sync_help",
+      "name": "audio_track_offset_mpv_required",
+      "value": "音轨延时需使用 MPV 播放器"
+    },
+    {
+      "name": "audio_track_offset_unavailable",
+      "value": "当前音轨或输出模式不支持调整延时"
+    },
+    {
+      "name": "audio_track_offset_save_failed",
+      "value": "未能保存音轨设置"
+    },
+    {
+      "name": "time_offset_direction",
       "value": "负值提前，正值延后"
+    },
+    {
+      "name": "time_offset_range",
+      "value": "请输入 ±%d ms 内的整数"
     },
     {
       "name": "audio_external_empty",
@@ -4293,6 +4313,7 @@
     {"name":"play_bluray","value":"播放蓝光原盘"},
     {"name":"bluray_access_error","value":"原盘目录不完整或无法读取，请通过“从文件夹导入”重新选择原盘根目录并授权"},
     {"name":"bluray_mpv_required","value":"蓝光原盘需要使用 MPV 播放器"},
+    {"name":"sacd_mpv_required","value":"SACD 镜像需要使用 MPV 播放器"},
     {"name":"bluray_private_unsupported","value":"暂不支持将蓝光原盘目录复制到隐私空间，请在本地媒体库导入"},
     {"name":"bluray_source_preserved","value":"已移除原盘条目，原盘文件夹保留，请在文件管理器中管理源文件"},
     {

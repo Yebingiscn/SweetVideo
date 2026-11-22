@@ -83,6 +83,8 @@ export interface MpvSubtitleStyle {
 export interface MpvAudioTrack {
   /** 轨道 ID */
   id: number;
+  /** libavformat 流索引；并非所有解封装器都有。 */
+  ffIndex?: number;
 
   /** 轨道标题 */
   title: string;

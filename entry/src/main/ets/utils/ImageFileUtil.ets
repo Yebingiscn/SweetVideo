@@ -23,7 +23,7 @@ export default class ImageFileUtil {
   private static invalidBlurImages: Set<string> = new Set()
   private static imagesToReload: Set<string> = new Set()
 
-  static async deletePhoto(imageName: 'BackgroundImage' | 'BackgroundDarkImage' | 'avatar'): Promise<void> {
+  static async deletePhoto(imageName: 'BackgroundImage' | 'BackgroundDarkImage'): Promise<void> {
     try {
       const res = await fs.access(PathUtils.photoPath! + imageName)
       if (res) {
@@ -44,9 +44,7 @@ export default class ImageFileUtil {
     } catch (err) {
       salmonLogger.addLog(TAG, "access failed with error message: " + err.message + ", error code: " + err.code, true)
     }
-    if (imageName !== 'avatar') {
-      ImageFileUtil.invalidateBackgroundCache(imageName, true)
-    }
+    ImageFileUtil.invalidateBackgroundCache(imageName, true)
   }
 
   static invalidateBackgroundCache(imageName: 'BackgroundImage' | 'BackgroundDarkImage',

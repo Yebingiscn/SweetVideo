@@ -234,7 +234,7 @@ declare module 'libmpvnative.so' {
   // ==================== 音频 ====================
   export const getAudioTracks: (mpvHandle: number) => Array<any>;
 
-  export const selectAudio: (mpvHandle: number, trackId: number) => void;
+  export const selectAudio: (mpvHandle: number, trackId: number) => boolean;
 
   export const getCurrentAudioTrack: (mpvHandle: number) => number;
 
@@ -430,7 +430,7 @@ declare module 'libmpvnative.so' {
   export const extractThumbnailFrame: (extractorId: number, timeUs: number,
     maxWidth: number, maxHeight: number, preferEmbeddedCover?: boolean,
     keyframeCover?: boolean, preserveHdr?: boolean, originalSize?: boolean,
-    previewDiagnostics?: boolean, fastPreview?: boolean) => Promise<FFmpegThumbnailFrame>;
+    previewDiagnostics?: boolean, fastPreview?: boolean, refinePreview?: boolean) => Promise<FFmpegThumbnailFrame>;
 
   export const cancelThumbnailPreview: (extractorId: number) => void;
 

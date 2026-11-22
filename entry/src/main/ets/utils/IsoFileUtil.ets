@@ -1,10 +1,6 @@
 /**
  * ISO镜像文件处理工具类
- * 支持蓝光(BDMV)和DVD(VIDEO_TS)格式的ISO文件播放
- *
- * 使用方法：
- * MPV播放ISO文件需要使用 bd:// 协议：
- * mpv --bluray-device=/path/to/file.iso bd://longest
+ * SACD 镜像交给 MPV 解封装；蓝光和 DVD 使用各自的光盘协议。
  */
 import { salmonLogger } from 'salmonlogger';
 import ToolsUtil from './ToolsUtil';
@@ -13,6 +9,9 @@ import fileIo from '@ohos.file.fs';
 const TAG = 'IsoFileUtil';
 const ISO_SCAN_CHUNK_SIZE: number = 1024 * 1024;
 const ISO_SCAN_LIMIT: number = 64 * 1024 * 1024;
+const SACD_MASTER_TOC_SECTOR: number = 510;
+const SACD_TOC_OFFSETS: number[] = [SACD_MASTER_TOC_SECTOR * 2048, SACD_MASTER_TOC_SECTOR * 2064 + 12];
+const SACD_TOC_MAGIC: string = 'SACDMTOC';
 
 /**
  * ISO文件类型枚举
@@ -20,6 +19,7 @@ const ISO_SCAN_LIMIT: number = 64 * 1024 * 1024;
 export enum IsoFileType {
   BLURAY = 'bluray', // 蓝光光盘 (BDMV)
   DVD = 'dvd', // DVD光盘 (VIDEO_TS)
+  SACD = 'sacd', // Super Audio CD
   UNKNOWN = 'unknown' // 未知类型
 }
 
@@ -38,6 +38,51 @@ export interface IsoFileInfo {
  * ISO文件处理工具类
  */
 export default class IsoFileUtil {
+  private static probeSacd(fd: number, fileSize: number): boolean {
+    const buffer = new ArrayBuffer(SACD_TOC_MAGIC.length)
+    const bytes = new Uint8Array(buffer)
+    for (const offset of SACD_TOC_OFFSETS) {
+      if (offset + bytes.length > fileSize) {
+        continue
+      }
+      try {
+        fileIo.lseek(fd, offset, fileIo.WhenceType.SEEK_SET)
+        if (fileIo.readSync(fd, buffer) !== bytes.length) {
+          continue
+        }
+      } catch (error) {
+        const code = (error as BusinessError).code ?? 'unknown'
+        salmonLogger.addLog(TAG, '读取 SACD 标记失败，偏移 ' + offset + '，错误码 ' + code, true)
+        continue
+      }
+      if (bytes.every((value: number, index: number): boolean => value === SACD_TOC_MAGIC.charCodeAt(index))) {
+        return true
+      }
+    }
+    return false
+  }
+
+  static isSacdImage(uri: string, format?: string): boolean {
+    if (!(IsoFileUtil.isIsoFile(uri) || format?.toLowerCase() === 'iso') || ToolsUtil.isNetworkUrl(uri)) {
+      return false
+    }
+    let file: fileIo.File | undefined
+    try {
+      file = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
+      return IsoFileUtil.probeSacd(file.fd, fileIo.statSync(file.fd).size)
+    } catch (_error) {
+      return false
+    } finally {
+      if (file) {
+        try {
+          fileIo.closeSync(file)
+        } catch (error) {
+          salmonLogger.addLog(TAG, `关闭 SACD 探测文件失败: ${error}`, true)
+        }
+      }
+    }
+  }
+
   /**
    * 在ISO/UDF目录数据中匹配ASCII标记。返回-1表示已经完整匹配。
    * matched参数用于保留跨读取块的部分匹配状态。
@@ -74,6 +119,10 @@ export default class IsoFileUtil {
       salmonLogger.addLog(TAG, `开始识别ISO类型: ${isoPath}`, false)
       file = fileIo.openSync(isoPath, fileIo.OpenMode.READ_ONLY)
       const fileSize = fileIo.statSync(file.fd).size
+      if (IsoFileUtil.probeSacd(file.fd, fileSize)) {
+        return IsoFileType.SACD
+      }
+      fileIo.lseek(file.fd, 0, fileIo.WhenceType.SEEK_SET)
       const scanSize = Math.min(fileSize, ISO_SCAN_LIMIT)
       const buffer = new ArrayBuffer(ISO_SCAN_CHUNK_SIZE)
       const bytes = new Uint8Array(buffer)
@@ -164,6 +213,9 @@ export default class IsoFileUtil {
 
       // 根据类型选择协议
       const isoType = type || await IsoFileUtil.detectIsoType(isoPath)
+      if (isoType === IsoFileType.SACD) {
+        return isoPath
+      }
 
       let playablePath: string
       if (isoType === IsoFileType.DVD) {
@@ -193,7 +245,7 @@ export default class IsoFileUtil {
   static async getIsoInfo(isoPath: string): Promise<IsoFileInfo | null> {
     try {
       const type = await IsoFileUtil.detectIsoType(isoPath);
-      const playablePath = await IsoFileUtil.getPlayablePath(isoPath);
+      const playablePath = await IsoFileUtil.getPlayablePath(isoPath, type);
 
       // 从文件名提取标题
       const fileName = isoPath.split('/').pop() || ''

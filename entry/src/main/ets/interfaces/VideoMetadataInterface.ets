@@ -1,3 +1,8 @@
+export interface AudioTrackDelay {
+  key: string
+  offsetMs: number
+}
+
 // 视频数据
 export interface VideoMetadata {
   uri: string
@@ -40,6 +45,7 @@ export interface VideoMetadata {
   subtitle_offset_millis?: number
   subtitle_track_id?: number
   audio_track_id?: number
+  audio_track_delays?: AudioTrackDelay[]
   external_audio_file?: string
   external_audio_name?: string
   external_audio_selected?: boolean
@@ -75,6 +81,7 @@ export interface SaveOptions {
   subtitleOffsetMillis?: number
   subtitleTrackId?: number
   audioTrackId?: number | null
+  audioTrackDelay?: AudioTrackDelay
   externalAudioFile?: string
   externalAudioName?: string
   externalAudioSelected?: boolean

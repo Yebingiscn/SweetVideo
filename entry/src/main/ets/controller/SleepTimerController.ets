@@ -85,10 +85,11 @@ export class SleepTimerController {
     return true
   }
 
-  consumeMediaEnd(mediaKey: string): boolean {
+  consumeMediaEnd(mediaKey: string, beforeExpire?: () => void): boolean {
     if (this.disposed || this.mode !== 'end-current' || this.mediaKey !== mediaKey) {
       return false
     }
+    beforeExpire?.()
     this.expire()
     return true
   }

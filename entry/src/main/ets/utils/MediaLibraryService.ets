@@ -1,8 +1,9 @@
 import BluRayDirectory from './BluRayDirectory'
+import { updateAudioTrackDelays } from '../controller/MpvController/AudioTrackDelayPolicy'
 import { Context } from '@kit.AbilityKit'
 import { fileIo, fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import VideoInfoUtil from './VideoInfoUtil'
-import { SaveOptions, VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import { AudioTrackDelay, SaveOptions, VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import ToolsUtil from './ToolsUtil'
 import { DeleteType } from '../common/enum/DeleteType'
@@ -106,43 +107,28 @@ export default class MediaLibraryService {
       !Number.isInteger(options.blurayTitleId) || options.blurayTitleId < 0 || options.blurayTitleId > 99999)) {
       throw new Error('Invalid Blu-ray title')
     }
-    let save_time: number = 0
+    const save_time = options.playTime ?? 0
     if (options.playTime !== undefined && (!Number.isFinite(options.playTime) || options.playTime < 0)) {
       salmonLogger.addLog(TAG, `拒绝无效播放进度: videoId=${target_data.date}`, true)
       return
-    }
-    if (options.playTime !== undefined) {
-      const totalDuration = target_data.time || options.totalTime || 0
-      const endTime = VideoInfoUtil.getEndingPosition(target_data)
-      const skipOutroMs = Number(Setting.skipOutroTime) * 1000
-      let shouldMarkAsWatched = false
-      if (totalDuration && options.playTime > totalDuration * 0.95) {
-        shouldMarkAsWatched = true
-        salmonLogger.addLog(TAG, '播放进度超过95%，标记为已观看', false)
-      } else if (options.playTime > 0 && endTime > 0 && options.playTime >= endTime - 1000) {
-        shouldMarkAsWatched = true
-        salmonLogger.addLog(TAG, '播放至指定结束时间，标记为已观看', false)
-      } else if (options.playTime > 0 && totalDuration && skipOutroMs > 0 &&
-        options.playTime >= totalDuration - skipOutroMs) {
-        shouldMarkAsWatched = true
-        salmonLogger.addLog(TAG, '播放至全局片尾跳过区域，标记为已观看', false)
-      }
-      save_time = shouldMarkAsWatched ? totalDuration : options.playTime
     }
     let lastPlayedAt: number | undefined = undefined
     if (options.playTime !== undefined && options.playTime > 0) {
       lastPlayedAt = systemDateTime.getTime(false)
     }
-    const audioChange = options.externalAudioFile !== undefined || options.externalAudioName !== undefined ||
+    const audioChange = options.audioTrackDelay !== undefined ||
+      options.externalAudioFile !== undefined || options.externalAudioName !== undefined ||
       options.externalAudioSelected !== undefined || options.externalAudioOffsetMs !== undefined
     const rangeChange =
       options.blurayTitleId !== undefined || options.pointA !== undefined || options.pointB !== undefined ||
         options.startTime !== undefined || options.endTime !== undefined
     const audioTargets: VideoMetadata[] = []
     const audioSnapshots: SaveOptions[] = []
+    const trackDelaySnapshots: (AudioTrackDelay[] | undefined)[] = []
     const updateVideo = (video: VideoMetadata) => {
       if (audioChange) {
         audioTargets.push(video)
+        trackDelaySnapshots.push(video.audio_track_delays)
         audioSnapshots.push({
           externalAudioFile: video.external_audio_file,
           externalAudioName: video.external_audio_name,
@@ -204,6 +190,9 @@ export default class MediaLibraryService {
         } else {
           video.audio_track_id = options.audioTrackId
         }
+      }
+      if (options.audioTrackDelay !== undefined) {
+        video.audio_track_delays = updateAudioTrackDelays(video.audio_track_delays, options.audioTrackDelay)
       }
       if (options.externalAudioFile !== undefined) {
         video.external_audio_file = options.externalAudioFile
@@ -289,7 +278,7 @@ export default class MediaLibraryService {
             if (!targetVideoMetaData && !stream) {
               throw new Error('Recent audio metadata could not be saved')
             }
-            salmonLogger.addLog(TAG, '更新最近播放中的外挂音频关联失败', true)
+            salmonLogger.addLog(TAG, '更新最近播放中的音轨偏好失败', true)
           }
         }
         if (!targetVideoMetaData && !stream && !recentItem) {
@@ -339,6 +328,7 @@ export default class MediaLibraryService {
         target.external_audio_name = previous.externalAudioName
         target.external_audio_selected = previous.externalAudioSelected
         target.external_audio_offset_ms = previous.externalAudioOffsetMs
+        target.audio_track_delays = trackDelaySnapshots[index]
       }
       salmonLogger.addLog(TAG, `播放记录更新失败: videoId=${target_data.date}`, true)
       throw new Error('Video metadata could not be saved')

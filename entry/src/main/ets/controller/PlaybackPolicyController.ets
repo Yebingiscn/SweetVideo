@@ -5,6 +5,7 @@ import { Setting } from '../utils/ObservedUtil'
 import MediaLibraryService from '../utils/MediaLibraryService'
 import { PlaybackOpeningEndingRange } from './PlaybackOpeningEndingRange'
 import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
+import VideoInfoUtil from '../utils/VideoInfoUtil'
 
 /** 普通与短视频共用；只依赖当前播放项，不持有播放列表或原生内核。 */
 @ObservedV2
@@ -12,7 +13,8 @@ export class PlaybackPolicyController {
   readonly sleepTimer: SleepTimerController = new SleepTimerController()
   readonly abLoop: AbLoopController = new AbLoopController()
   readonly openingEnding: PlaybackOpeningEndingRange = new PlaybackOpeningEndingRange()
-  onAbLoopFailed: () => void = (): void => {}
+  onAbLoopFailed: () => void = (): void => {
+  }
   private policyPlayer: PlaybackPolicyHost | undefined = undefined
   private policySeeking: boolean = false
   private playerReady: boolean = false
@@ -24,14 +26,20 @@ export class PlaybackPolicyController {
   private closing: boolean = false
   private endingHandled: boolean = false
 
-  get isClosing(): boolean { return this.closing }
+  get isClosing(): boolean {
+    return this.closing
+  }
 
   refresh(): void {
-    if (this.policyPlayer) { this.syncMedia(this.policyPlayer) }
+    if (this.policyPlayer) {
+      this.syncMedia(this.policyPlayer)
+    }
   }
 
   bindPlayer(player: PlaybackPolicyHost): void {
-    if (this.isClosing) { return }
+    if (this.isClosing) {
+      return
+    }
     if (this.policyPlayer && this.policyPlayer !== player) {
       this.detachPlayer(this.policyPlayer)
     }
@@ -42,9 +50,13 @@ export class PlaybackPolicyController {
       onPosition: (positionMs: number): boolean => this.onPosition(player, positionMs),
       onCompleted: (): boolean => this.onCompleted(player),
       onSeek: (targetMs: number): void => {
-        if (!this.isActive(player) || this.policySeeking) { return }
+        if (!this.isActive(player) || this.policySeeking) {
+          return
+        }
         this.syncMedia(player)
-        if (this.sleepTimer.checkDeadline() || this.isClosing) { return }
+        if (this.sleepTimer.checkDeadline() || this.isClosing) {
+          return
+        }
         this.abLoop.onUserSeekCommitted(targetMs)
         this.cancelAbSeekTimer()
         this.clearNativeLoop(player)
@@ -55,14 +67,18 @@ export class PlaybackPolicyController {
         }
       },
       onSeekStart: (): void => {
-        if (!this.isActive(player) || !this.abLoop.enabled) { return }
+        if (!this.isActive(player) || !this.abLoop.enabled) {
+          return
+        }
         this.abLoop.onUserSeekStarted()
         this.cancelAbSeekTimer()
         this.clearNativeLoop(player)
         this.nativeLoopNeedsRestore = true
       },
       onMediaChanged: (): void => {
-        if (!this.isActive(player)) { return }
+        if (!this.isActive(player)) {
+          return
+        }
         this.clearNativeLoop(player)
         this.cancelAbSeekTimer()
         this.nativeLoopNeedsRestore = false
@@ -70,18 +86,26 @@ export class PlaybackPolicyController {
         this.syncMedia(player)
       },
       onSeekDone: (positionMs: number): void => {
-        if (!this.isActive(player)) { return }
+        if (!this.isActive(player)) {
+          return
+        }
         this.abLoop.seekDone(positionMs)
         this.restoreNativeAfterSeek(player, positionMs)
       },
       onReady: (initialPositionMs?: number): boolean => {
-        if (!this.isActive(player)) { return true }
+        if (!this.isActive(player)) {
+          return true
+        }
         this.syncMedia(player)
-        if (this.sleepTimer.checkDeadline() || this.isClosing) { return true }
+        if (this.sleepTimer.checkDeadline() || this.isClosing) {
+          return true
+        }
         this.playerReady = true
         this.endingHandled = false
         this.applyNativeLoop(player)
-        if (!this.abLoop.enabled) { return false }
+        if (!this.abLoop.enabled) {
+          return false
+        }
         const position = initialPositionMs ?? player.initialPlayTime ?? player.playbackPositionMs
         this.abLoop.markSeekPending()
         this.seekForLoop(player, position >= this.abLoop.pointA && position < this.abLoop.pointB ?
@@ -94,7 +118,9 @@ export class PlaybackPolicyController {
 
   /** 元数据监视器与引擎回调共用，手动切片立即取消“播完本集”。 */
   syncMedia(player: PlaybackPolicyHost): void {
-    if (!this.isActive(player)) { return }
+    if (!this.isActive(player)) {
+      return
+    }
     const metadata = player.nowPlaying
     const baseKey = metadata?.date ?? metadata?.uri ?? ''
     const key = metadata?.bluray_title_id !== undefined ? `${baseKey}:bd:${metadata.bluray_title_id}` : baseKey
@@ -114,16 +140,23 @@ export class PlaybackPolicyController {
       duration !== this.abLoop.durationMs) {
       this.abLoop.bindMedia(key, pointA, pointB, duration)
     }
-    if (changed) { this.sleepTimer.onMediaChanged(key) }
-    this.openingEnding.bind(metadata, duration, Number(Setting.skipIntroTime) * 1000,
-      Number(Setting.skipOutroTime) * 1000)
+    if (changed) {
+      this.sleepTimer.onMediaChanged(key)
+    }
+    const useGlobalSkip = VideoInfoUtil.hasVideoTrack(metadata)
+    this.openingEnding.bind(metadata, duration, useGlobalSkip ? Number(Setting.skipIntroTime) * 1000 : 0,
+      useGlobalSkip ? Number(Setting.skipOutroTime) * 1000 : 0)
   }
 
   stopAfterCurrent(): void {
     const player = this.policyPlayer
-    if (!player || this.isClosing) { return }
+    if (!player || this.isClosing) {
+      return
+    }
     this.syncMedia(player)
-    if (this.sleepTimer.checkDeadline() || this.isClosing) { return }
+    if (this.sleepTimer.checkDeadline() || this.isClosing) {
+      return
+    }
     this.abLoop.disable()
     this.cancelAbSeekTimer()
     this.nativeLoopNeedsRestore = false
@@ -133,9 +166,13 @@ export class PlaybackPolicyController {
 
   toggleAbLoop(): boolean {
     const player = this.policyPlayer
-    if (!player || this.isClosing) { return false }
+    if (!player || this.isClosing) {
+      return false
+    }
     this.syncMedia(player)
-    if (this.sleepTimer.checkDeadline() || this.isClosing) { return false }
+    if (this.sleepTimer.checkDeadline() || this.isClosing) {
+      return false
+    }
     if (this.abLoop.enabled) {
       this.abLoop.disable()
       this.cancelAbSeekTimer()
@@ -143,8 +180,12 @@ export class PlaybackPolicyController {
       this.clearNativeLoop(player)
       return true
     }
-    if (!this.abLoop.enable(player.playbackPositionMs)) { return false }
-    if (this.sleepTimer.mode === 'end-current') { this.sleepTimer.cancel() }
+    if (!this.abLoop.enable(player.playbackPositionMs)) {
+      return false
+    }
+    if (this.sleepTimer.mode === 'end-current') {
+      this.sleepTimer.cancel()
+    }
     this.applyNativeLoop(player)
     if (this.playerReady && (player.playbackPositionMs < this.abLoop.pointA ||
       player.playbackPositionMs >= this.abLoop.pointB)) {
@@ -155,21 +196,31 @@ export class PlaybackPolicyController {
 
   saveAbPoint(context: Context, point: 'A' | 'B' | 'clear'): boolean {
     const player = this.policyPlayer
-    if (!player || this.isClosing || !player.nowPlaying) { return false }
+    if (!player || this.isClosing || !player.nowPlaying) {
+      return false
+    }
     this.syncMedia(player)
-    if (this.sleepTimer.checkDeadline() || this.isClosing) { return false }
+    if (this.sleepTimer.checkDeadline() || this.isClosing) {
+      return false
+    }
     const position = player.playbackPositionMs
     if (point !== 'clear' && (!Number.isFinite(position) || position < 0 ||
-      this.abLoop.durationMs <= 0 || position > this.abLoop.durationMs)) { return false }
+      this.abLoop.durationMs <= 0 || position > this.abLoop.durationMs)) {
+      return false
+    }
     const pointA = point === 'clear' ? 0 : (point === 'A' ? position : this.abLoop.pointA)
     const pointB = point === 'clear' ? 0 : (point === 'B' ? position : this.abLoop.pointB)
     // 一次保存两个点，失败时不先更新界面或循环状态。
     MediaLibraryService.saveData(context, player.nowPlaying, { pointA: pointA, pointB: pointB })
     player.nowPlaying.pointA = pointA
     player.nowPlaying.pointB = pointB
-    if (point === 'clear') { this.abLoop.clear() }
-    else if (point === 'A') { this.abLoop.setA(pointA) }
-    else { this.abLoop.setB(pointB) }
+    if (point === 'clear') {
+      this.abLoop.clear()
+    } else if (point === 'A') {
+      this.abLoop.setA(pointA)
+    } else {
+      this.abLoop.setB(pointB)
+    }
     this.cancelAbSeekTimer()
     this.nativeLoopNeedsRestore = false
     this.applyNativeLoop(player)
@@ -181,7 +232,9 @@ export class PlaybackPolicyController {
 
   saveAbRange(context: Context, start: number, end: number): boolean {
     const player = this.policyPlayer
-    if (!player || this.isClosing || !player.nowPlaying) { return false }
+    if (!player || this.isClosing || !player.nowPlaying) {
+      return false
+    }
     this.syncMedia(player)
     if (this.sleepTimer.checkDeadline() || this.isClosing ||
       (!(start === 0 && end === 0) && !PlaybackOpeningEndingRange.valid(start, end, this.abLoop.durationMs, false))) {
@@ -195,13 +248,17 @@ export class PlaybackPolicyController {
     this.nativeLoopNeedsRestore = false
     this.applyNativeLoop(player)
     if (this.abLoop.enabled && this.playerReady && (player.playbackPositionMs < start ||
-      player.playbackPositionMs >= end)) { this.seekLoopStart(player) }
+      player.playbackPositionMs >= end)) {
+      this.seekLoopStart(player)
+    }
     return true
   }
 
   saveOpeningEnding(context: Context, start: number, end: number): boolean {
     const player = this.policyPlayer
-    if (!player || this.isClosing || !player.nowPlaying) { return false }
+    if (!player || this.isClosing || !player.nowPlaying) {
+      return false
+    }
     this.syncMedia(player)
     if (this.sleepTimer.checkDeadline() || this.isClosing ||
       (!(start === 0 && end === 0) && !PlaybackOpeningEndingRange.valid(start, end, this.abLoop.durationMs, true))) {
@@ -217,9 +274,13 @@ export class PlaybackPolicyController {
 
   saveOpeningEndingPoint(context: Context, point: 'start' | 'end' | 'clear'): boolean {
     const player = this.policyPlayer
-    if (!player || this.isClosing) { return false }
+    if (!player || this.isClosing) {
+      return false
+    }
     this.syncMedia(player)
-    if (point === 'clear') { return this.saveOpeningEnding(context, 0, 0) }
+    if (point === 'clear') {
+      return this.saveOpeningEnding(context, 0, 0)
+    }
     return this.saveOpeningEnding(context,
       point === 'start' ? player.playbackPositionMs : this.openingEnding.startTime,
       point === 'end' ? player.playbackPositionMs : this.openingEnding.endTime)
@@ -230,15 +291,23 @@ export class PlaybackPolicyController {
   }
 
   private onPosition(player: PlaybackPolicyHost, positionMs: number): boolean {
-    if (!this.isActive(player)) { return true }
+    if (!this.isActive(player)) {
+      return true
+    }
     this.syncMedia(player)
-    if (this.sleepTimer.checkDeadline() || this.isClosing) { return true }
+    if (this.sleepTimer.checkDeadline() || this.isClosing) {
+      return true
+    }
     const duration = this.abLoop.durationMs
     // 单项列表循环/手动重播可能复用同一个播放器和媒体，收到回到正文的位置才开启下一轮片尾处理。
-    if (this.endingHandled && positionMs < this.openingEnding.outroStartMs) { this.endingHandled = false }
+    if (this.endingHandled && positionMs < this.openingEnding.outroStartMs) {
+      this.endingHandled = false
+    }
     const effectiveEnd = this.openingEnding.outroStartMs || duration
     if (player.playing && effectiveEnd > 0 && positionMs >= effectiveEnd &&
-      this.sleepTimer.consumeMediaEnd(this.abLoop.mediaKey)) { return true }
+      this.sleepTimer.consumeMediaEnd(this.abLoop.mediaKey, () => player.saveCompletedPlayback?.())) {
+      return true
+    }
     const wasPending = this.abLoop.enabled && this.abLoop.isSeekPending
     const target = this.abLoop.onPosition(positionMs, player.playing,
       player.onSwiping || player.isSliderPlayTimeChange)
@@ -246,9 +315,13 @@ export class PlaybackPolicyController {
       this.failAbSeek(player)
       return true
     }
-    if (target !== undefined) { this.seekForLoop(player, target) }
+    if (target !== undefined) {
+      this.seekForLoop(player, target)
+    }
     this.restoreNativeAfterSeek(player, positionMs)
-    if (!this.abLoop.enabled && this.nativeLoopApplied) { this.clearNativeLoop(player) }
+    if (!this.abLoop.enabled && this.nativeLoopApplied) {
+      this.clearNativeLoop(player)
+    }
     if (!this.abLoop.enabled && player.finishAtEnding && player.playing && !player.onSwiping &&
       !player.isSliderPlayTimeChange && player.repeatMode !== SweetRepeatMode.SINGLE &&
       this.openingEnding.outroStartMs > 0 && positionMs >= this.openingEnding.outroStartMs && !this.endingHandled) {
@@ -259,11 +332,17 @@ export class PlaybackPolicyController {
   }
 
   private onCompleted(player: PlaybackPolicyHost): boolean {
-    if (!this.isActive(player)) { return true }
+    if (!this.isActive(player)) {
+      return true
+    }
     this.syncMedia(player)
     if (this.sleepTimer.checkDeadline() || this.isClosing ||
-      this.sleepTimer.consumeMediaEnd(this.abLoop.mediaKey)) { return true }
-    if (this.endingHandled) { return true }
+      this.sleepTimer.consumeMediaEnd(this.abLoop.mediaKey, () => player.saveCompletedPlayback?.())) {
+      return true
+    }
+    if (this.endingHandled) {
+      return true
+    }
     const wasPending = this.abLoop.enabled && this.abLoop.isSeekPending
     const target = this.abLoop.onCompleted()
     if (wasPending && !this.abLoop.enabled) {
@@ -292,12 +371,15 @@ export class PlaybackPolicyController {
     try {
       player.seekTime(positionMs)
       this.scheduleAbSeekTimeout(player)
+    } finally {
+      this.policySeeking = false
     }
-    finally { this.policySeeking = false }
   }
 
   private restoreNativeAfterSeek(player: PlaybackPolicyHost, positionMs: number): void {
-    if (!this.abLoop.isSeekPending) { this.cancelAbSeekTimer() }
+    if (!this.abLoop.isSeekPending) {
+      this.cancelAbSeekTimer()
+    }
     if (this.nativeLoopNeedsRestore && this.abLoop.enabled && !this.abLoop.isSeekPending &&
       !player.onSwiping && !player.isSliderPlayTimeChange && positionMs >= this.abLoop.pointA &&
       positionMs < this.abLoop.pointB) {
@@ -308,13 +390,19 @@ export class PlaybackPolicyController {
 
   private scheduleAbSeekTimeout(player: PlaybackPolicyHost): void {
     this.cancelAbSeekTimer()
-    if (!this.abLoop.isSeekPending) { return }
+    if (!this.abLoop.isSeekPending) {
+      return
+    }
     const mediaKey = this.abLoop.mediaKey
     const version = this.abSeekVersion
     this.abSeekTimer = setTimeout((): void => {
-      if (version !== this.abSeekVersion) { return }
+      if (version !== this.abSeekVersion) {
+        return
+      }
       this.abSeekTimer = undefined
-      if (!this.isActive(player) || this.abLoop.mediaKey !== mediaKey || !this.abLoop.isSeekPending) { return }
+      if (!this.isActive(player) || this.abLoop.mediaKey !== mediaKey || !this.abLoop.isSeekPending) {
+        return
+      }
       // EOF 后可能再无进度回调，仍须结束无响应的跳转，避免卡在“循环中”。
       this.failAbSeek(player)
     }, 5000)
@@ -348,7 +436,9 @@ export class PlaybackPolicyController {
   }
 
   private clearNativeLoop(player: PlaybackPolicyHost): void {
-    if (this.nativeLoopApplied) { player.setABLoop() }
+    if (this.nativeLoopApplied) {
+      player.setABLoop()
+    }
     this.nativeLoopApplied = false
     this.abLoop.setNativeLoopActive(false)
   }
@@ -368,13 +458,17 @@ export class PlaybackPolicyController {
     this.abLoop.disable()
     this.cancelAbSeekTimer()
     this.nativeLoopNeedsRestore = false
-    if (this.policyPlayer) { this.clearNativeLoop(this.policyPlayer) }
+    if (this.policyPlayer) {
+      this.clearNativeLoop(this.policyPlayer)
+    }
   }
 
   dispose(): void {
     this.beginClosing()
     this.sleepTimer.dispose()
-    if (this.policyPlayer) { this.policyPlayer.playbackPolicy = undefined }
+    if (this.policyPlayer) {
+      this.policyPlayer.playbackPolicy = undefined
+    }
     this.policyPlayer = undefined
   }
 }

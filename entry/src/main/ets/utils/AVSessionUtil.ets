@@ -8,11 +8,9 @@ import { salmonLogger } from 'salmonlogger'
 import { Setting } from './ObservedUtil'
 import { PathUtils } from './PathUtils'
 import PermissionUtil from './PermissionUtil'
-import PrivacySpaceUtil from './PrivacySpaceUtil'
 import ToolsUtil from './ToolsUtil'
 import VideoInfoUtil from './VideoInfoUtil'
 import { fileIo } from '@kit.CoreFileKit'
-import { media } from '@kit.MediaKit'
 import { audio } from '@kit.AudioKit'
 
 export interface AVSessionControlCallbacks {
@@ -320,15 +318,15 @@ export default class AVSessionUtil {
       const oldPixelMap = AVSessionUtil.pixelMap
       AVSessionUtil.pixelMap = undefined
       await AVSessionUtil.releaseSessionImage(oldPixelMap)
-    }
-    if (!isCurrent()) {
-      return
+      if (!isCurrent()) {
+        return
+      }
     }
     if (!AVSessionUtil.castExtrasConfigured) {
       await AVSessionUtil.registerCastOutputListener(session)
-    }
-    if (!isCurrent()) {
-      return
+      if (!isCurrent()) {
+        return
+      }
     }
     const coverKey = JSON.stringify([metadata.date, metadata.uri])
     if (AVSessionUtil.coverAssetKey !== coverKey) {
@@ -511,7 +509,7 @@ export default class AVSessionUtil {
         if (session !== AVSessionUtil.avSession || coverVersion !== AVSessionUtil.coverRequestVersion) {
           return
         }
-        const resource = await PathUtils.appContext!.resourceManager.getMediaContent($r('app.media.sweet_video').id)
+        const resource = await PathUtils.appContext!.resourceManager.getMediaContent($r('app.media.sweet_video_alt').id)
         source = image.createImageSource(resource.buffer)
         pixelMap = await source.createPixelMap()
       }
@@ -660,48 +658,32 @@ export default class AVSessionUtil {
         ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.cast_failed_empty_url').id))
         return
       }
-      const isNetworkUri = ToolsUtil.isNetworkUrl(uri)
-      let playItem: avSession.AVQueueItem
-      if (isNetworkUri) {
-        playItem = {
-          itemId: 0,
-          description: {
-            assetId: now_playing.date,
-            title: VideoInfoUtil.getVideoTitle(now_playing.title),
-            artist: now_playing.artist || '',
-            mediaType: 'VIDEO',
-            mediaSize: 0,
-            startPosition: startPosition,
-            duration: now_playing.time,
-            albumCoverUri: PathUtils.coverPath + now_playing.date,
-            albumTitle: now_playing.album || '',
-            mediaUri: uri,
-            appName: ToolsUtil.getStringResource(($r('app.string.EntryAbility_label').id))
-          }
-        }
+      const description: avSession.AVMediaDescription = {
+        assetId: now_playing.date,
+        title: VideoInfoUtil.getVideoTitle(now_playing.title),
+        artist: now_playing.artist || '',
+        mediaType: 'VIDEO',
+        mediaSize: 0,
+        startPosition,
+        duration: now_playing.time,
+        albumCoverUri: PathUtils.coverPath + now_playing.date,
+        albumTitle: now_playing.album || '',
+        appName: ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)
+      }
+      if (ToolsUtil.isNetworkUrl(uri)) {
+        description.mediaUri = uri
       } else {
         const file = fileIo.openSync(uri)
         fd = file.fd
-        let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd }
-        const videoSize = await VideoInfoUtil.getVideoSize(PrivacySpaceUtil.getPrivacyMode()! ?
-          PathUtils.videoPath + now_playing.date : uri, true) as number
-        playItem = {
-          itemId: 0,
-          description: {
-            assetId: now_playing.date,
-            title: VideoInfoUtil.getVideoTitle(now_playing.title),
-            artist: now_playing.artist || '',
-            mediaType: 'VIDEO',
-            mediaSize: videoSize,
-            startPosition: startPosition,
-            duration: now_playing.time,
-            albumCoverUri: PathUtils.coverPath + now_playing.date,
-            albumTitle: now_playing.album || '',
-            fdSrc: avFileDescriptor,
-            appName: ToolsUtil.getStringResource(($r('app.string.EntryAbility_label').id))
-          }
+        description.fdSrc = { fd: file.fd }
+        try {
+          const stat = await fileIo.stat(file.fd)
+          description.mediaSize = stat.size
+        } catch (error) {
+          salmonLogger.addLog(TAG, `Cast read file size failed: code=${(error as BusinessError).code}`, true)
         }
       }
+      const playItem: avSession.AVQueueItem = { itemId: 0, description }
       if (!AVSessionUtil.isCastRequestCurrent(session, now_playing, requestVersion)) {
         return
       }

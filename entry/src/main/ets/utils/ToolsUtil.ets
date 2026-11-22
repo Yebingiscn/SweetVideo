@@ -1,5 +1,6 @@
 import lazy VideoInfoUtil from './VideoInfoUtil'
 import BluRayDirectory from './BluRayDirectory'
+import IsoFileUtil from './IsoFileUtil'
 import { HiCar } from './HiCarUtil'
 import lazy { FolderNameSortItem, sortFolderNamesInTaskPool } from './TaskpoolUtil'
 import lazy MediaSortUtil from './MediaSortUtil'
@@ -264,7 +265,7 @@ export default class ToolsUtil {
     const folder_date = findResult[2]
     const playerType = VideoOperateUtil.resolvePlayerType(latestItem, reverse)
     if (!HiCar.enabled && Setting.shortVideoMode && !reverse && !BluRayDirectory.isEntry(latestItem.uri) &&
-      !VideoInfoUtil.isMxf(latestItem)) {
+      !VideoInfoUtil.isMxf(latestItem) && !IsoFileUtil.isSacdImage(latestItem.uri, latestItem.format)) {
       const latestList = list.map(video => video.date === latestItem.date ? latestItem : video)
         .filter(video => !VideoInfoUtil.isMxf(video))
       const initialIndex = Math.max(0, latestList.findIndex(video => video.date === latestItem.date))
@@ -282,7 +283,8 @@ export default class ToolsUtil {
     skipHistory: boolean = false) {
     const findResult = Preferences.findVideoByDate(PathUtils.appContext!, item.date)
     const latestItem = findResult[0] ?? item
-    if (BluRayDirectory.isEntry(latestItem.uri) || VideoInfoUtil.isMxf(latestItem)) {
+    if (BluRayDirectory.isEntry(latestItem.uri) || VideoInfoUtil.isMxf(latestItem) ||
+      IsoFileUtil.isSacdImage(latestItem.uri, latestItem.format)) {
       await ToolsUtil.routerWhere(pathStack, latestItem, list, true, skipHistory)
       return
     }

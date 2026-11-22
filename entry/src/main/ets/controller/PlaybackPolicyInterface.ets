@@ -18,6 +18,7 @@ export interface PlaybackPolicyHost {
   readonly durationMs?: number
   readonly repeatMode?: SweetRepeatMode
   finishAtEnding?: () => void
+  saveCompletedPlayback?: () => void
   readonly playing: boolean
   readonly onSwiping: boolean
   readonly isSliderPlayTimeChange: boolean

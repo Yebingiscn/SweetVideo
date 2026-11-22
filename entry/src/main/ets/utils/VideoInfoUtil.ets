@@ -9,6 +9,7 @@ import lazy ImageStorage from './ImageStorage'
 import type { SavePixelMapOptions } from './ImageStorage'
 import lazy TextEncodingUtil from './TextEncodingUtil'
 import ToolsUtil from './ToolsUtil'
+import IsoFileUtil from './IsoFileUtil'
 import { fileIo } from '@kit.CoreFileKit'
 import { PathUtils } from './PathUtils'
 
@@ -63,7 +64,8 @@ export default class VideoInfoUtil {
       size: videoDimensions,
       cover_size: [probe?.coverWidth || 0, probe?.coverHeight || 0],
       // 探测失败代表轨道未知，不能把失败结果保存成纯音频。
-      has_video_track: probe ? VideoInfoUtil.probeHasVideoTrack(probe) : undefined,
+      has_video_track: probe ? VideoInfoUtil.probeHasVideoTrack(probe) :
+        (IsoFileUtil.isSacdImage(uri, VideoInfoUtil.getVideoFormat(file_name)) ? false : undefined),
       time: Math.round(probe?.durationMs || 0),
       last_play: 0,
       format: VideoInfoUtil.getVideoFormat(file_name),

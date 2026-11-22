@@ -6,9 +6,7 @@ import { NativeAVPlayer } from '../engine/NativeAVPlayer'
 import { fileIo } from '@kit.CoreFileKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { salmonLogger } from 'salmonlogger'
-import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import { Setting } from '../../utils/ObservedUtil'
 import AVSessionUtil from '../../utils/AVSessionUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import PermissionUtil from '../../utils/PermissionUtil'
@@ -21,7 +19,7 @@ import { PlaybackPolicyCallbacks } from '../PlaybackPolicyInterface'
 const TAG = 'ShortVideoPlayer'
 
 export type ShortVideoState = 'idle' | 'preparing' | 'prepared' | 'playing' | 'paused' | 'completed' |
-  'error' | 'released'
+'error' | 'released'
 
 @ObservedV2
 export class ShortVideoPlayer {
@@ -94,14 +92,16 @@ export class ShortVideoPlayer {
 
   async finishAtEnding(): Promise<void> {
     const player = this.player
-    if (!this.active || this.disposed || !player) { return }
+    if (!this.active || this.disposed || !player) {
+      return
+    }
     const pauseTask = this.pause()
     const activationVersion = this.activationVersion
     await pauseTask
-    if (!this.active || this.disposed || this.player !== player || activationVersion !== this.activationVersion) { return }
-    this.playbackEnded = true
-    this.state = 'completed'
-    this.saveHistory()
+    if (!this.active || this.disposed || this.player !== player || activationVersion !== this.activationVersion) {
+      return
+    }
+    this.saveCompletedPlayback()
     this.onPlaybackStateChanged(false, this.currentTime)
     this.onCompleted()
   }
@@ -167,7 +167,10 @@ export class ShortVideoPlayer {
     if (this.disposed) {
       return
     }
-    if (this.active !== active) { this.activationVersion++ }
+    const reentering = active && !this.active
+    if (this.active !== active) {
+      this.activationVersion++
+    }
     this.active = active
     if (!active) {
       this.readyPlayer = undefined
@@ -179,11 +182,7 @@ export class ShortVideoPlayer {
       if (this.disposed || this.active || version !== this.activationVersion) {
         return
       }
-      const restartFromBeginning = this.hasReachedWatchedThreshold()
       this.saveHistory()
-      if (restartFromBeginning) {
-        this.resetToBeginning()
-      }
       return
     }
     this.hasBeenActive = true
@@ -199,7 +198,7 @@ export class ShortVideoPlayer {
     if (!this.surfaceId) {
       return
     }
-    const task = this.playWhenReady(version, this.playTask)
+    const task = this.playWhenReady(version, reentering, this.playTask)
     this.playTask = task
     this.playTaskVersion = version
     try {
@@ -214,7 +213,7 @@ export class ShortVideoPlayer {
     }
   }
 
-  private async playWhenReady(version: number, previousTask?: Promise<void>): Promise<void> {
+  private async playWhenReady(version: number, reentering: boolean, previousTask?: Promise<void>): Promise<void> {
     // 快速切走再切回时，先让旧请求收尾，再启动当前这轮，不能复用旧轮结果。
     if (previousTask) {
       await previousTask
@@ -228,11 +227,12 @@ export class ShortVideoPlayer {
       if (!player || !this.isCurrentActivation(version, player)) {
         return
       }
-      this.notifyPolicyReady()
+      const readyHandled = this.notifyPolicyReady()
       if (!this.isCurrentActivation(version, player)) {
         return
       }
-      if (this.state === 'completed') {
+      if (!readyHandled && (this.state === 'completed' || (reentering && this.state === 'paused' &&
+        VideoOperateUtil.getVideoResumePlan(this.item, false, this.playbackPositionMs).replay))) {
         this.resetToBeginning()
       }
       await this.requestPlay(player, version, 'activate')
@@ -362,7 +362,8 @@ export class ShortVideoPlayer {
   }
 
   saveHistory(skipHistory: boolean = this.skipHistory): void {
-    const position = this.playbackPositionMs
+    const position = this.state === 'completed' ?
+      (this.duration || this.item.time || this.playbackPositionMs) : this.playbackPositionMs
     if (!this.hasBeenActive || skipHistory || !Number.isFinite(position) || position <= 0 ||
       position === this.lastSavedTime) {
       return
@@ -373,6 +374,12 @@ export class ShortVideoPlayer {
     } catch (_error) {
       salmonLogger.addLog(TAG, `保存播放记录失败: videoId=${this.item.date}`, true)
     }
+  }
+
+  saveCompletedPlayback(): void {
+    this.playbackEnded = true
+    this.state = 'completed'
+    this.saveHistory()
   }
 
   async release(skipHistory: boolean = false): Promise<void> {
@@ -418,7 +425,9 @@ export class ShortVideoPlayer {
         this.unregisterCallbacks(oldPlayer)
         await oldPlayer.release()
       }
-      if (this.disposed) return
+      if (this.disposed) {
+        return
+      }
       const player = await NativeAVPlayer.create()
       if (this.disposed) {
         await player.release()
@@ -427,7 +436,9 @@ export class ShortVideoPlayer {
       this.player = player
       this.registerCallbacks(player)
       const url = await this.smbPlayback.resolve(this.item.uri)
-      if (this.disposed) return
+      if (this.disposed) {
+        return
+      }
       const prepared = new Promise<void>((resolve, reject) => {
         this.preparedResolver = resolve
         this.preparedRejecter = reject
@@ -444,7 +455,9 @@ export class ShortVideoPlayer {
       }
       this.audioCoverUri = VideoInfoUtil.getCachedAudioCoverUri(this.item)
       if (ToolsUtil.isNetworkUrl(this.item.uri)) {
-        await player.setUrlSource(url, this.smbPlayback.headers(this.item.network_http_headers, this.item.network_custom_headers, this.item.network_user_agent))
+        await player.setUrlSource(url,
+          this.smbPlayback.headers(this.item.network_http_headers, this.item.network_custom_headers,
+            this.item.network_user_agent))
       } else {
         const file = fileIo.openSync(this.item.uri, fileIo.OpenMode.READ_ONLY)
         try {
@@ -455,7 +468,9 @@ export class ShortVideoPlayer {
       }
       await prepared
     } catch (error) {
-      if (this.disposed) return
+      if (this.disposed) {
+        return
+      }
       this.fail(error)
       throw new Error(this.errorMessage)
     }
@@ -537,7 +552,7 @@ export class ShortVideoPlayer {
           this.currentTime = this.duration || this.item.time
           this.playbackPositionMs = this.currentTime
           this.onPlaybackStateChanged(false, this.currentTime)
-          this.saveHistory()
+          this.saveCompletedPlayback()
           this.onCompleted()
           break
         case 'error':
@@ -602,38 +617,20 @@ export class ShortVideoPlayer {
   }
 
   private seekToRememberedPosition(player: NativeAVPlayer): void {
-    const mode = VideoOperateUtil.getVideoStartPlayTimeMode(this.item, false)
-    let position = 0
-    switch (mode) {
-      case VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME:
-        position = this.item.last_play || 0
-        break
-      case VideoStartTimeMode.SEEK_TO_START_TIME:
-        position = this.item.start_time || 0
-        break
-      case VideoStartTimeMode.SEEK_TO_INTRO_TIME:
-        position = Number(Setting.skipIntroTime) * 1000
-        break
-      default:
-        position = 0
-    }
+    const position = VideoOperateUtil.getVideoResumePlan(this.item).positionMs
     this.currentTime = position
     if (position > 0) {
       player.seek(position, media.SeekMode.SEEK_CLOSEST)
     }
   }
 
-  private hasReachedWatchedThreshold(): boolean {
-    const totalTime = this.duration || this.item.time
-    return totalTime > 0 && this.playbackPositionMs > totalTime * 0.95
-  }
-
   private resetToBeginning(): void {
-    this.currentTime = 0
+    const position = VideoOperateUtil.getVideoResumePlan(this.item, false, this.item.time || this.duration).positionMs
+    this.currentTime = position
     this.lastSavedTime = -1
-    this.onPlaybackStateChanged(false, 0)
+    this.onPlaybackStateChanged(false, position)
     try {
-      this.player?.seek(0, media.SeekMode.SEEK_CLOSEST)
+      this.player?.seek(position, media.SeekMode.SEEK_CLOSEST)
     } catch (error) {
       salmonLogger.addLog(TAG, `reset to beginning failed: ${error}`, true)
     }

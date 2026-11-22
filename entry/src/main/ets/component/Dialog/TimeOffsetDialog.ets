@@ -1,7 +1,7 @@
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 
 @CustomDialog
-export struct SubtitleOffsetDialog {
+export struct TimeOffsetDialog {
   confirm?: (value: number) => void
   onOffsetPreview?: (offset: number) => void
   onCloseButton?: () => void
@@ -15,7 +15,11 @@ export struct SubtitleOffsetDialog {
   inputController: TextInputController = new TextInputController()
   minOffset: number = -50000
   maxOffset: number = 50000
-  inputId: string = 'subtitle_offset_input'
+  inputId: string = 'time_offset_input'
+  fineStepMs: number = 100
+  coarseStepMs: number = 1000
+  previewOnInput: boolean = false
+  helpText?: ResourceStr
   quickBtnFontSize: number = 14
 
   aboutToAppear(): void {
@@ -40,7 +44,17 @@ export struct SubtitleOffsetDialog {
           })
             .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-            .onChange((input: string) => this.inputText = input.trim())
+            .onChange((input: string) => {
+              const next = input.trim()
+              if (next === this.inputText) {
+                return
+              }
+              this.inputText = next
+              const value = this.getParsedValue()
+              if (this.previewOnInput && value >= this.minOffset && value <= this.maxOffset) {
+                this.onOffsetPreview?.(value)
+              }
+            })
             .inputFilter('^[-+]?\\d*$')
             .type(InputType.NUMBER_DECIMAL)
             .enableAutoFill(true)
@@ -92,7 +106,7 @@ export struct SubtitleOffsetDialog {
       .alignItems(VerticalAlign.Center)
 
       Row({ space: 4 }) {
-        Button('-1000')
+        Button(`-${this.coarseStepMs}`)
           .attributeModifier(new ButtonFancyModifier('', 36))
           .fontSize(this.quickBtnFontSize)
           .fontColor($r('app.color.text_color'))
@@ -100,10 +114,10 @@ export struct SubtitleOffsetDialog {
           .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           .padding({ left: 2, right: 2 })
           .onClick(() => {
-            this.stepBy(-1000)
+            this.stepBy(-this.coarseStepMs)
           })
 
-        Button('-100')
+        Button(`-${this.fineStepMs}`)
           .fontSize(this.quickBtnFontSize)
           .attributeModifier(new ButtonFancyModifier('', 36))
           .fontColor($r('app.color.text_color'))
@@ -111,7 +125,7 @@ export struct SubtitleOffsetDialog {
           .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           .padding({ left: 2, right: 2 })
           .onClick(() => {
-            this.stepBy(-100)
+            this.stepBy(-this.fineStepMs)
           })
 
         Button($r('app.string.reset'))
@@ -125,31 +139,31 @@ export struct SubtitleOffsetDialog {
             this.resetValue()
           })
 
-        Button('+100')
+        Button(`+${this.fineStepMs}`)
           .fontSize(this.quickBtnFontSize)
           .fontColor($r('app.color.text_color'))
           .layoutWeight(1)
-          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           .attributeModifier(new ButtonFancyModifier('', 36))
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           .padding({ left: 2, right: 2 })
           .onClick(() => {
-            this.stepBy(100)
+            this.stepBy(this.fineStepMs)
           })
 
-        Button('+1000')
+        Button(`+${this.coarseStepMs}`)
           .fontSize(this.quickBtnFontSize)
           .fontColor($r('app.color.text_color'))
           .layoutWeight(1)
-          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           .attributeModifier(new ButtonFancyModifier('', 36))
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           .padding({ left: 2, right: 2 })
           .onClick(() => {
-            this.stepBy(1000)
+            this.stepBy(this.coarseStepMs)
           })
       }
       .width('100%')
 
-      if (this.showSubtitleNavigation?.() ?? true) {
+      if (this.showSubtitleNavigation?.() ?? false) {
         Row({ space: 6 }) {
           Button($r('app.string.prev_subtitle'))
             .fontSize(this.quickBtnFontSize)
@@ -175,6 +189,11 @@ export struct SubtitleOffsetDialog {
         }
         .width('100%')
       }
+      if (this.helpText !== undefined) {
+        Text(this.helpText)
+          .fontSize(12)
+          .fontColor($r('sys.color.font_secondary'))
+      }
     }
     .padding({
       top: 10,
@@ -193,9 +212,7 @@ export struct SubtitleOffsetDialog {
   }
 
   private stepBy(delta: number): void {
-    const nextValue = this.getCurrentValueForStep() + delta
-    this.inputText = nextValue.toString()
-    this.onOffsetPreview?.(nextValue)
+    this.setOffsetValue(this.getCurrentValueForStep() + delta)
   }
 
   private resetValue(): void {
@@ -207,8 +224,9 @@ export struct SubtitleOffsetDialog {
     if (nextOffset == undefined || Number.isNaN(nextOffset)) {
       return
     }
-    this.inputText = nextOffset.toString()
-    this.onOffsetPreview?.(nextOffset)
+    const clamped = Math.max(this.minOffset, Math.min(this.maxOffset, nextOffset))
+    this.inputText = clamped.toString()
+    this.onOffsetPreview?.(clamped)
   }
 
   private moveToPrevSubtitle(): void {

@@ -7,6 +7,8 @@ export struct DanmakuMenuComponent {
   @Param session: DanmakuSession = new DanmakuSession()
   @Event onImport: () => void = () => {
   }
+  @Event onOffset: () => void = () => {
+  }
 
   build() {
     Menu() {
@@ -30,10 +32,9 @@ export struct DanmakuMenuComponent {
         MenuItem({ content: `${this.session.items.length} 条 · ${this.session.name}` })
           .enabled(false)
         MenuItem({ content: $r('app.string.display_area'), builder: this.DanmakuAreaMenu }).danmakuItemStyle()
-        MenuItem({
-          content: `时间偏移：${(this.session.offsetMs / 1000).toFixed(1)} 秒`,
-          builder: this.DanmakuOffsetMenu
-        }).danmakuItemStyle()
+        MenuItem({ content: $r('app.string.danmaku_time_offset', this.session.offsetMs) })
+          .danmakuItemStyle()
+          .onClick(() => this.onOffset())
       }
       MenuItemGroup({
         header: this.DanmakuSizeSlider,
@@ -159,25 +160,6 @@ export struct DanmakuMenuComponent {
         .onClick(() => {
           this.session.area = 0.75
         })
-    }
-  }
-
-  @Builder
-  DanmakuOffsetMenu() {
-    Menu() {
-      MenuItem({ content: $r('app.string.danmaku_earlier') })
-        .danmakuItemStyle()
-        .onClick(() => {
-          this.session.offsetMs = Math.max(-600000, this.session.offsetMs - 500)
-        })
-      MenuItem({ content: $r('app.string.danmaku_later') })
-        .danmakuItemStyle()
-        .onClick(() => {
-          this.session.offsetMs = Math.min(600000, this.session.offsetMs + 500)
-        })
-      MenuItem({ content: $r('app.string.danmaku_reset_offset') }).danmakuItemStyle().onClick(() => {
-        this.session.offsetMs = 0
-      })
     }
   }
 }

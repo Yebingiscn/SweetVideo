@@ -1,5 +1,3 @@
-import ImageStorage from '../../utils/ImageStorage';
-import ImageFileUtil from '../../utils/ImageFileUtil';
 import { loginComponentManager, LoginWithHuaweiIDButton } from '@kit.AccountKit';
 import { hdsEffect } from '@kit.UIDesignKit';
 import { HdsGL } from '../../common/AttributeModifierConfig';
@@ -97,17 +95,11 @@ struct userLoginComponent {
             // When OpenType is set to CHOOSE_AVATAR, the callback must be onChooseAvatar.
             controller: new functionalButtonComponentManager.FunctionalButtonController().onChooseAvatar(async (err,
               data) => {
-              if (err) {
-                // Error processing.
+              if (err || !data?.avatarUri) {
                 return
               }
               try {
-                const pixelMap = await AccountUtil.fileToPixelMap(data.avatarUri!)
-                const localAvatarUri = await ImageStorage.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap,
-                  { releasePixelMap: true })
-                if (!localAvatarUri) { throw new Error('Avatar save failed') }
-                this.userData.userAvatar = AccountUtil.ISHasAvatar(localAvatarUri)
-                Preferences.saveUserAvatar(PathUtils.appContext!, localAvatarUri)
+                await AccountUtil.updateCustomAvatar(data.avatarUri)
               } catch (err) {
                 salmonLogger.addLog('UserLoginComponent', `更新头像失败: ${err.code}`, true)
                 ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.avatar_update_failed').id))
@@ -182,15 +174,13 @@ struct userLoginComponent {
               userData.openID = ''
               userData.nickName = undefined
               userData.idToken = ''
-              await ImageFileUtil.deletePhoto('avatar')
               Preferences.saveUserIsLogin(PathUtils.appContext!, false)
-              Preferences.saveUserAvatar(PathUtils.appContext!, '')
               Preferences.saveUserAuthorizationCode(PathUtils.appContext!, '')
               Preferences.saveUserUnionID(PathUtils.appContext!, '')
               Preferences.saveUserOpenID(PathUtils.appContext!, '')
               Preferences.saveUserIdToken(PathUtils.appContext!, '')
               Preferences.saveUserNickName(PathUtils.appContext!, '')
-              userData.userAvatar = ''
+              await AccountUtil.clearAvatar(PathUtils.appContext!)
               this.controller.setAgreementStatus(loginComponentManager.AgreementStatus.NOT_ACCEPTED)
             })
         }.padding({ bottom: SafeHeight.bottomSafeHeight })

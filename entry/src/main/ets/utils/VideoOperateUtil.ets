@@ -1,4 +1,5 @@
 import BluRayDirectory from './BluRayDirectory'
+import IsoFileUtil from './IsoFileUtil'
 import ImageFileUtil from './ImageFileUtil'
 import ImageStorage from './ImageStorage'
 import { window } from '@kit.ArkUI'
@@ -22,8 +23,9 @@ import preferences from '@ohos.data.preferences'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { image } from '@kit.ImageKit'
 import VideoInfoUtil from './VideoInfoUtil'
+import { PlaybackResumePlan, resolvePlaybackResume } from './PlaybackResumePolicy'
 import { salmonLogger } from 'salmonlogger'
-import { SCALE_FACTORS, SUPPORT_AUDIO_FORMAT } from '../common/Constants'
+import { SCALE_FACTORS } from '../common/Constants'
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
 import { LanguageConfig } from '../common/LanguageConfig'
 import Preferences from '../database/Preferences'
@@ -194,6 +196,7 @@ export default class VideoOperateUtil {
       'showSettingPageEntry': true,
       'allowGestureEntry': true,
       'showFrameTime': true,
+      'mpvExactSeek': true,
       'danmakuHeatmapEnabled': true,
       'jumpToHistoryTime': true,
       'randomCover': false,
@@ -275,6 +278,7 @@ export default class VideoOperateUtil {
     Setting.showSettingPageEntry = valueMap['showSettingPageEntry'] as boolean
     Setting.allowGestureEntry = valueMap['allowGestureEntry'] as boolean
     Setting.showFrameImgStatus = valueMap['showFrameTime'] as boolean
+    Setting.mpvExactSeek = valueMap['mpvExactSeek'] === true
     Setting.danmakuHeatmapEnabled = valueMap['danmakuHeatmapEnabled'] as boolean
     Setting.jumpToHistoryTimeStatus = valueMap['jumpToHistoryTime'] as boolean
     Setting.randomCover = valueMap['randomCover'] as boolean
@@ -410,61 +414,29 @@ export default class VideoOperateUtil {
     return [finalWidth, finalHeight]
   }
 
+  static getVideoResumePlan(nowPlaying: VideoMetadata, forceHistory: boolean = false,
+    positionOverride?: number): PlaybackResumePlan {
+    return resolvePlaybackResume(nowPlaying, VideoInfoUtil.hasVideoTrack(nowPlaying),
+      forceHistory || Setting.jumpToHistoryTimeStatus, Number(Setting.skipIntroTime) * 1000,
+      Number(Setting.skipOutroTime) * 1000, positionOverride)
+  }
+
   static getVideoStartPlayTimeMode(nowPlaying: VideoMetadata, showToast: boolean = true): number {
-    // 先判断 nowPlaying 是否有效
-    if (!nowPlaying) {
-      return -1
-    }
-    const start_time = nowPlaying.start_time
-    // 文件夹片尾保存为跳过时长，续播判断需要换算后的片尾位置。
-    const end_time = VideoInfoUtil.getEndingPosition(nowPlaying)
-    const last_play = nowPlaying.last_play ?? 0
-    const time = nowPlaying.time ?? 0
-    const title = nowPlaying.title
-    const isAlmostComplete = time > 0 && last_play >= time * 0.95
-    // 已观看完成的视频再次打开时显式跳到开头，避免播放器沿用末尾位置后立即触发 completed。
-    if (isAlmostComplete && (start_time == null || start_time <= 0)) {
-      return VideoStartTimeMode.SEEK_TO_BEGINNING
-    }
-    // 条件1：若设置了片头时间（start_time > 0），且片头<=总时长 且 片头<片尾（片头+片尾<=总时长）
-    if (start_time != null && start_time > 0 && (time <= 0 || start_time <= time)
-      && (end_time == null || end_time <= 0 || end_time > start_time)) {
-      const isBeforeStart = last_play < start_time
-      const isBeyondEnd = end_time != null && end_time > 0 && last_play >= end_time
-      if (isBeforeStart || isAlmostComplete || isBeyondEnd) {
-        if (showToast) {
-          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_intro').id),
-            ToolsUtil.TOAST_SHORT_MS)
-        }
-        return VideoStartTimeMode.SEEK_TO_START_TIME
-      }
-    }
-    // 条件2：若有有效播放记录（且未接近结尾），则跳转到上次播放位置
-    if (last_play !== 0 && last_play < time * 0.95 && Setting.jumpToHistoryTimeStatus) {
-      if (showToast) {
+    if (!nowPlaying) return -1
+    const plan = VideoOperateUtil.getVideoResumePlan(nowPlaying)
+    if (showToast) {
+      if (plan.mode === VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME) {
         ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.jumped_to_last_position').id),
           ToolsUtil.TOAST_SHORT_MS)
-      }
-      return VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME
-    }
-    // 条件3：若无播放记录，但全局设置了统一片头跳过时间（仅适用于视频）
-    const skipIntroSeconds = Number(Setting.skipIntroTime)
-    if (skipIntroSeconds > 0) {
-      const skipIntroMs = skipIntroSeconds * 1000
-      const skipOutroMs = Number(Setting.skipOutroTime) * 1000
-      if (skipIntroMs < time && skipIntroMs + skipOutroMs <= time && title != null) {
-        const parts = title.split('.')
-        const fileExt = parts.length > 0 ? parts[parts.length - 1].toLowerCase() : ''
-        if (fileExt !== '' && !SUPPORT_AUDIO_FORMAT.includes(fileExt)) {
-          if (showToast) {
-            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_unified_intro').id),
-              ToolsUtil.TOAST_SHORT_MS)
-          }
-          return VideoStartTimeMode.SEEK_TO_INTRO_TIME
-        }
+      } else if (plan.mode === VideoStartTimeMode.SEEK_TO_START_TIME) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_intro').id),
+          ToolsUtil.TOAST_SHORT_MS)
+      } else if (plan.mode === VideoStartTimeMode.SEEK_TO_INTRO_TIME) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_unified_intro').id),
+          ToolsUtil.TOAST_SHORT_MS)
       }
     }
-    return -1
+    return plan.mode
   }
 
   static getTimePixel(screenWidth: number, videoTime: number) {
@@ -733,7 +705,8 @@ export default class VideoOperateUtil {
   }
 
   static resolvePlayerType(metadata: VideoMetadata, reverse: boolean = false) {
-    if (BluRayDirectory.isEntry(metadata.uri) || VideoInfoUtil.isMxf(metadata)) {
+    if (BluRayDirectory.isEntry(metadata.uri) || VideoInfoUtil.isMxf(metadata) ||
+      IsoFileUtil.isSacdImage(metadata.uri, metadata.format)) {
       return PlayerEngine.MPV_PLAYER
     }
     const defaultPlayer = Preferences.getDefaultPlayerEngine(PathUtils.appContext!)

@@ -1,4 +1,5 @@
 import BluRayDirectory from '../../utils/BluRayDirectory'
+import IsoFileUtil from '../../utils/IsoFileUtil'
 import {
   PlaybackRangeDialog,
   PlaybackRangeMode,
@@ -14,6 +15,7 @@ import { framePreviewSession } from '../../utils/FFmpegThumbnailUtil'
 import MediaLibraryService from '../../utils/MediaLibraryService'
 import TimeUtil from '../../utils/TimeUtil'
 import { DanmakuSession } from '../../utils/DanmakuSession'
+import type { DanmakuItem } from '../../utils/DanmakuCore'
 import { DanmakuOverlay } from '../../component/PlayerComponent/DanmakuOverlay'
 import { DanmakuMenuComponent } from '../../component/PlayerComponent/DanmakuMenuBuilder'
 import PermissionUtil from '../../utils/PermissionUtil'
@@ -59,7 +61,9 @@ import PiPWindowUtil from '../../utils/PiPWindowUtil'
 import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
 import { RenameDialog } from '../../component/Dialog/RenameDialog'
 import { AudioEffectDialog } from '../../component/Dialog/AudioEffectDialog'
-import { SubtitleOffsetDialog } from '../../component/Dialog/SubtitleOffsetDialog'
+import { TimeOffsetDialog } from '../../component/Dialog/TimeOffsetDialog'
+import type { AudioOffsetEdit } from '../../controller/MpvController/MpvAudioController'
+import { MAX_AUDIO_TRACK_DELAY_MS, validAudioTrackDelay } from '../../controller/MpvController/AudioTrackDelayPolicy'
 import SubtitleUtil from '../../utils/SubtitleUtil'
 import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent'
 import { VideoTrackComponent } from '../../component/PlayerComponent/VideoTrackComponent'
@@ -268,7 +272,8 @@ export struct VideoPlayer {
   private subtitleOffsetShouldResumePlayback: boolean = false
   private isAdjustingMpvSubtitleOffset: boolean = false
   subtitleTimestampInputDialog: CustomDialogController = new CustomDialogController({
-    builder: SubtitleOffsetDialog({
+    builder: TimeOffsetDialog({
+      inputId: 'subtitle_offset_input',
       getCurrentValue: (): number => SubtitleUtil.offsetMillis,
       onOffsetPreview: (offset: number): void => {
         this.player.subtitleController.setSubtitleOffset(offset)
@@ -310,6 +315,67 @@ export struct VideoPlayer {
     cancel: (): void => {
       this.cancelSubtitleOffsetSession()
     }
+  })
+  private audioOffsetEdit: AudioOffsetEdit | undefined = undefined
+  private audioOffsetPlayer: MpvController | undefined = undefined
+  private audioOffsetDialog: CustomDialogController = new CustomDialogController({
+    builder: TimeOffsetDialog({
+      title: $r('app.string.audio_track_offset'),
+      helpText: $r('app.string.time_offset_direction'),
+      inputId: 'audio_offset_input',
+      fineStepMs: 50,
+      coarseStepMs: 500,
+      minOffset: -MAX_AUDIO_TRACK_DELAY_MS,
+      maxOffset: MAX_AUDIO_TRACK_DELAY_MS,
+      previewOnInput: true,
+      getCurrentValue: (): number => this.audioOffsetEdit?.initialMs ?? 0,
+      onOffsetPreview: (value: number): void => this.previewAudioOffset(value),
+      onCloseButton: (): void => this.audioOffsetDialog.close(),
+      confirm: (value: number): void => this.confirmAudioOffset(value)
+    }),
+    cornerRadius: 20,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
+    maskColor: '#00000000',
+    onWillAppear: () => this.onKeyboardOverlay('audio-offset-dialog', true),
+    onDidDisappear: () => {
+      this.cancelAudioOffsetEdit()
+      this.onKeyboardOverlay('audio-offset-dialog', false)
+    },
+    cancel: () => this.cancelAudioOffsetEdit()
+  })
+  private danmakuOffsetMedia: string = ''
+  private danmakuOffsetItems: DanmakuItem[] | undefined = undefined
+  private danmakuOffsetInitialMs: number = 0
+  private danmakuOffsetDialog: CustomDialogController = new CustomDialogController({
+    builder: TimeOffsetDialog({
+      title: $r('app.string.danmaku_offset_title'),
+      helpText: $r('app.string.time_offset_direction'),
+      inputId: 'danmaku_offset_input',
+      fineStepMs: 500,
+      coarseStepMs: 1000,
+      minOffset: -600000,
+      maxOffset: 600000,
+      previewOnInput: true,
+      getCurrentValue: (): number => this.danmakuOffsetInitialMs,
+      onOffsetPreview: (value: number): void => {
+        if (this.isDanmakuOffsetCurrent()) this.danmaku.offsetMs = value
+      },
+      onCloseButton: (): void => this.danmakuOffsetDialog.close(),
+      confirm: (value: number): void => this.confirmDanmakuOffset(value)
+    }),
+    cornerRadius: 20,
+    systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.ULTRA_THICK
+    }) : undefined,
+    maskColor: '#00000000',
+    onWillAppear: () => this.onKeyboardOverlay('danmaku-offset-dialog', true),
+    onDidDisappear: () => {
+      this.cancelDanmakuOffsetEdit()
+      this.onKeyboardOverlay('danmaku-offset-dialog', false)
+    },
+    cancel: () => this.cancelDanmakuOffsetEdit()
   })
   private autoListenVideoSession: number = 0
   private autoListenVideoWindowResumedSession: number = 0
@@ -772,8 +838,7 @@ export struct VideoPlayer {
         this.player.nowPlaying = metadata
         this.playbackSession.bindPlayer(this.player)
         if (playerParams.resumeFromCard) {
-          const position = Number.isFinite(metadata.last_play) ? Math.max(0, metadata.last_play) : 0
-          this.player.initialPlayTime = metadata.time > 0 && position >= metadata.time * 0.95 ? 0 : position
+          this.player.initialPlayTime = VideoOperateUtil.getVideoResumePlan(metadata, true).positionMs
         }
         if (playerParams.metadata_list) {
           this.player.videoMetaDataList = playerParams.metadata_list as VideoMetadata[]
@@ -1054,13 +1119,15 @@ export struct VideoPlayer {
     AudioTrackComponent({
       player: this.player,
       onSelect: (index: number) => {
+        this.closeTimeOffsetEdits()
         this.player.audioController.selectAudioTrackByIndex(index)
-        this.player.audioTrackSelected = index
-        if (!(this.player instanceof MpvController) || !this.player.audioTrack[index]?.external) {
+        if (!(this.player instanceof MpvController)) {
+          this.player.audioTrackSelected = index
           MediaLibraryService.saveAudioTrackPreference(this.player.nowPlaying, index,
             this.player.audioController.getAudioTrackCount())
         }
       },
+      onOffset: () => this.openAudioOffset(),
       onAudioEffects: () => {
         if (this.player instanceof AVPlayerController && !this.player.supportsAudioEffects) {
           ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.system_effect_api26_required').id))
@@ -1135,6 +1202,7 @@ export struct VideoPlayer {
   DanmakuMenu() {
     DanmakuMenuComponent({
       session: this.danmaku,
+      onOffset: () => this.openDanmakuOffset(),
       onImport: () => {
         this.danmaku.importFile((): string => this.danmakuMediaKey())
       }
@@ -1787,6 +1855,7 @@ export struct VideoPlayer {
       if (version === this.playerMonitorVersion && this.player === p &&
         !this.isPageDisappearing && !this.playbackSession.isDisposed) {
         this.renamedPlayingVideo = undefined
+        this.closeTimeOffsetEdits()
         this.playbackSession.syncMedia(p)
         this.danmaku.setMedia(this.danmakuMediaKey())
       }
@@ -1875,6 +1944,7 @@ export struct VideoPlayer {
     this.stopAppForegroundObservation()
     this.controlsIdle.stop()
     this.controlTouches.clear()
+    this.closeTimeOffsetEdits()
     if (this.playerExitToken !== undefined) {
       return
     }
@@ -1902,8 +1972,7 @@ export struct VideoPlayer {
         !(player.playerState === MpvPlayerState.BUFFERING && player.playbackPositionMs > 0)) {
         return
       }
-      MediaLibraryService.saveVideoPlayTimeIfNeed(player.playbackPositionMs, player.nowPlaying,
-        player.skipHistory, PathUtils.appContext!)
+      if (player instanceof MpvController) player.savePlaybackHistory()
     }
   }
 
@@ -1919,6 +1988,11 @@ export struct VideoPlayer {
 
   private async switchPlayerEngine(targetEngine: string, reason: string,
     resumePlayback?: boolean): Promise<void> {
+    if (targetEngine === PlayerEngine.AV_PLAYER &&
+      IsoFileUtil.isSacdImage(this.player.nowPlaying?.uri ?? '', this.player.nowPlaying?.format)) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.sacd_mpv_required').id))
+      return
+    }
     if (targetEngine === PlayerEngine.AV_PLAYER && BluRayDirectory.isEntry(this.player.nowPlaying?.uri ?? '')) {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.bluray_mpv_required').id))
       return
@@ -1927,6 +2001,7 @@ export struct VideoPlayer {
     if (currentEngine === targetEngine || this.isPageDisappearing) {
       return
     }
+    this.closeTimeOffsetEdits()
     await this.playbackSession.runTransition(() => this.performEngineSwitch(targetEngine, reason, resumePlayback))
   }
 
@@ -2056,6 +2131,101 @@ export struct VideoPlayer {
   private readPlayerParams(): PlayerParams | undefined {
     const paramsList = this.pathStack.getParamByName(NavigationAddress.VIDEO_PLAYER) as PlayerParams[]
     return paramsList.length > 0 ? paramsList[paramsList.length - 1] : undefined
+  }
+
+  private openAudioOffset(): void {
+    if (this.isPageDisappearing || this.playbackSession.isClosing || this.audioOffsetEdit) return
+    if (!(this.player instanceof MpvController)) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.audio_track_offset_mpv_required').id))
+      return
+    }
+    const edit = this.player.audioController.beginAudioOffsetEdit()
+    if (!edit) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.audio_track_offset_unavailable').id))
+      return
+    }
+    this.audioOffsetPlayer = this.player
+    this.audioOffsetEdit = edit
+    this.audioOffsetDialog.open()
+  }
+
+  private previewAudioOffset(value: number): void {
+    const edit = this.audioOffsetEdit
+    const player = this.audioOffsetPlayer
+    if (edit && player && player === this.player) player.audioController.previewAudioOffset(edit, value)
+  }
+
+  private confirmAudioOffset(value: number): void {
+    if (!validAudioTrackDelay(value)) {
+      this.showTimeOffsetRange(MAX_AUDIO_TRACK_DELAY_MS)
+      return
+    }
+    const edit = this.audioOffsetEdit
+    const player = this.audioOffsetPlayer
+    if (!edit || !player || this.player !== player || !player.audioController.isAudioOffsetEditCurrent(edit)) {
+      this.audioOffsetDialog.close()
+      return
+    }
+    if (!player.audioController.saveAudioOffset(edit, value)) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.audio_track_offset_save_failed').id))
+      return
+    }
+    this.audioOffsetEdit = undefined
+    this.audioOffsetPlayer = undefined
+    this.audioOffsetDialog.close()
+  }
+
+  private cancelAudioOffsetEdit(): void {
+    const edit = this.audioOffsetEdit
+    const player = this.audioOffsetPlayer
+    if (edit && player && player === this.player) {
+      player.audioController.previewAudioOffset(edit, edit.initialMs)
+    }
+    this.audioOffsetEdit = undefined
+    this.audioOffsetPlayer = undefined
+  }
+
+  private openDanmakuOffset(): void {
+    if (this.isPageDisappearing || this.playbackSession.isClosing || this.danmakuOffsetItems ||
+      this.danmaku.items.length === 0) return
+    this.danmakuOffsetMedia = this.danmakuMediaKey()
+    this.danmakuOffsetItems = this.danmaku.items
+    this.danmakuOffsetInitialMs = this.danmaku.offsetMs
+    this.danmakuOffsetDialog.open()
+  }
+
+  private isDanmakuOffsetCurrent(): boolean {
+    return this.danmakuOffsetMedia === this.danmakuMediaKey() && this.danmakuOffsetItems === this.danmaku.items
+  }
+
+  private confirmDanmakuOffset(value: number): void {
+    if (!Number.isInteger(value) || Math.abs(value) > 600000) {
+      this.showTimeOffsetRange(600000)
+      return
+    }
+    if (this.isDanmakuOffsetCurrent()) this.danmaku.offsetMs = value
+    this.danmakuOffsetItems = undefined
+    this.danmakuOffsetDialog.close()
+  }
+
+  private cancelDanmakuOffsetEdit(): void {
+    if (this.isDanmakuOffsetCurrent()) this.danmaku.offsetMs = this.danmakuOffsetInitialMs
+    this.danmakuOffsetItems = undefined
+  }
+
+  private closeTimeOffsetEdits(): void {
+    if (this.audioOffsetEdit) {
+      this.cancelAudioOffsetEdit()
+      this.audioOffsetDialog.close()
+    }
+    if (this.danmakuOffsetItems) {
+      this.cancelDanmakuOffsetEdit()
+      this.danmakuOffsetDialog.close()
+    }
+  }
+
+  private showTimeOffsetRange(max: number): void {
+    ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.time_offset_range').id, max))
   }
 
   private resumePlaybackAfterSubtitleOffsetIfNeeded(): void {

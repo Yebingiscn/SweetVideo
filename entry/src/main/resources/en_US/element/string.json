@@ -941,6 +941,14 @@
       "value": "Progress preview thumbnails"
     },
     {
+      "name": "mpv_exact_seek",
+      "value": "Exact seeking (MPV)"
+    },
+    {
+      "name": "mpv_exact_seek_description",
+      "value": "Seek to the selected time. Playback may take longer to resume after seeking."
+    },
+    {
       "name": "remember_playback_position",
       "value": "Remember playback position"
     },
@@ -1253,16 +1261,12 @@
       "value": "Top 3/4"
     },
     {
-      "name": "danmaku_earlier",
-      "value": "0.5s earlier"
+      "name": "danmaku_offset_title",
+      "value": "Danmaku offset"
     },
     {
-      "name": "danmaku_later",
-      "value": "0.5s later"
-    },
-    {
-      "name": "danmaku_reset_offset",
-      "value": "Reset offset"
+      "name": "danmaku_time_offset",
+      "value": "Time offset: %d ms"
     },
     {
       "name": "no_chapters",
@@ -4197,12 +4201,28 @@
       "value": "Audio"
     },
     {
-      "name": "audio_external_sync",
-      "value": "Sync"
+      "name": "audio_track_offset",
+      "value": "Audio delay"
     },
     {
-      "name": "audio_external_sync_help",
+      "name": "audio_track_offset_mpv_required",
+      "value": "Audio delay requires the MPV player"
+    },
+    {
+      "name": "audio_track_offset_unavailable",
+      "value": "Audio delay is unavailable for this track or output mode"
+    },
+    {
+      "name": "audio_track_offset_save_failed",
+      "value": "Could not save audio track settings"
+    },
+    {
+      "name": "time_offset_direction",
       "value": "Negative: earlier; positive: later"
+    },
+    {
+      "name": "time_offset_range",
+      "value": "Enter a whole number within ±%d ms"
     },
     {
       "name": "audio_external_empty",
@@ -4356,6 +4376,7 @@
       "name": "bluray_mpv_required",
       "value": "Blu-ray folders require the MPV player"
     },
+    {"name":"sacd_mpv_required","value":"SACD images require the MPV player"},
     {
       "name": "bluray_private_unsupported",
       "value": "Blu-ray folders cannot be copied to Private Space. Import them into the local library."

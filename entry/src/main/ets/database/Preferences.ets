@@ -581,6 +581,10 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'showFrameTime', showFrameTime)
   }
 
+  static saveMpvExactSeek(context: Context, enabled: boolean): void {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpvExactSeek', enabled)
+  }
+
   static saveDanmakuHeatmapEnabled(context: Context, enabled: boolean): void {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'danmakuHeatmapEnabled', enabled)
   }
@@ -661,7 +665,7 @@ export default class Preferences {
   }
 
   static saveUserAvatar(context: Context, userAvatar: string) {
-    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'userAvatar', userAvatar)
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'userAvatar', userAvatar, true)
   }
 
   static getUserNickName(context: Context): string {
@@ -877,6 +881,7 @@ export default class Preferences {
           subtitle_offset_millis: v.subtitle_offset_millis,
           subtitle_track_id: v.subtitle_track_id,
           audio_track_id: v.audio_track_id,
+          audio_track_delays: v.audio_track_delays?.slice(),
           external_audio_file: v.external_audio_file,
           external_audio_name: v.external_audio_name,
           external_audio_selected: v.external_audio_selected,

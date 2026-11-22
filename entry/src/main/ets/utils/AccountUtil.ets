@@ -45,7 +45,9 @@ export default class AccountUtil {
 
   static async getAvatarFromHuaweiAccount(): Promise<void> {
     const context = PathUtils.appContext
-    if (!context || !userData.isLogin) { return }
+    if (!context || !userData.isLogin) {
+      return
+    }
     const openID = userData.openID
     let pixelMap: image.PixelMap | undefined = undefined
     try {
@@ -60,7 +62,9 @@ export default class AccountUtil {
         salmonLogger.addLog(TAG, '头像昵称授权响应 state 不匹配', true)
         return
       }
-      if (!userData.isLogin || userData.openID !== openID) { return }
+      if (!AccountUtil.isSignedInAs(openID)) {
+        return
+      }
       const credential = response.data
       const nickName = credential?.nickName
       if (nickName) {
@@ -68,14 +72,11 @@ export default class AccountUtil {
         Preferences.saveUserNickName(context, nickName)
       }
       const avatarUri = credential?.avatarUri
-      if (!avatarUri) { return }
+      if (!avatarUri) {
+        return
+      }
       pixelMap = await AccountUtil.requestImage(avatarUri)
-      if (!userData.isLogin || userData.openID !== openID) { return }
-      const localAvatarUri = await ImageStorage.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap)
-      if (!localAvatarUri) { throw new Error('Avatar save failed') }
-      if (!userData.isLogin || userData.openID !== openID) { return }
-      userData.userAvatar = AccountUtil.ISHasAvatar(localAvatarUri)
-      Preferences.saveUserAvatar(context, localAvatarUri)
+      await AccountUtil.saveAvatar(context, pixelMap, openID)
     } catch (error) {
       // 登录凭据已经获取成功，资料授权、头像下载或保存失败不能报成登录失败。
       salmonLogger.addLog(TAG, `加载华为账号头像昵称失败: ${error.code ?? 'unknown'}`, true)
@@ -84,13 +85,99 @@ export default class AccountUtil {
     }
   }
 
+  static async updateCustomAvatar(uri: string): Promise<void> {
+    if (!userData.isLogin) {
+      return
+    }
+    const context = PathUtils.appContext!
+    const openID = userData.openID
+    const pixelMap = await AccountUtil.fileToPixelMap(uri)
+    try {
+      await AccountUtil.saveAvatar(context, pixelMap, openID)
+    } finally {
+      await ImageStorage.releaseImageSafely(pixelMap, '自定义头像')
+    }
+  }
+
+  static async clearAvatar(context: Context): Promise<void> {
+    try {
+      await AccountUtil.publishAvatar(context, '')
+    } catch (_error) {
+      userData.userAvatar = ''
+      salmonLogger.addLog(TAG, '清空头像路径失败', true)
+    }
+  }
+
+  private static isSignedInAs(openID: string): boolean {
+    return userData.isLogin && userData.openID === openID
+  }
+
+  private static async saveAvatar(context: Context, pixelMap: image.PixelMap, openID: string): Promise<void> {
+    if (!AccountUtil.isSignedInAs(openID)) {
+      return
+    }
+    const fileName = 'avatar-' + util.generateRandomUUID()
+    const avatarPath = await ImageStorage.savePixelMapToFile(PathUtils.photoPath, fileName, pixelMap,
+      { deleteOnFail: true })
+    if (!avatarPath) {
+      throw new Error('Avatar save failed')
+    }
+    let published = false
+    try {
+      if (AccountUtil.isSignedInAs(openID)) {
+        await AccountUtil.publishAvatar(context, avatarPath)
+        published = true
+      }
+    } finally {
+      if (!published) {
+        await AccountUtil.deleteAvatarFile(avatarPath)
+      }
+    }
+  }
+
+  private static async publishAvatar(context: Context, avatarPath: string): Promise<void> {
+    const previousPath = Preferences.getUserAvatar(context)
+    const avatarUri = avatarPath ? PathUtils.pathToUri(avatarPath) : ''
+    Preferences.saveUserAvatar(context, avatarPath)
+    userData.userAvatar = avatarUri
+    try {
+      await Preferences.flushPending(context)
+    } catch (_error) {
+      // 持久化失败时，保留旧路径引用的头像文件。
+      return
+    }
+    await AccountUtil.deleteAvatarFile(previousPath)
+  }
+
+  private static async deleteAvatarFile(avatarPath: string): Promise<void> {
+    const photoPath = PathUtils.photoPath
+    if (!avatarPath.startsWith(photoPath) ||
+      !/^avatar(?:-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})?$/i.test(avatarPath.substring(photoPath.length))) {
+      return
+    }
+    try {
+      if (fileIo.accessSync(avatarPath)) {
+        await fileIo.unlink(avatarPath)
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, '清理旧头像失败，错误码 ' + (error as BusinessError).code, true)
+    }
+  }
+
   static async requestImage(url: string): Promise<image.PixelMap> {
     const httpRequest = http.createHttp()
     try {
-      const response = await httpRequest.request(url, {
-        method: http.RequestMethod.GET,
-        expectDataType: http.HttpDataType.ARRAY_BUFFER
-      })
+      let response: http.HttpResponse
+      try {
+        response = await httpRequest.request(url, {
+          method: http.RequestMethod.GET,
+          expectDataType: http.HttpDataType.ARRAY_BUFFER
+        })
+      } catch (error) {
+        const code = (error as BusinessError).code ?? 'unknown'
+        salmonLogger.addLog(TAG, '下载华为账号头像失败，错误码 ' + code, true)
+        throw new Error('Avatar download failed')
+      }
       if (response.responseCode < 200 || response.responseCode >= 300) {
         throw new Error(`Avatar HTTP status: ${response.responseCode}`)
       }

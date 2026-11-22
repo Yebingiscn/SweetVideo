@@ -11,10 +11,9 @@ export function sanitizeMpvLog(text: string): string {
 }
 
 export class MpvLogBridge {
-  //MPV DEBUG 日志开关
   private static started: boolean = false
-  // Enabled for screenshot investigation; runtime Want parameters can still disable it.
-  private static diagnosticsEnabled: boolean = false
+  // MPV 详细诊断开关，可由 Want 参数在运行时覆盖。
+  private static diagnosticsEnabled: boolean = true
 
   static applyDiagnosticsWant(want: Want): void {
     const enabled = want.parameters?.['mpvDiagnostics']

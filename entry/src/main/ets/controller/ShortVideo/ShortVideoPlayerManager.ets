@@ -86,6 +86,10 @@ class ShortVideoPolicyHost implements PlaybackPolicyHost {
   finishAtEnding(): void {
     void this.player.finishAtEnding()
   }
+
+  saveCompletedPlayback(): void {
+    this.player.saveCompletedPlayback()
+  }
 }
 
 class ShortVideoSpeedHost implements LongPressSpeedHost {
