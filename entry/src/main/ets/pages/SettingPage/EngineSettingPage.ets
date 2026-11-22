@@ -72,6 +72,25 @@ export struct EngineSettingPage {
         }
 
         ListItem() {
+          Column({ space: 4 }) {
+            SettingsToggleItem({
+              symbol: $r('sys.symbol.pin'),
+              message: ToolsUtil.getStringResource($r('app.string.exact_seek').id),
+              enable: Setting.exactSeek,
+              onChange: (checked: boolean) => {
+                Setting.exactSeek = checked
+                Preferences.saveExactSeek(PathUtils.appContext!, checked)
+              }
+            })
+            Text($r('app.string.exact_seek_description'))
+              .fontSize(12)
+              .fontColor($r('sys.color.font_secondary'))
+              .width('100%')
+              .padding({ left: 16, right: 16, bottom: 12 })
+          }
+        }
+
+        ListItem() {
           SettingsSegmentButtonItem({
             symbol: $r('sys.symbol.wand_and_stars'),
             message: ToolsUtil.getStringResource($r('app.string.mpv_quality_boost').id),

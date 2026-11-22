@@ -887,11 +887,11 @@
       "value": "Progress preview thumbnails"
     },
     {
-      "name": "mpv_exact_seek",
-      "value": "Exact seeking (MPV)"
+      "name": "exact_seek",
+      "value": "Exact seeking"
     },
     {
-      "name": "mpv_exact_seek_description",
+      "name": "exact_seek_description",
       "value": "Seek to the selected time. Playback may take longer to resume after seeking."
     },
     {

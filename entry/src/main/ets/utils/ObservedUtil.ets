@@ -64,7 +64,7 @@ class SettingUtil {
   public showSettingPageEntry: boolean = true
   public allowGestureEntry: boolean = true
   public showFrameImgStatus: boolean = true
-  public mpvExactSeek: boolean = true
+  public exactSeek: boolean = true
   public danmakuHeatmapEnabled: boolean = true
   public jumpToHistoryTimeStatus: boolean = true
   public enableAiPrivacyAntiPeep: boolean = false

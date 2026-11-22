@@ -581,8 +581,8 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'showFrameTime', showFrameTime)
   }
 
-  static saveMpvExactSeek(context: Context, enabled: boolean): void {
-    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpvExactSeek', enabled)
+  static saveExactSeek(context: Context, enabled: boolean): void {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'exactSeek', enabled)
   }
 
   static saveDanmakuHeatmapEnabled(context: Context, enabled: boolean): void {

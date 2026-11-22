@@ -196,7 +196,7 @@ export default class VideoOperateUtil {
       'showSettingPageEntry': true,
       'allowGestureEntry': true,
       'showFrameTime': true,
-      'mpvExactSeek': true,
+      'exactSeek': true,
       'danmakuHeatmapEnabled': true,
       'jumpToHistoryTime': true,
       'randomCover': false,
@@ -278,7 +278,7 @@ export default class VideoOperateUtil {
     Setting.showSettingPageEntry = valueMap['showSettingPageEntry'] as boolean
     Setting.allowGestureEntry = valueMap['allowGestureEntry'] as boolean
     Setting.showFrameImgStatus = valueMap['showFrameTime'] as boolean
-    Setting.mpvExactSeek = valueMap['mpvExactSeek'] === true
+    Setting.exactSeek = valueMap['exactSeek'] === true
     Setting.danmakuHeatmapEnabled = valueMap['danmakuHeatmapEnabled'] as boolean
     Setting.jumpToHistoryTimeStatus = valueMap['jumpToHistoryTime'] as boolean
     Setting.randomCover = valueMap['randomCover'] as boolean

@@ -776,7 +776,7 @@ export class MpvController implements PlayerControllerInterface {
     if (this.playbackPolicy && !this.engineAdapter.isMediaLoaded()) {
       return
     }
-    mpvSeek(this.mpvHandle, target / 1000, Setting.mpvExactSeek)
+    mpvSeek(this.mpvHandle, target / 1000, Setting.exactSeek)
     AVSessionUtil.updatePlaybackSessionState(this.playing, target, this.repeatMode, this.speed)
   }
 

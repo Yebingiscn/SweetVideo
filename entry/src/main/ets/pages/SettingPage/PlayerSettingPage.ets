@@ -152,25 +152,6 @@ export struct PlayerSettingPage {
         ListItem() {
           Column({ space: 4 }) {
             SettingsToggleItem({
-              symbol: $r('sys.symbol.pin'),
-              message: ToolsUtil.getStringResource($r('app.string.mpv_exact_seek').id),
-              enable: Setting.mpvExactSeek,
-              onChange: (checked: boolean) => {
-                Setting.mpvExactSeek = checked
-                Preferences.saveMpvExactSeek(PathUtils.appContext!, checked)
-              }
-            })
-            Text($r('app.string.mpv_exact_seek_description'))
-              .fontSize(12)
-              .fontColor($r('sys.color.font_secondary'))
-              .width('100%')
-              .padding({ left: 16, right: 16, bottom: 12 })
-          }
-        }
-
-        ListItem() {
-          Column({ space: 4 }) {
-            SettingsToggleItem({
               symbol: $r('sys.symbol.resolution_video'),
               message: ToolsUtil.getStringResource($r('app.string.danmaku_heatmap').id),
               enable: Setting.danmakuHeatmapEnabled,

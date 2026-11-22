@@ -902,11 +902,11 @@
       "value": "展示进度条预览图"
     },
     {
-      "name": "mpv_exact_seek",
-      "value": "精确跳转（MPV）"
+      "name": "exact_seek",
+      "value": "精确跳转"
     },
     {
-      "name": "mpv_exact_seek_description",
+      "name": "exact_seek_description",
       "value": "开启后会跳转到指定时间，跳转后加载画面可能更慢。"
     },
     {
