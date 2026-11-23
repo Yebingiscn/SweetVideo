@@ -88,7 +88,7 @@ export struct PlaybackPolicyMenuComponent {
           content: `${item.item}min`
         }).onClick(() => {
           this.onStartTimer(item.item * 60000)
-          ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.timer_set_minutes').id, item.item))
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.timer_set_minutes').id, item.item))
         })
       })
         .key((minutes: number) => minutes.toString())

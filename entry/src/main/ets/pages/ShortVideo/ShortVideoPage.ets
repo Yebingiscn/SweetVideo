@@ -70,7 +70,7 @@ export struct ShortVideoPage {
           return
         }
         this.manager.policy.sleepTimer.start(minutes * 60000)
-        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.timer_set_minutes').id, minutes))
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.timer_set_minutes').id, minutes))
       }
     }),
     cornerRadius: 20,
@@ -463,6 +463,7 @@ export struct ShortVideoPage {
       this.showControls()
     })
     .onHidden(() => {
+      WindowUtil.setPlaybackTitleButtons(this, false)
       this.smartGestures.hide()
       this.isSwiperAnimating = false
       this.isProgressSeeking = false
@@ -472,6 +473,7 @@ export struct ShortVideoPage {
       }
     })
     .onShown(async () => {
+      WindowUtil.setPlaybackTitleButtons(this, true)
       if (this.disposed || this.switchingToMpv || this.manager.isClosing ||
         this.manager.policy.sleepTimer.checkDeadline()) {
         return
@@ -670,7 +672,7 @@ export struct ShortVideoPage {
       const loop = this.manager.policy.abLoop
       ToolsUtil.showToast(point === 'clear' ?
         ToolsUtil.getStringResource($r('app.string.cancel_ab_time_success').id) :
-        ToolsUtil.getStringResourceArgs(point === 'A' ? $r('app.string.set_point_a_time').id :
+        ToolsUtil.getStringResource(point === 'A' ? $r('app.string.set_point_a_time').id :
           $r('app.string.set_point_b_time').id, TimeUtil.convertMSToHHMMSS(point === 'A' ? loop.pointA : loop.pointB)))
     } catch (error) {
       salmonLogger.addLog('ShortVideoPage', `保存 AB 点位失败: ${error}`, true)

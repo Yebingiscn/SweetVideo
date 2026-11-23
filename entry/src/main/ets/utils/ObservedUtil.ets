@@ -79,6 +79,13 @@ class SettingUtil {
 class SafeHeightUtil {
   public topSafeHeight: number = 0
   public bottomSafeHeight: number = 0
+  public titleButtonInset: number = 0
+  public lightTitleButtons: boolean = false
+
+  public updateTopSafeHeight(windowTopInset: number): void {
+    // 公共导航已为三键留出空间，页面只补足剩余的顶部安全区。
+    this.topSafeHeight = Math.max(0, windowTopInset - this.titleButtonInset)
+  }
 }
 
 @ObservedV2
@@ -91,7 +98,7 @@ class PcUtil {
   public pcMode: boolean = false
 }
 
-export const SafeHeight = UIUtils.makeObserved(new SafeHeightUtil())
+export const SafeHeight: SafeHeightUtil = UIUtils.makeObserved(new SafeHeightUtil())
 
 export const Setting = UIUtils.makeObserved(new SettingUtil())
 

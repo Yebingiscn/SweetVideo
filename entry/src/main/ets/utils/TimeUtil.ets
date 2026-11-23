@@ -71,11 +71,11 @@ export default class TimeUtil {
     }
     const seconds = Math.floor(ms / 1000)
     if (seconds < 60) {
-      return ToolsUtil.getStringResourceArgs($r('app.string.duration_seconds').id, seconds)
+      return ToolsUtil.getStringResource($r('app.string.duration_seconds').id, seconds)
     }
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = seconds % 60
-    return ToolsUtil.getStringResourceArgs2($r('app.string.duration_minutes_seconds').id, minutes, remainingSeconds)
+    return ToolsUtil.getStringResource($r('app.string.duration_minutes_seconds').id, minutes, remainingSeconds)
   }
 
   static getTextByTime() {

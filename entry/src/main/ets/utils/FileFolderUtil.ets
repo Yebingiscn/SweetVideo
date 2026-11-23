@@ -273,11 +273,11 @@ export default class FileFolderUtil {
       if (items.length === 1) {
         ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.move_to_recycle_failed').id))
       } else {
-        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.move_to_recycle_batch_result').id,
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.move_to_recycle_batch_result').id,
           String(moved.size), String(items.length - moved.size)))
       }
     } else if (items.length === 1) {
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.moved_to_recycle').id, items[0].title))
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.moved_to_recycle').id, items[0].title))
     }
     return FileFolderUtil.publishSavedFolder(context, folderDate, videoListController, folderDataSource)
   }

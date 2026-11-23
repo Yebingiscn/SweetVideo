@@ -3386,8 +3386,8 @@
       "value": "输入错误：请输入 -50000 到 50000 的整数"
     },
     {
-      "name": "system_effect_api26_required",
-      "value": "系统播放器音效需要 API 26 及设备 PCM 后处理支持"
+      "name": "system_effect_pcm_required",
+      "value": "系统播放器音效需要设备支持 PCM 后处理"
     },
     {
       "name": "subtitle_saved_load_failed",

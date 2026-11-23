@@ -21,12 +21,12 @@ import { Available, SuppressWarnings, SuppressWarningsType } from '@kit.BasicSer
 @ComponentV2
 export struct PlayerSettingPage {
   private fastForwardSecond: FastForwardSecondInterface[] = [
-    { label: ToolsUtil.getStringResourceArgs($r('app.string.seconds_n').id, 5), value: '5' },
-    { label: ToolsUtil.getStringResourceArgs($r('app.string.seconds_n').id, 10), value: '10' },
-    { label: ToolsUtil.getStringResourceArgs($r('app.string.seconds_n').id, 15), value: '15' },
-    { label: ToolsUtil.getStringResourceArgs($r('app.string.seconds_n').id, 30), value: '30' },
-    { label: ToolsUtil.getStringResourceArgs($r('app.string.seconds_n').id, 60), value: '60' },
-    { label: ToolsUtil.getStringResourceArgs($r('app.string.seconds_n').id, 120), value: '120' }
+    { label: ToolsUtil.getStringResource($r('app.string.seconds_n').id, 5), value: '5' },
+    { label: ToolsUtil.getStringResource($r('app.string.seconds_n').id, 10), value: '10' },
+    { label: ToolsUtil.getStringResource($r('app.string.seconds_n').id, 15), value: '15' },
+    { label: ToolsUtil.getStringResource($r('app.string.seconds_n').id, 30), value: '30' },
+    { label: ToolsUtil.getStringResource($r('app.string.seconds_n').id, 60), value: '60' },
+    { label: ToolsUtil.getStringResource($r('app.string.seconds_n').id, 120), value: '120' }
   ]
   private listScroller: Scroller = new Scroller()
 

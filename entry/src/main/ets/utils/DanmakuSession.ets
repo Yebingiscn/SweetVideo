@@ -137,8 +137,8 @@ export class DanmakuSession {
       this.name = decodeURIComponent(uris[0].split('/').pop() || ToolsUtil.getStringResource($r('app.string.local_xml').id))
       this.offsetMs = 0
       this.enabled = true
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.danmaku_imported_count').id, result.items.length) +
-        (result.skipped > 0 ? ToolsUtil.getStringResourceArgs($r('app.string.danmaku_skipped_count').id, result.skipped) : ''))
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.danmaku_imported_count').id, result.items.length) +
+        (result.skipped > 0 ? ToolsUtil.getStringResource($r('app.string.danmaku_skipped_count').id, result.skipped) : ''))
     } catch (error) {
       if (!cancelled()) {
         // Do not expose a picked file URI or raw platform errors in logs/toasts.

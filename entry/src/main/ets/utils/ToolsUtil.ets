@@ -106,42 +106,11 @@ export default class ToolsUtil {
     }
   }
 
-  static getStringResource(resource: number): string {
+  static getStringResource(resource: number, ...args: Array<string | number>): string {
     try {
-      return PathUtils.appContext!.resourceManager.getStringSync(resource)
+      return PathUtils.appContext!.resourceManager.getStringSync(resource, ...args)
     } catch (error) {
       salmonLogger.addLog(TAG, 'get String Resource error' + error, true)
-      return ''
-    }
-  }
-
-  // 带占位符的资源取值（Toast 等只能是 string 的场景）
-  static getStringResourceArgs(resource: number, arg: string | number): string {
-    try {
-      return PathUtils.appContext!.resourceManager.getStringSync(resource, arg)
-    } catch (error) {
-      salmonLogger.addLog(TAG, 'get String Resource Args error' + error, true)
-      return ''
-    }
-  }
-
-  // 双占位符版本（例如「介绍下视频：%s，格式：%s」这类需要 string 的场合）
-  static getStringResourceArgs2(resource: number, arg1: string | number, arg2: string | number): string {
-    try {
-      return PathUtils.appContext!.resourceManager.getStringSync(resource, arg1, arg2)
-    } catch (error) {
-      salmonLogger.addLog(TAG, 'get String Resource Args2 error' + error, true)
-      return ''
-    }
-  }
-
-  // 五占位符版本（崩溃反馈信息等长模板）
-  static getStringResourceArgs5(resource: number, arg1: string | number, arg2: string | number,
-    arg3: string | number, arg4: string | number, arg5: string | number): string {
-    try {
-      return PathUtils.appContext!.resourceManager.getStringSync(resource, arg1, arg2, arg3, arg4, arg5)
-    } catch (error) {
-      salmonLogger.addLog(TAG, 'get String Resource Args5 error' + error, true)
       return ''
     }
   }
@@ -323,14 +292,14 @@ export default class ToolsUtil {
               })
               .catch((error: BusinessError) => {
                 ToolsUtil.showToast(
-                  ToolsUtil.getStringResourceArgs($r('app.string.update_dialog_failed').id, error.message))
+                  ToolsUtil.getStringResource($r('app.string.update_dialog_failed').id, error.message))
                 salmonLogger.addLog(TAG, `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`)
               })
           } else {
             ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_new_version').id))
           }
         }).catch((error: BusinessError) => {
-        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.check_update_failed').id, error.message))
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.check_update_failed').id, error.message))
         salmonLogger.addLog(TAG, `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`, true)
       })
     } else {

@@ -527,9 +527,9 @@ export struct IPTVChannelPage {
       this.source.channels.filter(channel => channel.groupName === this.selectedGroup)
     const multiLineCount = channels.filter(channel => this.lineCount(channel) > 1).length
     return multiLineCount > 0 ?
-      ToolsUtil.getStringResourceArgs2($r('app.string.channels_with_multiline').id, channels.length,
+      ToolsUtil.getStringResource($r('app.string.channels_with_multiline').id, channels.length,
         multiLineCount) :
-      ToolsUtil.getStringResourceArgs($r('app.string.channels_count').id, channels.length)
+      ToolsUtil.getStringResource($r('app.string.channels_count').id, channels.length)
   }
 
   private groupLabel(group: string): string {
@@ -601,6 +601,7 @@ export struct IPTVChannelPage {
       external_subtitle_format: '',
       pointA: 0,
       pointB: 0,
+      is_iptv_live: true,
       network_user_agent: selectedLine.userAgent,
       network_custom_headers: selectedLine.headers
     }

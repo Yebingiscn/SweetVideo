@@ -294,7 +294,7 @@ export struct IPTVSourcePage {
       const refreshed = await IPTVSourceService.refreshSource(source)
       this.upsertSource(refreshed)
       ToolsUtil.showToast(
-        ToolsUtil.getStringResourceArgs($r('app.string.refresh_success_channels').id, refreshed.channelCount))
+        ToolsUtil.getStringResource($r('app.string.refresh_success_channels').id, refreshed.channelCount))
     } catch (error) {
       const sources = Preferences.getIPTVSources(PathUtils.appContext!)
       const target = sources.find(item => item.id === source.id)
@@ -305,7 +305,7 @@ export struct IPTVSourcePage {
         Preferences.saveIPTVSources(PathUtils.appContext!, sources)
         this.sources = [...sources]
       }
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.refresh_failed_reason').id,
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.refresh_failed_reason').id,
         error instanceof Error ? error.message : String(error)), ToolsUtil.TOAST_LONG_MS)
     } finally {
       const latestIds = new Set(this.refreshingIds)
@@ -321,7 +321,7 @@ export struct IPTVSourcePage {
     if (!source.lastRefreshTime) {
       return ToolsUtil.getStringResource($r('app.string.not_refreshed_yet').id)
     }
-    return ToolsUtil.getStringResourceArgs($r('app.string.updated_at').id,
+    return ToolsUtil.getStringResource($r('app.string.updated_at').id,
       TimeUtil.formatDateTime(source.lastRefreshTime))
   }
 }

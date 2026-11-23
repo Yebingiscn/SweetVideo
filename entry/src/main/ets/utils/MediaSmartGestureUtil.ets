@@ -5,7 +5,7 @@ import {
   SmartGestureController,
   UIContext
 } from '@kit.ArkUI'
-import { Available, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { salmonLogger } from 'salmonlogger'
 import { Setting } from './ObservedUtil'
 
@@ -16,7 +16,6 @@ export const SHORT_VIDEO_SMART_SWIPER_ID = 'short_video_smart_swiper'
 export interface MediaSmartGestureHandlers {
   canHandle: () => boolean
   onTap: () => void
-  @Available({ minApiVersion: 'HarmonyOS 26.0.0' })
   onSlide: () => BaseGestureHandlingProposal | undefined
 }
 
@@ -29,7 +28,7 @@ export class MediaSmartGestureModifier implements AttributeModifier<CommonAttrib
     this.enabled = enabled
   }
 
-  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP, SuppressWarningsType.COMPATIBILITY] })
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   applyNormalAttribute(instance: CommonAttribute): void {
     if (MediaSmartGestureSession.isSupported()) {
       instance.smartGestureShortcut({
@@ -47,7 +46,7 @@ export class MediaSmartGestureSession {
   private static activeSession: MediaSmartGestureSession | undefined = undefined
   private static appForeground: boolean = false
   private uiContext: UIContext | undefined = undefined
-  @Available({ minApiVersion: 'HarmonyOS 26.0.0' }) private controller: SmartGestureController | undefined = undefined
+  private controller: SmartGestureController | undefined = undefined
   private monitorRegistered: boolean = false
   private handlers: MediaSmartGestureHandlers
 
@@ -87,7 +86,6 @@ export class MediaSmartGestureSession {
     this.uiContext = undefined
   }
 
-  @Available({ minApiVersion: 'HarmonyOS 26.0.0' })
   private startMonitoring(): void {
     if (!MediaSmartGestureSession.appForeground || !Setting.smartGestureEnabled ||
       !MediaSmartGestureSession.isSupported() || !this.uiContext) {
@@ -109,7 +107,6 @@ export class MediaSmartGestureSession {
     }
   }
 
-  @Available({ minApiVersion: 'HarmonyOS 26.0.0' })
   private stopMonitoring(): void {
     const controller = this.controller
     this.controller = undefined
@@ -133,7 +130,6 @@ export class MediaSmartGestureSession {
     }
   }
 
-  @SuppressWarnings({ rules: [SuppressWarningsType.COMPATIBILITY] })
   private readonly monitorCallback = (proposal: BaseGestureHandlingProposal): GestureHandlingResolution => {
     if (MediaSmartGestureSession.activeSession !== this || !this.monitorRegistered ||
       !MediaSmartGestureSession.appForeground) {

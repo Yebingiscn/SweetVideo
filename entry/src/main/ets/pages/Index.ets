@@ -35,7 +35,7 @@ import FolderHierarchy from '../utils/FolderHierarchy'
 import type { ProgressInfo } from '../utils/FileProcessorUtil'
 import lazy { importAndProcessFiles } from '../utils/FileProcessorUtil'
 import IntellectualGripPostureUtil from '../utils/IntellectualGripPostureUtil'
-import { Privacy, Setting } from '../utils/ObservedUtil'
+import { Privacy, SafeHeight, Setting } from '../utils/ObservedUtil'
 import { PathUtils } from '../utils/PathUtils'
 import SelectFileUtil from '../utils/SelectFileUtil'
 import { checkUriProcess } from '../utils/TaskpoolUtil'
@@ -492,7 +492,7 @@ struct Index {
       try {
         uri = MediaDropUtil.firstMediaUri(dragEvent.getData().getRecords())
       } catch (error) {
-        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.get_data_exception').id, String(error)))
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.get_data_exception').id, String(error)))
         return
       }
       if (!uri) {
@@ -541,12 +541,24 @@ struct Index {
     })
   }
 
+  @Builder
+  private WindowContent() {
+    Column() {
+      this.SweetContent()
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ top: SafeHeight.titleButtonInset })
+    .backgroundColor(SafeHeight.titleButtonInset > 0 ?
+      (SafeHeight.lightTitleButtons ? Color.Black : $r('app.color.start_window_background')) : Color.Transparent)
+  }
+
   build() {
     // 全局沉浸光感容器：系统材质只在 tabBar 槽位合成渲染，
     // 放普通容器里会整个不渲染（= 全透明）。内容整体挂在 tabBar builder 上，
     // barOverlap + barHeight/barWidth 100% 让这个「假 tabBar」铺满全屏。
     Tabs() {
-      TabContent().tabBar(this.SweetContent())
+      TabContent().tabBar(this.WindowContent())
     }
     .barOverlap(true)
     .barMode(BarMode.Fixed)
@@ -1032,7 +1044,7 @@ struct Index {
       Privacy.receivedFilesVersion++
       ToolsUtil.showToast(
         failedCount === 0 ? ToolsUtil.getStringResource($r('app.string.knock_files_saved_privacy').id) :
-          ToolsUtil.getStringResourceArgs($r('app.string.knock_files_partial_privacy').id, failedCount))
+          ToolsUtil.getStringResource($r('app.string.knock_files_partial_privacy').id, failedCount))
       return
     }
     const currentFolderDate = this.videoListController.folder?.date

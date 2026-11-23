@@ -446,7 +446,7 @@ export struct GlobalSearch {
   }
 
   private updateResultCount(): void {
-    this.message = ToolsUtil.getStringResourceArgs($r('app.string.all_folders_video_count').id, this.results.length)
+    this.message = ToolsUtil.getStringResource($r('app.string.all_folders_video_count').id, this.results.length)
   }
 
   private async submit(): Promise<void> {
@@ -481,7 +481,7 @@ export struct GlobalSearch {
         (completed: number, total: number) => {
           if (this.active && generation === this.generation) {
             this.message = completed === total ? ToolsUtil.getStringResource($r('app.string.searching_cover').id) :
-              ToolsUtil.getStringResourceArgs2($r('app.string.preparing_cover_search_progress').id, completed, total)
+              ToolsUtil.getStringResource($r('app.string.preparing_cover_search_progress').id, completed, total)
           }
         })
       if (!this.active || generation !== this.generation) {
@@ -498,9 +498,9 @@ export struct GlobalSearch {
       })
       this.results = matches
       this.message = result.indexed === 0 ? ToolsUtil.getStringResource($r('app.string.no_cover_for_search').id) :
-        ToolsUtil.getStringResourceArgs($r('app.string.cover_search_result').id, matches.length)
+        ToolsUtil.getStringResource($r('app.string.cover_search_result').id, matches.length)
       if (result.skipped > 0) {
-        this.message += ToolsUtil.getStringResourceArgs($r('app.string.cover_search_skipped').id, result.skipped)
+        this.message += ToolsUtil.getStringResource($r('app.string.cover_search_skipped').id, result.skipped)
       }
     } catch {
       if (this.active && generation === this.generation) {

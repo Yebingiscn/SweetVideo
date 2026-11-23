@@ -50,7 +50,7 @@ export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
       if (VideoInfoUtil.getResolutionLabel(params.item).includes('HD')) {
         SolidColorTagBuilder({
           label: VideoInfoUtil.getResolutionLabel(params.item) +
-            (params.item!.frame_rate >= 60 ? ` ${params.item!.frame_rate} fps` : ''),
+            (params.item!.frame_rate > 0 ? ` ${params.item!.frame_rate} fps` : ''),
           textColor: $r('sys.color.black'),
           bgColor: '#de9e44',
           opacity: 0.9

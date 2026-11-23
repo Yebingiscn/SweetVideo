@@ -295,8 +295,8 @@ export struct IPTVSourceDialog {
       this.preparedSignature = ''
     }
     this.testMessage = result.message + (result.invalidCount > 0 ?
-      ToolsUtil.getStringResourceArgs($r('app.string.iptv_invalid_count').id, result.invalidCount) : '') +
-      (source.epgUrl ? ToolsUtil.getStringResourceArgs($r('app.string.iptv_epg_matched').id, result.epgMatchedCount) :
+      ToolsUtil.getStringResource($r('app.string.iptv_invalid_count').id, result.invalidCount) : '') +
+      (source.epgUrl ? ToolsUtil.getStringResource($r('app.string.iptv_epg_matched').id, result.epgMatchedCount) :
         '')
     this.testing = false
   }
@@ -313,7 +313,7 @@ export struct IPTVSourceDialog {
       const saved = this.preparedSource && this.preparedSignature === signature ?
         this.preparedSource : await IPTVSourceService.refreshSource(source)
       this.onSaved?.(saved)
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.iptv_added_channels').id, saved.channelCount))
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.iptv_added_channels').id, saved.channelCount))
       this.closeDialog()
     } catch (error) {
       this.testSuccess = false

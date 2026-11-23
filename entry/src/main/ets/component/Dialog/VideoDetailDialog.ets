@@ -5,6 +5,15 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
 import { SweetAgentComponent } from '../common/SweetAgentComponent'
 
+function buildMediaAgentQuery(metadata?: VideoMetadata): string {
+  const hasVideo = VideoInfoUtil.hasVideoTrack(metadata)
+  const queryResource = hasVideo ? $r('app.string.ai_query_video') : $r('app.string.ai_query_audio')
+  const query = ToolsUtil.getStringResource(queryResource.id, metadata?.title ?? '', metadata?.format ?? '')
+  const artist = metadata?.artist?.trim()
+  return !hasVideo && artist ?
+    `${query}\n${ToolsUtil.getStringResource($r('app.string.detail_artist').id)}${artist}` : query
+}
+
 @Builder
 export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
   Column({ space: 10 }) {
@@ -15,11 +24,7 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
       .margin({ top: 5 })
     SweetAgentComponent(
       {
-        queryText: VideoInfoUtil.hasVideoTrack(metadata) ?
-          ToolsUtil.getStringResourceArgs2($r('app.string.ai_query_video').id, metadata?.title ?? '',
-            metadata?.format ?? '') :
-          ToolsUtil.getStringResourceArgs2($r('app.string.ai_query_audio').id, metadata?.title ?? '',
-            metadata?.format ?? ''),
+        queryText: buildMediaAgentQuery(metadata),
         title: ToolsUtil.getStringResource($r('app.string.ask_xiaoyi').id)
       })
 

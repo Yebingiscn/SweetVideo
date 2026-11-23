@@ -287,7 +287,7 @@ export default class KnockShareUtil {
       } finally {
         await KnockReceiveStorage.removeEmptyReceiveDirectory(payload.receivePath)
         if (saveFailed > 0) {
-          ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.knock_save_partial').id, saveFailed))
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.knock_save_partial').id, saveFailed))
         }
       }
     }).catch((error: Error) => {

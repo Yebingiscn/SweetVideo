@@ -56,7 +56,7 @@ export struct SweetAgentComponent {
           FunctionComponent({
             agentId: this.agentId,
             onError: (err: BusinessError) => {
-              salmonLogger.addLog(TAG, `test err: ${JSON.stringify(err)}, message: ${err.message}`, true)
+              salmonLogger.addLog(TAG, `agent err: ${JSON.stringify(err)}, message: ${err.message}`, true)
             },
             options: {
               title: this.title,

@@ -30,7 +30,7 @@ export struct PrivacyPolicyComponent {
     Column() {
       Scroll() {
         Text() {
-          Span(ToolsUtil.getStringResourceArgs($r('app.string.terms_privacy_doc_title').id,
+          Span(ToolsUtil.getStringResource($r('app.string.terms_privacy_doc_title').id,
             ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)))
             .fontColor($r('app.color.main_color'))
           Span('\n\n' +
@@ -76,7 +76,7 @@ export struct PrivacyPolicyComponent {
           .onClick(() => {
             PathUtils.appContext!.terminateSelf()?.catch((error: Error) => {
               ToolsUtil.showToast(
-                ToolsUtil.getStringResourceArgs($r('app.string.close_dialog_failed').id, String(error)))
+                ToolsUtil.getStringResource($r('app.string.close_dialog_failed').id, String(error)))
             })
           })
           .fontColor(Color.Red)

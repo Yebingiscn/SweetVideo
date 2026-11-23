@@ -119,7 +119,7 @@ export default class SubtitleUtil {
       if (cancelled()) {
         return ''
       }
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.subtitle_import_success').id, name))
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.subtitle_import_success').id, name))
       return name
     } catch (error) {
       if (!cancelled()) {

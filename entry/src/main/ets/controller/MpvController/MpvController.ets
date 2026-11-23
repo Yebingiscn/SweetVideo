@@ -222,6 +222,8 @@ export class MpvController implements PlayerControllerInterface {
   private postLoadTaskGeneration: number = 0
   private shaderTimer: number = 0
   private playRequestGeneration: number = 0
+  private iptvRetryTimer: number = 0
+  private iptvRetryCount: number = 0
   private pendingCompletionRequestId: number = 0
   private currentPathStack: NavPathStack | null = null
   private activeHwdecMode: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
@@ -294,6 +296,11 @@ export class MpvController implements PlayerControllerInterface {
 
   async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack,
     _windowClass?: Promise<window.Window | undefined>, _xComponentController?: XComponentController) {
+    clearTimeout(this.iptvRetryTimer)
+    if (item.date !== this.nowPlaying?.date || item.uri !== this.nowPlaying?.uri ||
+      this.isInState(MpvPlayerState.ERROR)) {
+      this.iptvRetryCount = 0
+    }
     framePreviewSession.cancelRequests(this)
     salmonLogger.addLog(TAG, "开始播放选择的视频", false)
     this.savePlaybackHistory()
@@ -315,7 +322,7 @@ export class MpvController implements PlayerControllerInterface {
     this.isSkippingEnding = false
     this.audioChannelMode = MpvAudioChannelMode.STEREO
     // 更新播放列表数据，确保使用最新的数据
-    if (!PrivacySpaceUtil.getPrivacyMode()) {
+    if (!item.is_iptv_live && !PrivacySpaceUtil.getPrivacyMode()) {
       const findResult = Preferences.findVideoByDate(PathUtils.appContext!, item.date)
       const latestItem = findResult[0]
       const videoList = findResult[1]
@@ -558,7 +565,8 @@ export class MpvController implements PlayerControllerInterface {
         AppStorage.setOrCreate('nowPlayingData',
           [this.historyPositionMs, this.nowPlaying!, this.skipHistory])
       }
-      if (this.playbackPolicy?.onPosition(duration) || !this.engineAdapter.isMediaLoaded()) {
+      if (this.nowPlaying?.is_iptv_live || this.playbackPolicy?.onPosition(duration) ||
+        !this.engineAdapter.isMediaLoaded()) {
         return
       }
       // 片尾跳过逻辑保留
@@ -717,6 +725,8 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async release(): Promise<void> {
+    clearTimeout(this.iptvRetryTimer)
+    this.iptvRetryCount = 0
     this.resetListenVideo()
     framePreviewSession.cancelRequests(this)
     this.audioPauseGuard.cancel()
@@ -1320,6 +1330,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   onWillDisappearCleanup(): void {
+    clearTimeout(this.iptvRetryTimer)
     this.playRequestGeneration++
     try {
       // 统一走存活检查，避免旧句柄在内核销毁或重建期间再次直接暂停。
@@ -1551,6 +1562,10 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   private consumeInitialStartPositionMs(): number | undefined {
+    if (this.nowPlaying?.is_iptv_live) {
+      this.initialPlayTime = undefined
+      return 0
+    }
     if (this.initialPlayTime !== undefined) {
       const resumeTime = Math.max(0, this.initialPlayTime)
       this.initialPlayTime = undefined
@@ -1941,6 +1956,11 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
     this.pendingCompletionRequestId = 0
+    const video = this.nowPlaying
+    if (video?.is_iptv_live) {
+      this.reconnectIptvAfterEof(video, requestId)
+      return
+    }
     if (this.playbackPolicy?.onCompleted() || !this.engineAdapter.isMediaLoaded()) {
       return
     }
@@ -1961,6 +1981,28 @@ export class MpvController implements PlayerControllerInterface {
         salmonLogger.addLog(TAG, `play next video failed: ${error.message}`, true)
       })
     }
+  }
+
+  private reconnectIptvAfterEof(video: VideoMetadata, requestId: number): void {
+    if (this.playbackPositionMs >= 30000) {
+      this.iptvRetryCount = 0
+    }
+    const pathStack = this.currentPathStack
+    if (!pathStack || this.iptvRetryCount >= 2) {
+      this.handleLoadFailure(`IPTV 直播流结束，已停止重连 request=${requestId}`)
+      return
+    }
+    this.transitionTo(MpvPlayerState.COMPLETED)
+    AVSessionUtil.updatePlaybackSessionState(false, this.playTime, this.repeatMode, this.speed)
+    const generation = this.playRequestGeneration
+    const attempt = ++this.iptvRetryCount
+    salmonLogger.addLog(TAG, `IPTV 直播流结束，准备重连当前频道 request=${requestId}, attempt=${attempt}`, false)
+    this.iptvRetryTimer = setTimeout(() => {
+      if (generation === this.playRequestGeneration && this.isInState(MpvPlayerState.COMPLETED) &&
+        this.nowPlaying === video) {
+        void this.playChooseVideo(video, pathStack)
+      }
+    }, 750 * attempt)
   }
 
   setSuperResolutionState(enable: boolean): void {
@@ -2037,7 +2079,8 @@ export class MpvController implements PlayerControllerInterface {
     try {
       mpvRegisterBufferingStateCallback((buffering: boolean) => {
         if (!this.engineAdapter.isMediaLoaded() ||
-          this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
+          this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE) ||
+          (this.nowPlaying?.is_iptv_live && this.isInState(MpvPlayerState.COMPLETED))) {
           return
         }
         if (buffering) {

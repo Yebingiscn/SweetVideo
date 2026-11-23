@@ -446,7 +446,7 @@ export struct HuaweiDrivePage {
     const params = new url.URLParams(requestUrl.substring(startIndex))
     const error = params.get('error')
     if (error) {
-      this.errorMessage = params.get('error_description') ?? ToolsUtil.getStringResourceArgs($r('app.string.huawei_auth_failed').id, error)
+      this.errorMessage = params.get('error_description') ?? ToolsUtil.getStringResource($r('app.string.huawei_auth_failed').id, error)
       return
     }
     if (params.get('state') !== this.oauthState) {
@@ -531,7 +531,7 @@ export struct HuaweiDrivePage {
     if (total <= 0) {
       return ToolsUtil.getStringResource($r('app.string.cloud_capacity_unavailable').id)
     }
-    return ToolsUtil.getStringResourceArgs2($r('app.string.cloud_used_of_total').id, ToolsUtil.formatFileSize(used), ToolsUtil.formatFileSize(total))
+    return ToolsUtil.getStringResource($r('app.string.cloud_used_of_total').id, ToolsUtil.formatFileSize(used), ToolsUtil.formatFileSize(total))
   }
 
   private fileDescription(file: HuaweiDriveFile): string {

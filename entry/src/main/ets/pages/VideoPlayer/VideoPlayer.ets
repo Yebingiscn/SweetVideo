@@ -80,7 +80,7 @@ import PlaybackExitCoordinator from '../../utils/PlaybackExitCoordinator'
 import { salmonLogger } from 'salmonlogger'
 import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
 import AVSessionUtil from '../../utils/AVSessionUtil'
-import { Available, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { MediaSmartGestureSession } from '../../utils/MediaSmartGestureUtil'
 import { motion } from '@kit.MultimodalAwarenessKit'
 import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
@@ -220,7 +220,7 @@ export struct VideoPlayer {
           return
         }
         this.playbackSession.sleepTimer.start(minutes * 60000)
-        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.timer_set_minutes').id, minutes))
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.timer_set_minutes').id, minutes))
       }
     }),
     cornerRadius: 20,
@@ -230,7 +230,7 @@ export struct VideoPlayer {
     onWillAppear: () => this.onKeyboardOverlay('sleep-timer', true),
     onDidDisappear: () => this.onKeyboardOverlay('sleep-timer', false)
   })
-  @Available({ minApiVersion: 'HarmonyOS 26.0.0' }) private smartGestures: MediaSmartGestureSession =
+  private smartGestures: MediaSmartGestureSession =
     new MediaSmartGestureSession({
       canHandle: (): boolean => this.isPlayerConfigured && !this.isPageDisappearing &&
         !this.playbackSession.isDisposed && !this.playbackSession.isSwitching && !this.player.isLock &&
@@ -360,7 +360,9 @@ export struct VideoPlayer {
       previewOnInput: true,
       getCurrentValue: (): number => this.danmakuOffsetInitialMs,
       onOffsetPreview: (value: number): void => {
-        if (this.isDanmakuOffsetCurrent()) this.danmaku.offsetMs = value
+        if (this.isDanmakuOffsetCurrent()) {
+          this.danmaku.offsetMs = value
+        }
       },
       onCloseButton: (): void => this.danmakuOffsetDialog.close(),
       confirm: (value: number): void => this.confirmDanmakuOffset(value)
@@ -883,6 +885,7 @@ export struct VideoPlayer {
       return false
     })
     .onShown(() => {
+      WindowUtil.setPlaybackTitleButtons(this, true)
       if (this.playbackSession.sleepTimer.checkDeadline() || this.playbackSession.isClosing ||
         this.isPageDisappearing) {
         return
@@ -908,6 +911,7 @@ export struct VideoPlayer {
       this.restoreAfterAppBackground()
     })
     .onHidden(() => {
+      WindowUtil.setPlaybackTitleButtons(this, false)
       this.keyboard.reset()
       this.controlsIdle.stop()
       this.controlTouches.clear()
@@ -1130,7 +1134,7 @@ export struct VideoPlayer {
       onOffset: () => this.openAudioOffset(),
       onAudioEffects: () => {
         if (this.player instanceof AVPlayerController && !this.player.supportsAudioEffects) {
-          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.system_effect_api26_required').id))
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.system_effect_pcm_required').id))
           return
         }
         this.audioEffectDialog.open()
@@ -1972,7 +1976,9 @@ export struct VideoPlayer {
         !(player.playerState === MpvPlayerState.BUFFERING && player.playbackPositionMs > 0)) {
         return
       }
-      if (player instanceof MpvController) player.savePlaybackHistory()
+      if (player instanceof MpvController) {
+        player.savePlaybackHistory()
+      }
     }
   }
 
@@ -2051,7 +2057,7 @@ export struct VideoPlayer {
       salmonLogger.addLog(TAG, `切换播放引擎失败: ${error}`, true)
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.switch_player_engine_failed').id))
       throw new Error(
-        ToolsUtil.getStringResourceArgs($r('app.string.switch_player_engine_failed_detail').id, String(error)))
+        ToolsUtil.getStringResource($r('app.string.switch_player_engine_failed_detail').id, String(error)))
     }
   }
 
@@ -2120,7 +2126,7 @@ export struct VideoPlayer {
       const loop = this.playbackSession.abLoop
       ToolsUtil.showToast(point === 'clear' ?
         ToolsUtil.getStringResource($r('app.string.cancel_ab_time_success').id) :
-        ToolsUtil.getStringResourceArgs(point === 'A' ? $r('app.string.set_point_a_time').id :
+        ToolsUtil.getStringResource(point === 'A' ? $r('app.string.set_point_a_time').id :
           $r('app.string.set_point_b_time').id, TimeUtil.convertMSToHHMMSS(point === 'A' ? loop.pointA : loop.pointB)))
     } catch (error) {
       salmonLogger.addLog(TAG, `保存 AB 点位失败: ${error}`, true)
@@ -2134,7 +2140,9 @@ export struct VideoPlayer {
   }
 
   private openAudioOffset(): void {
-    if (this.isPageDisappearing || this.playbackSession.isClosing || this.audioOffsetEdit) return
+    if (this.isPageDisappearing || this.playbackSession.isClosing || this.audioOffsetEdit) {
+      return
+    }
     if (!(this.player instanceof MpvController)) {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.audio_track_offset_mpv_required').id))
       return
@@ -2152,7 +2160,9 @@ export struct VideoPlayer {
   private previewAudioOffset(value: number): void {
     const edit = this.audioOffsetEdit
     const player = this.audioOffsetPlayer
-    if (edit && player && player === this.player) player.audioController.previewAudioOffset(edit, value)
+    if (edit && player && player === this.player) {
+      player.audioController.previewAudioOffset(edit, value)
+    }
   }
 
   private confirmAudioOffset(value: number): void {
@@ -2187,7 +2197,9 @@ export struct VideoPlayer {
 
   private openDanmakuOffset(): void {
     if (this.isPageDisappearing || this.playbackSession.isClosing || this.danmakuOffsetItems ||
-      this.danmaku.items.length === 0) return
+      this.danmaku.items.length === 0) {
+      return
+    }
     this.danmakuOffsetMedia = this.danmakuMediaKey()
     this.danmakuOffsetItems = this.danmaku.items
     this.danmakuOffsetInitialMs = this.danmaku.offsetMs
@@ -2203,13 +2215,17 @@ export struct VideoPlayer {
       this.showTimeOffsetRange(600000)
       return
     }
-    if (this.isDanmakuOffsetCurrent()) this.danmaku.offsetMs = value
+    if (this.isDanmakuOffsetCurrent()) {
+      this.danmaku.offsetMs = value
+    }
     this.danmakuOffsetItems = undefined
     this.danmakuOffsetDialog.close()
   }
 
   private cancelDanmakuOffsetEdit(): void {
-    if (this.isDanmakuOffsetCurrent()) this.danmaku.offsetMs = this.danmakuOffsetInitialMs
+    if (this.isDanmakuOffsetCurrent()) {
+      this.danmaku.offsetMs = this.danmakuOffsetInitialMs
+    }
     this.danmakuOffsetItems = undefined
   }
 
@@ -2225,7 +2241,7 @@ export struct VideoPlayer {
   }
 
   private showTimeOffsetRange(max: number): void {
-    ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.time_offset_range').id, max))
+    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.time_offset_range').id, max))
   }
 
   private resumePlaybackAfterSubtitleOffsetIfNeeded(): void {

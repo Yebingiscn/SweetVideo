@@ -209,7 +209,7 @@ export default class HuaweiDriveUtil {
       })
       if (response.responseCode < 200 || response.responseCode >= 300) {
         throw new HuaweiDriveError(
-          ToolsUtil.getStringResourceArgs($r('app.string.huawei_oauth_failed').id, response.responseCode),
+          ToolsUtil.getStringResource($r('app.string.huawei_oauth_failed').id, response.responseCode),
           response.responseCode)
       }
       return JSON.parse(response.result as string) as HuaweiDriveTokenResponse
@@ -246,7 +246,7 @@ export default class HuaweiDriveUtil {
       }
       if (response.responseCode < 200 || response.responseCode >= 300) {
         throw new HuaweiDriveError(
-          ToolsUtil.getStringResourceArgs($r('app.string.huawei_drive_request_failed').id, response.responseCode),
+          ToolsUtil.getStringResource($r('app.string.huawei_drive_request_failed').id, response.responseCode),
           response.responseCode)
       }
       return JSON.parse(response.result as string) as T

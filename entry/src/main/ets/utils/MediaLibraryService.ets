@@ -366,7 +366,7 @@ export default class MediaLibraryService {
         fs.unlink(PathUtils.videoPath + videoMetaData.date, async (unlinkErr) => {
           if (unlinkErr) {
             ToolsUtil.showToast(
-              ToolsUtil.getStringResourceArgs2($r('app.string.delete_video_failed_detail').id, videoMetaData.title,
+              ToolsUtil.getStringResource($r('app.string.delete_video_failed_detail').id, videoMetaData.title,
                 unlinkErr.message))
           }
           Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, videoMetaDataEncryption)
@@ -459,7 +459,7 @@ export default class MediaLibraryService {
         salmonLogger.addLog(TAG, 'delete failed: ' + error.code + ':' + error.message, true)
       }
       ToolsUtil.showToast(
-        ToolsUtil.getStringResourceArgs2($r('app.string.delete_video_failed_detail').id, title, String(err)))
+        ToolsUtil.getStringResource($r('app.string.delete_video_failed_detail').id, title, String(err)))
     }
   }
 

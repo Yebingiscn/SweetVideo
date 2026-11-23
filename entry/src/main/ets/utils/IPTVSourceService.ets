@@ -30,7 +30,7 @@ export default class IPTVSourceService {
       return {
         success: result.channels.length > 0,
         message: result.channels.length > 0 ?
-          ToolsUtil.getStringResourceArgs2($r('app.string.test_success_channels').id, result.channels.length,
+          ToolsUtil.getStringResource($r('app.string.test_success_channels').id, result.channels.length,
             result.groupCount) : ToolsUtil.getStringResource($r('app.string.iptv_no_channels').id),
         channelCount: result.channels.length,
         groupCount: result.groupCount,

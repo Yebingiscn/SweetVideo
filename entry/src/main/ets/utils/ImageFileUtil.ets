@@ -30,7 +30,7 @@ export default class ImageFileUtil {
         await new Promise<void>((resolve, reject) => {
           fs.unlink(PathUtils.photoPath! + imageName, (unlinkErr) => {
             if (unlinkErr) {
-              ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.delete_failed_reason').id, unlinkErr.message))
+              ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_failed_reason').id, unlinkErr.message))
               reject(unlinkErr)
             } else {
               ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_success').id))

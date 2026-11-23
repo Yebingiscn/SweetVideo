@@ -35,7 +35,7 @@ export default class KnockReceiveStorage {
             if ((error as BusinessError).code === 13900015) {
               continue
             }
-            throw new Error(ToolsUtil.getStringResourceArgs2($r('app.string.knock_move_failed_detail').id, (error as BusinessError).code, (error as BusinessError).message))
+            throw new Error(ToolsUtil.getStringResource($r('app.string.knock_move_failed_detail').id, (error as BusinessError).code, (error as BusinessError).message))
           }
           // 先生成有效 URI，再删除中转文件；转存后的条目始终引用公共文件。
           const destinationUri = fileUri.getUriFromPath(destination)
@@ -52,7 +52,7 @@ export default class KnockReceiveStorage {
         }
       }
     } catch (error) {
-      throw new Error(ToolsUtil.getStringResourceArgs($r('app.string.knock_save_failed').id, String(error)))
+      throw new Error(ToolsUtil.getStringResource($r('app.string.knock_save_failed').id, String(error)))
     }
   }
 

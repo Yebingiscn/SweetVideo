@@ -110,7 +110,7 @@ export struct PrivacySpaceErrorList {
       if (this.pageActive) {
         await this.refreshErrorList()
         if (completed && this.pageActive) {
-          ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2(
+          ToolsUtil.showToast(ToolsUtil.getStringResource(
             (isCancelled() ? $r('app.string.privacy_recovery_cancelled') :
               $r('app.string.privacy_recovery_result')).id, recoveredCount, this.failedCount))
         }

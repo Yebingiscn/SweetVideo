@@ -937,7 +937,7 @@ export class AVPlayerController implements PlayerControllerInterface {
         } catch (error) {
           salmonLogger.addLog(TAG, "打开视频文件失败：" + error, true)
           ToolsUtil.showToast(
-            ToolsUtil.getStringResourceArgs($r('app.string.video_open_failed_invalid').id, String(error)),
+            ToolsUtil.getStringResource($r('app.string.video_open_failed_invalid').id, String(error)),
             ToolsUtil.TOAST_LONG_MS)
           pathStack && pathStack.pop()
           return
@@ -1576,7 +1576,7 @@ export class AVPlayerController implements PlayerControllerInterface {
         return
       }
       salmonLogger.addLog(TAG, "打开视频文件失败：" + error, true)
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.video_open_failed_invalid').id, String(error)),
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_open_failed_invalid').id, String(error)),
         ToolsUtil.TOAST_LONG_MS)
       pathStack.pop()
       return
@@ -1993,10 +1993,10 @@ export class AVPlayerController implements PlayerControllerInterface {
         return false
       }
       salmonLogger.addLog(TAG, "打开视频文件失败：" + error, true)
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.video_open_failed_invalid').id, String(error)),
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_open_failed_invalid').id, String(error)),
         ToolsUtil.TOAST_LONG_MS)
       pathStack.pop()
-      throw new Error(ToolsUtil.getStringResourceArgs($r('app.string.open_video_file_failed').id, String(error)))
+      throw new Error(ToolsUtil.getStringResource($r('app.string.open_video_file_failed').id, String(error)))
     }
     this.setRotation()
     salmonLogger.addLog(TAG, "计算播放区域尺寸完成", false)

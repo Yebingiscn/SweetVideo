@@ -168,10 +168,10 @@ export default class SelectFileUtil {
       }
       targetFile = fs.openSync(documentSaveResult[0], fs.OpenMode.READ_WRITE)
       await fs.copyFile(sourceFile.fd, targetFile.fd)
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.export_success_detail').id,
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.export_success_detail').id,
         targetFile?.name ?? '', targetFile?.path ?? ''), ToolsUtil.TOAST_LONG_MS)
     } catch (error) {
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.export_failed_reason').id, String(error)),
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.export_failed_reason').id, String(error)),
         ToolsUtil.TOAST_LONG_MS)
     } finally {
       SelectFileUtil.closeFileSafely(sourceFile, '导出源文件')

@@ -3425,8 +3425,8 @@
       "value": "Invalid input: enter an integer between -50000 and 50000"
     },
     {
-      "name": "system_effect_api26_required",
-      "value": "System player audio effects require API 26 and device PCM post-processing support"
+      "name": "system_effect_pcm_required",
+      "value": "System player audio effects require device support for PCM post-processing"
     },
     {
       "name": "subtitle_saved_load_failed",

@@ -354,7 +354,7 @@ export struct CrashPage {
     if (canIUse('SystemCapability.Collaboration.SystemShare')) {
       const appVersion = await ToolsUtil.getVersionName()
       const infoText =
-        ToolsUtil.getStringResourceArgs5($r('app.string.feedback_qq_group').id, deviceInfo.osFullName, appVersion,
+        ToolsUtil.getStringResource($r('app.string.feedback_qq_group').id, deviceInfo.osFullName, appVersion,
           deviceInfo.productModel, deviceInfo.sdkApiVersion, ToolsUtil.getThermalLevel())
       const fullText = infoText + '\n' + text
       try {
@@ -388,7 +388,7 @@ export struct CrashPage {
         const errorMsg = `分享失败: code=${err.code}, message=${err.message}`
         salmonLogger.addLog(this.pathStack.getAllPathName()[0], errorMsg, true)
         salmonLogger.addLog(TAG, errorMsg, true)
-        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.share_failed_prefix').id, err.message))
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.share_failed_prefix').id, err.message))
       }
     } else {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.feature_not_supported').id))

@@ -156,7 +156,7 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
     }
     await MediaLibraryService.deleteVideoResource(item, deleteType === DeleteType.RECENT ? DeleteType.SOFT : deleteType)
     if (recycle) {
-      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.moved_to_recycle').id, item.title))
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.moved_to_recycle').id, item.title))
     }
   }
 }

@@ -1484,7 +1484,7 @@ export struct PrivacySpace { // 隐私空间页
       }
       if (this.pageActive) {
         this.refreshLibrary()
-        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2(
+        ToolsUtil.showToast(ToolsUtil.getStringResource(
           (result.cancelled ? $r('app.string.privacy_batch_cancelled') :
             folderDate !== undefined && result.failedCount > 0 ?
               $r('app.string.privacy_folder_delete_incomplete') : operation === 'delete' ?

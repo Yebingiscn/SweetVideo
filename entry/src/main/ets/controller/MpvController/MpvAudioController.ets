@@ -664,7 +664,7 @@ export class MpvAudioController implements AudioControllerInterface {
       const result = mpvCommand(this.engine.handle, ['set', 'options/' + item[0], item[1]]) as MpvCommandResult
       if (!result?.success) {
         throw new Error(
-          ToolsUtil.getStringResourceArgs($r('app.string.usb_output_setup_failed').id, item[0]))
+          ToolsUtil.getStringResource($r('app.string.usb_output_setup_failed').id, item[0]))
       }
     }
     this.state.speed = 1

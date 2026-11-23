@@ -27,7 +27,7 @@ export default class IPTVSourceReader {
       }, (error: BusinessError, response: http.HttpResponse) => {
         if (error) {
           request.destroy()
-          reject(new Error(ToolsUtil.getStringResourceArgs($r('app.string.request_failed').id, error.message || error.code)))
+          reject(new Error(ToolsUtil.getStringResource($r('app.string.request_failed').id, error.message || error.code)))
           return
         }
         const code = response.responseCode
@@ -143,7 +143,7 @@ export default class IPTVSourceReader {
             break
           }
           const gzipError = await gzip.gzerror()
-          throw new Error(ToolsUtil.getStringResourceArgs($r('app.string.iptv_gzip_failed').id, gzipError.statusMsg || gzipError.status))
+          throw new Error(ToolsUtil.getStringResource($r('app.string.iptv_gzip_failed').id, gzipError.statusMsg || gzipError.status))
         }
       }
 

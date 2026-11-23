@@ -90,7 +90,7 @@ export struct MoreSettingPage {
               try {
                 const missingFileSum = await FileFolderUtil.cleanInvalidFiles(PathUtils.appContext!)
                 ToolsUtil.showToast(missingFileSum > 0 ?
-                  ToolsUtil.getStringResourceArgs($r('app.string.deleted_files_count').id, missingFileSum) :
+                  ToolsUtil.getStringResource($r('app.string.deleted_files_count').id, missingFileSum) :
                   ToolsUtil.getStringResource($r('app.string.no_invalid_files').id))
               } catch (_error) {
                 salmonLogger.addLog(TAG, 'Could not clean unreferenced media files', true)

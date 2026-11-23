@@ -374,7 +374,7 @@ export default class WantProcess {
         salmonLogger.addLog(TAG, '成功打开应用市场评论页', false)
       })
       ?.catch((error: BusinessError) => {
-        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.open_app_market_failed').id, String(error)))
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.open_app_market_failed').id, String(error)))
         salmonLogger.addLog(TAG, '打开应用市场评论页失败，原因是：' + error, true)
       })
   }

@@ -21,6 +21,8 @@ export class WindowUtil {
   private static trackedWindowStatus: window.WindowStatusType = window.WindowStatusType.FLOATING
   private static previousTrackedWindowStatus: window.WindowStatusType = window.WindowStatusType.FLOATING
   private static lastStatusChangeTime: number = 0
+  private static playbackTitleButtonsOwner?: Object
+  private static originalTitleButtonStyle?: window.DecorButtonStyle
 
   public static getInstance() {
     if (!WindowUtil.instance) {
@@ -126,11 +128,16 @@ export class WindowUtil {
       : window.Orientation.AUTO_ROTATION_RESTRICTED
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   public static async exitFullScreen(windowClass: Promise<window.Window | undefined>,
     screenWidth: number, screenHeight: number): Promise<void> {
-    if (HiCar.enabled || !canIUse('SystemCapability.Window.SessionManager')) return
+    if (HiCar.enabled || !canIUse('SystemCapability.Window.SessionManager')) {
+      return
+    }
     const win = await windowClass
-    if (!win) return
+    if (!win) {
+      return
+    }
     try {
       if (Pc.pcMode) {
         const status = win.getWindowStatus()
@@ -240,7 +247,7 @@ export class WindowUtil {
       WindowUtil.isInit = true
       await WindowUtil.windowClass.setWindowLayoutFullScreen(true)
       if (canIUse('SystemCapability.Window.SessionManager')) {
-        WindowUtil.windowClass.setWindowDecorVisible(true)
+        WindowUtil.windowClass.setWindowDecorVisible(false)
         if (canIUse('SystemCapability.Applications.Settings.Core')) {
           settings.registerKeyObserver(context, 'window_pcmode_switch_status',
             settings.domainName.USER_PROPERTY, () => WindowUtil.updatePCMode(context))
@@ -274,7 +281,15 @@ export class WindowUtil {
           WindowUtil.previousTrackedWindowStatus = WindowUtil.trackedWindowStatus
           WindowUtil.trackedWindowStatus = status
           WindowUtil.lastStatusChangeTime = Date.now()
+          WindowUtil.updateAvoidArea(WindowUtil.windowClass!)
         })
+        try {
+          WindowUtil.windowClass.on('windowTitleButtonRectChange', (rect: window.TitleButtonRect): void => {
+            WindowUtil.updateAvoidArea(WindowUtil.windowClass!, rect)
+          })
+        } catch (error) {
+          salmonLogger.addLog(TAG, '监听窗口三键区域失败，错误码 ' + (error as BusinessError).code, true)
+        }
       }
     } catch (error) {
       salmonLogger.addLog(TAG, 'Window initialization error', true)
@@ -337,8 +352,67 @@ export class WindowUtil {
     }
   }
 
+  public static setPlaybackTitleButtons(owner: Object, visible: boolean): void {
+    if (visible) {
+      WindowUtil.playbackTitleButtonsOwner = owner
+    } else if (WindowUtil.playbackTitleButtonsOwner === owner) {
+      WindowUtil.playbackTitleButtonsOwner = undefined
+    } else {
+      return
+    }
+    WindowUtil.updateTitleButtonStyle()
+  }
+
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
-  private static updateAvoidArea(windowClass: window.Window) {
+  private static updateTitleButtonStyle(): void {
+    const mainWindow = WindowUtil.windowClass
+    if (!mainWindow || !canIUse('SystemCapability.Window.SessionManager')) {
+      return
+    }
+    try {
+      const original = WindowUtil.originalTitleButtonStyle
+      if (WindowUtil.playbackTitleButtonsOwner) {
+        if (!original && SafeHeight.titleButtonInset > 0) {
+          const style = mainWindow.getDecorButtonStyle()
+          mainWindow.setDecorButtonStyle({ colorMode: ConfigurationConstant.ColorMode.COLOR_MODE_DARK })
+          WindowUtil.originalTitleButtonStyle = style
+          SafeHeight.lightTitleButtons = true
+        }
+      } else if (original) {
+        mainWindow.setDecorButtonStyle(original)
+        WindowUtil.originalTitleButtonStyle = undefined
+        SafeHeight.lightTitleButtons = false
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, '设置窗口三键配色失败，错误码 ' + (error as BusinessError).code, true)
+    }
+  }
+
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
+  private static getTitleButtonInset(mainWindow: window.Window, rect?: window.TitleButtonRect): number {
+    if (!canIUse('SystemCapability.Window.SessionManager')) {
+      return 0
+    }
+    try {
+      const status = mainWindow.getWindowStatus()
+      if ((status !== window.WindowStatusType.FLOATING && status !== window.WindowStatusType.MAXIMIZE &&
+        status !== window.WindowStatusType.SPLIT_SCREEN) || (!Pc.pcMode && !mainWindow.isInFreeWindowMode())) {
+        return 0
+      }
+      // TitleButtonRect is in vp and relative to the top-right corner.
+      const buttons = rect ?? mainWindow.getTitleButtonRect()
+      return buttons.width > 0 && buttons.height > 0 ? Math.max(0, buttons.top + buttons.height) : 0
+    } catch (error) {
+      salmonLogger.addLog(TAG, '获取窗口三键区域失败，错误码 ' + (error as BusinessError).code, true)
+      return 0
+    }
+  }
+
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
+  private static updateAvoidArea(windowClass: window.Window, titleButtons?: window.TitleButtonRect) {
+    const titleButtonInset = WindowUtil.getTitleButtonInset(windowClass, titleButtons)
+    SafeHeight.titleButtonInset = titleButtonInset
+    WindowUtil.updateTitleButtonStyle()
     try {
       let cutOut = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_CUTOUT)
       let system = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
@@ -352,8 +426,9 @@ export class WindowUtil {
       HiCar.bottomInset =
         uiContext?.px2vp(Math.max(cutOut.bottomRect.height, system.bottomRect.height, nav.bottomRect.height)) || 0
       if (canIUse('SystemCapability.Window.SessionManager')) {
-        SafeHeight.topSafeHeight = Math.max(uiContext?.px2vp(cutOut.topRect.height * 1.4)!,
+        const topInset = Math.max(uiContext?.px2vp(cutOut.topRect.height * 1.4)!,
           uiContext?.px2vp(system.topRect.height)!, Pc.pcMode ? 0 : windowClass.getWindowDecorHeight())
+        SafeHeight.updateTopSafeHeight(topInset)
       }
       SafeHeight.bottomSafeHeight = uiContext?.px2vp(Math.max(nav.bottomRect.height, system.bottomRect.height * 1.4,
         cutOut.bottomRect.height * 1.4)) || 0

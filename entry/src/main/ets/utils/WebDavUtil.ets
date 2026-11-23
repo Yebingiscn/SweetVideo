@@ -1,7 +1,7 @@
 import { parseWebDavDirectory } from './WebDavParseTask'
 import preferences from '@ohos.data.preferences'
 import asset from '@ohos.security.asset'
-import { util, taskpool } from '@kit.ArkTS'
+import { taskpool, util } from '@kit.ArkTS'
 import { http } from '@kit.NetworkKit'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
@@ -24,41 +24,65 @@ export class WebDavRequest {
   private tasks: Set<taskpool.Task> = new Set()
 
   async request(url: string, options: http.HttpRequestOptions): Promise<http.HttpResponse> {
-    if (this.closed) throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_request_cancelled').id))
+    if (this.closed) {
+      throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_request_cancelled').id))
+    }
     const request = http.createHttp()
     this.requests.add(request)
     try {
       const response = await request.request(url, options)
-      if (this.closed) throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_request_cancelled').id))
+      if (this.closed) {
+        throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_request_cancelled').id))
+      }
       return response
     } catch (_) {
-      throw new Error(this.closed ? ToolsUtil.getStringResource($r('app.string.webdav_request_cancelled').id) : ToolsUtil.getStringResource($r('app.string.webdav_request_failed_generic').id))
+      throw new Error(this.closed ? ToolsUtil.getStringResource($r('app.string.webdav_request_cancelled').id) :
+        ToolsUtil.getStringResource($r('app.string.webdav_request_failed_generic').id))
     } finally {
       if (this.requests.delete(request)) {
-        try { request.destroy() } catch (_) {}
+        try {
+          request.destroy()
+        } catch (_) {
+        }
       }
     }
   }
 
   async parseDirectory(text: string, url: string, folder: string): Promise<WebDavEntry[]> {
-    if (this.closed) throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_request_cancelled').id))
+    if (this.closed) {
+      throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_request_cancelled').id))
+    }
     const task = new taskpool.Task(parseWebDavDirectory, text, url, folder)
     this.tasks.add(task)
     try {
       const entries = await taskpool.execute(task, taskpool.Priority.HIGH) as WebDavEntry[]
-      if (this.closed) throw new Error('Cancelled')
+      if (this.closed) {
+        throw new Error('Cancelled')
+      }
       return entries
     } catch (_) {
       throw new Error(ToolsUtil.getStringResource(this.closed ?
         $r('app.string.webdav_request_cancelled').id : $r('app.string.webdav_invalid_xml').id))
-    } finally { this.tasks.delete(task) }
+    } finally {
+      this.tasks.delete(task)
+    }
   }
 
   close(): void {
     this.closed = true
-    this.tasks.forEach((task: taskpool.Task) => { try { taskpool.cancel(task) } catch (_) {} })
+    this.tasks.forEach((task: taskpool.Task) => {
+      try {
+        taskpool.cancel(task)
+      } catch (_) {
+      }
+    })
     this.tasks.clear()
-    this.requests.forEach((request: http.HttpRequest) => { try { request.destroy() } catch (_) {} })
+    this.requests.forEach((request: http.HttpRequest) => {
+      try {
+        request.destroy()
+      } catch (_) {
+      }
+    })
     this.requests.clear()
   }
 }
@@ -71,7 +95,9 @@ export default class WebDavUtil {
     try {
       return JSON.parse(preferences.getPreferencesSync(PathUtils.appContext!, { name: 'webdav_servers' })
         .getSync('servers', '[]') as string) as WebDavServer[]
-    } catch (_) { throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_config_read_failed').id)) }
+    } catch (_) {
+      throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_config_read_failed').id))
+    }
   }
 
   private static alias(id: string): Uint8Array {
@@ -84,10 +110,14 @@ export default class WebDavUtil {
     query.set(asset.Tag.RETURN_TYPE, asset.ReturnType.ALL)
     try {
       const values = await asset.query(query)
-      if (!values.length) throw new Error('missing')
+      if (!values.length) {
+        throw new Error('missing')
+      }
       return JSON.parse(util.TextDecoder.create('utf-8').decodeToString(
         values[0].get(asset.Tag.SECRET) as Uint8Array)) as string
-    } catch (_) { throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_password_read_failed').id)) }
+    } catch (_) {
+      throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_password_read_failed').id))
+    }
   }
 
   static async save(server: WebDavServer, password: string): Promise<void> {
@@ -99,7 +129,11 @@ export default class WebDavUtil {
     attributes.set(asset.Tag.SECRET, new util.TextEncoder().encodeInto(JSON.stringify(password)))
     attributes.set(asset.Tag.ACCESSIBILITY, asset.Accessibility.DEVICE_FIRST_UNLOCKED)
     attributes.set(asset.Tag.CONFLICT_RESOLUTION, asset.ConflictResolution.OVERWRITE)
-    try { await asset.add(attributes) } catch (_) { throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_password_save_failed').id)) }
+    try {
+      await asset.add(attributes)
+    } catch (_) {
+      throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_password_save_failed').id))
+    }
     servers.push(server)
     await WebDavUtil.write(servers)
   }
@@ -108,75 +142,136 @@ export default class WebDavUtil {
     await WebDavUtil.write(WebDavUtil.servers().filter((item: WebDavServer) => item.id !== id))
     const query: asset.AssetMap = new Map()
     query.set(asset.Tag.ALIAS, WebDavUtil.alias(id))
-    try { await asset.remove(query) } catch (_) { salmonLogger.addLog('WebDAV', '连接已删除，凭据清理失败', true) }
+    try {
+      await asset.remove(query)
+    } catch (_) {
+      salmonLogger.addLog('WebDAV', '连接已删除，凭据清理失败', true)
+    }
   }
 
   private static async write(servers: WebDavServer[]): Promise<void> {
     try {
       const store = preferences.getPreferencesSync(PathUtils.appContext!, { name: 'webdav_servers' })
-      store.putSync('servers', JSON.stringify(servers)); await store.flush()
-    } catch (_) { throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_config_save_failed').id)) }
+      store.putSync('servers', JSON.stringify(servers));
+      await store.flush()
+    } catch (_) {
+      throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_config_save_failed').id))
+    }
   }
 
   static headers(user: string, password: string): Record<string, string> {
-    if (/[\r\n\u0000]/.test(user + password) || user.includes(':')) throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_credentials_invalid').id))
-    if (!user && password) throw new Error(ToolsUtil.getStringResource($r('app.string.password_needs_user').id))
+    if (/[\r\n\u0000]/.test(user + password) || user.includes(':')) {
+      throw new Error(
+        ToolsUtil.getStringResource($r('app.string.webdav_credentials_invalid').id))
+    }
+    if (!user && password) {
+      throw new Error(ToolsUtil.getStringResource($r('app.string.password_needs_user').id))
+    }
     const headers: Record<string, string> = {}
-    if (user) headers['Authorization'] = 'Basic ' + new util.Base64Helper().encodeToStringSync(
-      new util.TextEncoder().encodeInto(`${user}:${password}`))
+    if (user) {
+      headers['Authorization'] = 'Basic ' + new util.Base64Helper().encodeToStringSync(
+        new util.TextEncoder().encodeInto(`${user}:${password}`))
+    }
     return headers
   }
 
   static checkStatus(code: number, expected: number): void {
-    if (code === expected) return
-    if (code === 401) throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_auth_failed').id))
-    if (code === 403) throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_forbidden').id))
-    if (code === 404) throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_not_found').id))
-    if (code === 405 || code === 501) throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_browsing_unsupported').id))
-    throw new Error(ToolsUtil.getStringResourceArgs($r('app.string.webdav_request_failed').id, code))
+    if (code === expected) {
+      return
+    }
+    if (code === 401) {
+      throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_auth_failed').id))
+    }
+    if (code === 403) {
+      throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_forbidden').id))
+    }
+    if (code === 404) {
+      throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_not_found').id))
+    }
+    if (code === 405 || code === 501) {
+      throw new Error(
+        ToolsUtil.getStringResource($r('app.string.webdav_browsing_unsupported').id))
+    }
+    throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_request_failed').id, code))
   }
 
   static async list(server: WebDavServer, folder: string, password?: string,
     owner?: WebDavRequest): Promise<WebDavEntry[]> {
     const request = owner ?? new WebDavRequest()
     try {
-      const headers = WebDavUtil.headers(server.user, password ?? (server.user ? await WebDavUtil.password(server.id) : ''))
-      headers['Depth'] = '1'; headers['Content-Type'] = 'application/xml; charset=utf-8'
+      const headers =
+        WebDavUtil.headers(server.user, password ?? (server.user ? await WebDavUtil.password(server.id) : ''))
+      headers['Depth'] = '1';
+      headers['Content-Type'] = 'application/xml; charset=utf-8'
       const url = WebDavAddress.url(server, folder).replace(/\/?$/, '/')
       // POST supplies an XML body; customMethod overrides the wire method to PROPFIND.
-      const response = await request.request(url, { method: http.RequestMethod.POST, customMethod: 'PROPFIND', header: headers,
+      const response = await request.request(url, {
+        method: http.RequestMethod.POST,
+        customMethod: 'PROPFIND',
+        header: headers,
         extraData: '<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getcontentlength/></d:prop></d:propfind>',
-        expectDataType: http.HttpDataType.STRING, usingCache: false, maxRedirects: 0,
-        connectTimeout: 5000, readTimeout: 15000, maxLimit: 8 * 1024 * 1024 })
+        expectDataType: http.HttpDataType.STRING,
+        usingCache: false,
+        maxRedirects: 0,
+        connectTimeout: 5000,
+        readTimeout: 15000,
+        maxLimit: 8 * 1024 * 1024
+      })
       WebDavUtil.checkStatus(response.responseCode, 207)
       return await request.parseDirectory(response.result as string, url, folder)
     } catch (error) {
       salmonLogger.addLog('WebDAV', '目录读取失败', true)
-      throw error instanceof Error ? error : new Error(ToolsUtil.getStringResource($r('app.string.webdav_directory_parse_failed').id))
-    } finally { if (!owner) request.close() }
+      throw error instanceof Error ? error :
+        new Error(ToolsUtil.getStringResource($r('app.string.webdav_directory_parse_failed').id))
+    } finally {
+      if (!owner) {
+        request.close()
+      }
+    }
   }
 
   static async source(uri: string): Promise<WebDavSource> {
     const match = /^webdav:\/\/([0-9a-f-]{36})(\/.*)$/i.exec(uri)
-    if (!match) throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_invalid_file_ref').id))
+    if (!match) {
+      throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_invalid_file_ref').id))
+    }
     const server = WebDavUtil.servers().find((item: WebDavServer) => item.id === match[1])
-    if (!server) throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_connection_deleted').id))
-    return { url: WebDavAddress.url(server, WebDavAddress.decode(match[2])),
-      headers: WebDavUtil.headers(server.user, server.user ? await WebDavUtil.password(server.id) : '') }
+    if (!server) {
+      throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_connection_deleted').id))
+    }
+    return {
+      url: WebDavAddress.url(server, WebDavAddress.decode(match[2])),
+      headers: WebDavUtil.headers(server.user, server.user ? await WebDavUtil.password(server.id) : '')
+    }
   }
 
   /** Reject redirecting playback endpoints before credentials enter an engine. */
   static async prepareSource(uri: string, request: WebDavRequest): Promise<WebDavSource> {
     const source = await WebDavUtil.source(uri)
-    let response = await request.request(source.url, { method: http.RequestMethod.HEAD, header: source.headers,
-      usingCache: false, maxRedirects: 0, connectTimeout: 5000, readTimeout: 10000 })
+    let response = await request.request(source.url, {
+      method: http.RequestMethod.HEAD,
+      header: source.headers,
+      usingCache: false,
+      maxRedirects: 0,
+      connectTimeout: 5000,
+      readTimeout: 10000
+    })
     if (response.responseCode === 405 || response.responseCode === 501) {
       const headers: Record<string, string> = {}
       headers['Range'] = 'bytes=0-0'
-      Object.keys(source.headers).forEach((key: string) => { headers[key] = source.headers[key] })
-      response = await request.request(source.url, { method: http.RequestMethod.GET, header: headers,
-        expectDataType: http.HttpDataType.ARRAY_BUFFER, usingCache: false, maxRedirects: 0,
-        connectTimeout: 5000, readTimeout: 10000, maxLimit: 64 * 1024 })
+      Object.keys(source.headers).forEach((key: string) => {
+        headers[key] = source.headers[key]
+      })
+      response = await request.request(source.url, {
+        method: http.RequestMethod.GET,
+        header: headers,
+        expectDataType: http.HttpDataType.ARRAY_BUFFER,
+        usingCache: false,
+        maxRedirects: 0,
+        connectTimeout: 5000,
+        readTimeout: 10000,
+        maxLimit: 64 * 1024
+      })
     }
     if (response.responseCode !== 200 && response.responseCode !== 206) {
       WebDavUtil.checkStatus(response.responseCode, 200)
@@ -185,42 +280,79 @@ export default class WebDavUtil {
   }
 
   static async fileId(uri: string): Promise<string> {
-    const md = cryptoFramework.createMd('SHA256')
-    await md.update({ data: new util.TextEncoder().encodeInto(uri) })
-    return 'webdav_' + Array.from((await md.digest()).data)
-      .map((byte: number) => byte.toString(16).padStart(2, '0')).join('')
+    try {
+      const md = cryptoFramework.createMd('SHA256')
+      await md.update({ data: new util.TextEncoder().encodeInto(uri) })
+      const digest = await md.digest()
+      return 'webdav_' + Array.from(digest.data)
+        .map((byte: number) => byte.toString(16).padStart(2, '0')).join('')
+    } catch (error) {
+      const code = (error as BusinessError).code ?? 'unknown'
+      salmonLogger.addLog('WebDAV', '生成文件 ID 失败，错误码 ' + code, true)
+      throw new Error(ToolsUtil.getStringResource($r('app.string.open_video_failed').id))
+    }
   }
 
   static async cacheSubtitle(item: VideoMetadata): Promise<void> {
-    if (!item.webdav_subtitle_uri || !/^webdav_[0-9a-f]{64}$/.test(item.date)) return
+    if (!item.webdav_subtitle_uri || !/^webdav_[0-9a-f]{64}$/.test(item.date)) {
+      return
+    }
     const pending = WebDavUtil.subtitles.get(item.date)
-    if (pending) return pending
+    if (pending) {
+      return pending
+    }
     const task = WebDavUtil.downloadSubtitle(item)
     WebDavUtil.subtitles.set(item.date, task)
-    try { await task } finally { WebDavUtil.subtitles.delete(item.date) }
+    try {
+      await task
+    } finally {
+      WebDavUtil.subtitles.delete(item.date)
+    }
   }
 
   private static async downloadSubtitle(item: VideoMetadata): Promise<void> {
     const path = PathUtils.subtitlePath + item.date
-    try { if (await fs.access(path)) return } catch (_) {}
+    try {
+      if (await fs.access(path)) {
+        return
+      }
+    } catch (_) {
+    }
     const request = new WebDavRequest()
     const temporary = `${path}.${util.generateRandomUUID(true)}.tmp`
     try {
       const source = await WebDavUtil.source(item.webdav_subtitle_uri!)
-      const response = await request.request(source.url, { method: http.RequestMethod.GET, header: source.headers,
-        expectDataType: http.HttpDataType.ARRAY_BUFFER, usingCache: false, maxRedirects: 0,
-        connectTimeout: 5000, readTimeout: 10000, maxLimit: 8 * 1024 * 1024 })
+      const response = await request.request(source.url, {
+        method: http.RequestMethod.GET,
+        header: source.headers,
+        expectDataType: http.HttpDataType.ARRAY_BUFFER,
+        usingCache: false,
+        maxRedirects: 0,
+        connectTimeout: 5000,
+        readTimeout: 10000,
+        maxLimit: 8 * 1024 * 1024
+      })
       WebDavUtil.checkStatus(response.responseCode, 200)
       const bytes = response.result as ArrayBuffer
       const text = util.TextDecoder.create(TextEncodingUtil.detectBufferEncoding(bytes) || 'UTF-8')
         .decodeToString(new Uint8Array(bytes))
       const file = await fs.open(temporary, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE | fs.OpenMode.TRUNC)
-      try { await fs.write(file.fd, text) } finally { await fs.close(file) }
+      try {
+        await fs.write(file.fd, text)
+      } finally {
+        await fs.close(file)
+      }
       await fs.rename(temporary, path)
-    } catch (_) { throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_subtitle_download_failed').id)) }
-    finally {
+    } catch (_) {
+      throw new Error(ToolsUtil.getStringResource($r('app.string.webdav_subtitle_download_failed').id))
+    } finally {
       request.close()
-      try { if (await fs.access(temporary)) await fs.unlink(temporary) } catch (_) {}
+      try {
+        if (await fs.access(temporary)) {
+          await fs.unlink(temporary)
+        }
+      } catch (_) {
+      }
     }
   }
 }
