@@ -1,6 +1,7 @@
 import { HiCar } from '../../utils/HiCarUtil'
 import ImageFileUtil from '../../utils/ImageFileUtil'
 import MediaSortUtil from '../../utils/MediaSortUtil'
+import { FULL_ALPHABET } from '../../utils/NameSortUtil'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { FileFolderDataSource } from '../../utils/DataUtil'
 import { PathUtils } from '../../utils/PathUtils'
@@ -24,7 +25,7 @@ import { DeleteType } from '../../common/enum/DeleteType'
 import { CoverLayoutMode, ListDisplayMode } from '../../common/enum/DisplayMode'
 import { motion } from '@kit.MultimodalAwarenessKit'
 import { salmonLogger } from 'salmonlogger'
-import { DELAY_JUMP_TO_PLAYER, FULL_ALPHABET } from '../../common/Constants'
+import { DELAY_JUMP_TO_PLAYER } from '../../common/Constants'
 import { XAnimation } from '../../utils/AnimationUtil'
 import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
@@ -34,6 +35,7 @@ import WantProcess from '../../utils/WantProcessUtil'
 import ShareUtil from '../../utils/ShareUtil'
 import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu'
 import { ScrollBarBuilder } from './ScrollBarBuilder'
+import { VIDEO_ALPHABET_INDEXER_WIDTH, VideoAlphabetIndexerBuilder } from './VideoAlphabetIndexerBuilder'
 import VideoCardItem from './VideoCardItemComponent'
 import { VideoItemPreviewBuilder } from './VideoItemPreviewBuilder'
 import VideoListItem from './VideoListItemComponent'
@@ -201,7 +203,7 @@ export struct VideoList {
     const scaleInset = this.contentWidth * (1 - scale) / 2
     // 两侧内容各留 16vp；把缩放后的间隙中点换算回本地坐标，再减去索引条半宽。
     // 再向视频侧内移 8vp，避免选中背景被侧栏边界遮住。
-    return (16 * scale - 16 - scaleInset) / (2 * scale) - 14 + 8 / scale
+    return (16 * scale - 16 - scaleInset) / (2 * scale) - VIDEO_ALPHABET_INDEXER_WIDTH / 2 + 8 / scale
   }
 
   @Event onSearchValueChange: (v: string) => void = () => {
@@ -328,209 +330,189 @@ export struct VideoList {
             style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
           }) : undefined
         })
-    } else if (this.displayMode === ListDisplayMode.LIST_DISPLAY) {
-      Stack({
-        alignContent: this.scrollOverlayAlignment
-      }) {
-        List({ scroller: this.videoListController.listScroller }) {
-          Repeat<VideoMetadata>(this.videoListController.videoDataSource.data)
-            .each((repeatItem: RepeatItem<VideoMetadata>) => {
-              ListItem() {
-                VideoListItem({
-                  item: repeatItem.item,
-                  delMultipleList: this._delMultipleList,
-                  coverRefreshDate: this.coverRefreshDate,
-                  coverRefreshToken: this.coverRefreshToken,
-                  coverTransition: true
-                })
-              }
-              .borderRadius(12)
-              .backgroundColor(Setting.listItemBackgroundBlur ? undefined :
-                (Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
-                  $r('app.color.start_window_background')))
-              .onAreaChange((_oldValue: Area, newValue: Area) => {
-                KnockShareUtil.updateVideoRegion(repeatItem.item, newValue)
-              })
-              .onVisibleAreaChange([0], (visible: boolean) => {
-                KnockShareUtil.setVideoRegionVisible(repeatItem.item.date, visible)
-              })
-
-              .margin({ bottom: 20 })
-              .clickEffect(this.videoClickEffect(repeatItem.item))
-              .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, 'video', repeatItem.item.date, () => {
-                this.handleVideoItemTap(repeatItem.item).catch(() => {
-                })
-              }))
-              .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
-              .width(this.videoListController.listLine === 1 ? '100%' : '95%')
-              .height('auto')
-              .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
-                this.videoMenuOptions(repeatItem.item, ResponseType.LongPress))
-              .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
-                this.videoMenuOptions(repeatItem.item, ResponseType.RightClick))
-              .gesture(
-                TapGesture({ count: 1, fingers: 1 })
-                  .onAction(async () => {
-                    await this.handleVideoItemTap(repeatItem.item)
-                  })
-              )
-            })
-            .key((item: VideoMetadata, _index: number) => item.date.toString() + item.last_play + item.title +
-              item.size.toString() +
-              this.videoListController.folder.name + item.time)
-            .virtualScroll()
-        }
-        .clip(false)
-        .padding({ left: 16, right: 16 })
-        .contentStartOffset(
-          (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100))
-        .contentEndOffset(SafeHeight.bottomSafeHeight)
-        .lanes(this.videoListController.listLine)
-        .animation({ duration: 300, curve: Curve.Smooth })
-        .scrollBar(BarState.Off)
-        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
-        .chainAnimation(true)
-        .width('100%')
-        .height('100%')
-        .fadingEdge(true)
-        .onAppear(() => {
-          this.videoListController.listScroller.scrollEdge(Edge.Top)
-        })
-        .onScrollIndex((start: number) => {
-          if (this.currentSortField === SortField.NAME && this.pinyinSort) {
-            this.updateIndexerOnScroll(start)
-          }
-        })
-        .onDidScroll((scrollOffset: number, scrollState: ScrollState) => {
-          this.syncSearchBarVisible(scrollOffset, scrollState,
-            this.videoListController.listScroller.currentOffset()?.yOffset,
-            (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100))
-        })
-        .onReachStart(() => {
-          this.onScrollDirectionChange(false)
-        })
-
-        if (this.currentSortField === 'name' && this.pinyinSort && this.activeAlphabet.length > 0) {
-          this.AlphabetIndexerBuilder()
-        }
-
-        if (this.currentSortField !== SortField.NAME || !this.pinyinSort) {
-          ScrollBarBuilder({
-            videoListController: this.videoListController.listScroller,
-            fileFolderLength: this.file_folder_list.length
-          })
-        }
-      }
-      .width('100%')
-      .height('100%')
-      .clip(false)
-      .animation({ duration: 300, curve: Curve.Ease })
-      .opacity(this.homeEntranceProgress)
-      .scale({
-        x: this.homeEntranceProgress,
-        y: this.homeEntranceProgress,
-        centerX: 16,
-        centerY: (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100)
-      })
-      .transition(TransitionEffect.IDENTITY)
-      .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
-        detents: [SheetSize.LARGE],
-        showClose: true,
-        onWillDismiss: () => {
-          this.showDetailSheet = false
-        },
-        systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
-          style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
-        }) : undefined
-      })
     } else {
       Stack({
         alignContent: this.scrollOverlayAlignment
       }) {
-        WaterFlow({
-          scroller: this.videoListController.waterFlowScroller,
-          layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
-        }) {
-          Repeat<VideoMetadata>(this.videoListController.videoDataSource.data)
-            .each((repeatItem: RepeatItem<VideoMetadata>) => {
-              FlowItem() {
-                VideoCardItem({
-                  item: repeatItem.item,
-                  delMultipleList: this._delMultipleList,
-                  coverRefreshDate: this.coverRefreshDate,
-                  coverRefreshToken: this.coverRefreshToken,
-                  coverTransition: true
-                })
-              }
-              .backgroundColor(
-                Setting.listItemBackgroundBlur ? undefined :
+        if (this.displayMode === ListDisplayMode.LIST_DISPLAY) {
+          List({ scroller: this.videoListController.listScroller }) {
+            Repeat<VideoMetadata>(this.videoListController.videoDataSource.data)
+              .each((repeatItem: RepeatItem<VideoMetadata>) => {
+                ListItem() {
+                  VideoListItem({
+                    item: repeatItem.item,
+                    delMultipleList: this._delMultipleList,
+                    coverRefreshDate: this.coverRefreshDate,
+                    coverRefreshToken: this.coverRefreshToken,
+                    coverTransition: true
+                  })
+                }
+                .borderRadius(12)
+                .backgroundColor(Setting.listItemBackgroundBlur ? undefined :
                   (Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
                     $r('app.color.start_window_background')))
-
-              .borderRadius(12)
-              .width('100%')
-              .onAreaChange((_oldValue: Area, newValue: Area) => {
-                KnockShareUtil.updateVideoRegion(repeatItem.item, newValue)
-              })
-              .onVisibleAreaChange([0], (visible: boolean) => {
-                KnockShareUtil.setVideoRegionVisible(repeatItem.item.date, visible)
-              })
-              .clickEffect(this.videoClickEffect(repeatItem.item))
-              .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, 'video', repeatItem.item.date, () => {
-                this.handleVideoItemTap(repeatItem.item).catch(() => {
+                .onAreaChange((_oldValue: Area, newValue: Area) => {
+                  KnockShareUtil.updateVideoRegion(repeatItem.item, newValue)
                 })
-              }))
-              .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
-                this.videoMenuOptions(repeatItem.item, ResponseType.LongPress))
-              .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
-                this.videoMenuOptions(repeatItem.item, ResponseType.RightClick))
-              .gesture(
-                TapGesture({ count: 1, fingers: 1 })
-                  .onAction(async () => {
-                    await this.handleVideoItemTap(repeatItem.item)
+                .onVisibleAreaChange([0], (visible: boolean) => {
+                  KnockShareUtil.setVideoRegionVisible(repeatItem.item.date, visible)
+                })
+
+                .margin({ bottom: 20 })
+                .clickEffect(this.videoClickEffect(repeatItem.item))
+                .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, 'video', repeatItem.item.date, () => {
+                  this.handleVideoItemTap(repeatItem.item).catch(() => {
                   })
-              )
-            })
-            .key((item: VideoMetadata, _index: number) => item.date + item.last_play + item.title +
-              item.size.toString() +
-              this.videoListController.folder.name + item.time)
-            .virtualScroll()
-        }
-        .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
-        .columnsGap(16)
-        .rowsGap(16)
-        .padding({ left: 16, right: 16 })
-        // 原生 WaterFlow 自带顶部留白（API 22+），不再嵌套第二层滚动容器。
-        .contentStartOffset(HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100)
-        .contentEndOffset(SafeHeight.bottomSafeHeight)
-        .onScrollIndex((first: number) => {
-          if (this.currentSortField === SortField.NAME && this.pinyinSort) {
-            this.updateIndexerOnScroll(first)
+                }))
+                .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
+                .width(this.videoListController.listLine === 1 ? '100%' : '95%')
+                .height('auto')
+                .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
+                  this.videoMenuOptions(repeatItem.item, ResponseType.LongPress))
+                .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
+                  this.videoMenuOptions(repeatItem.item, ResponseType.RightClick))
+                .gesture(
+                  TapGesture({ count: 1, fingers: 1 })
+                    .onAction(async () => {
+                      await this.handleVideoItemTap(repeatItem.item)
+                    })
+                )
+              })
+              .key((item: VideoMetadata, _index: number) => item.date.toString() + item.last_play + item.title +
+                item.size.toString() +
+                this.videoListController.folder.name + item.time)
+              .virtualScroll()
           }
-        })
-        .clip(false)
-        .fadingEdge(true)
-        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
-        .scrollBar(BarState.Off)
-        .width('100%')
-        .height('100%')
-        .onAppear(() => {
-          this.videoListController.waterFlowScroller.scrollEdge(Edge.Top)
-        })
-        .onDidScroll((scrollOffset: number, scrollState: ScrollState) => {
-          this.syncSearchBarVisible(scrollOffset, scrollState,
-            this.videoListController.waterFlowScroller.currentOffset()?.yOffset,
-            HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100)
-        })
-        .onReachStart(() => {
-          this.onScrollDirectionChange(false)
-        })
+          .clip(false)
+          .padding({ left: 16, right: 16 })
+          .contentStartOffset(
+            (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100))
+          .contentEndOffset(SafeHeight.bottomSafeHeight)
+          .lanes(this.videoListController.listLine)
+          .animation({ duration: 300, curve: Curve.Smooth })
+          .scrollBar(BarState.Off)
+          .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
+          .chainAnimation(true)
+          .width('100%')
+          .height('100%')
+          .fadingEdge(true)
+          .onAppear(() => {
+            this.videoListController.listScroller.scrollEdge(Edge.Top)
+          })
+          .onScrollIndex((start: number) => {
+            if (this.currentSortField === SortField.NAME && this.pinyinSort) {
+              this.updateIndexerOnScroll(start)
+            }
+          })
+          .onDidScroll((scrollOffset: number, scrollState: ScrollState) => {
+            this.syncSearchBarVisible(scrollOffset, scrollState,
+              this.videoListController.listScroller.currentOffset()?.yOffset,
+              (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100))
+          })
+          .onReachStart(() => {
+            this.onScrollDirectionChange(false)
+          })
+        } else {
+          WaterFlow({
+            scroller: this.videoListController.waterFlowScroller,
+            layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
+          }) {
+            Repeat<VideoMetadata>(this.videoListController.videoDataSource.data)
+              .each((repeatItem: RepeatItem<VideoMetadata>) => {
+                FlowItem() {
+                  VideoCardItem({
+                    item: repeatItem.item,
+                    delMultipleList: this._delMultipleList,
+                    coverRefreshDate: this.coverRefreshDate,
+                    coverRefreshToken: this.coverRefreshToken,
+                    coverTransition: true
+                  })
+                }
+                .backgroundColor(
+                  Setting.listItemBackgroundBlur ? undefined :
+                    (Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
+                      $r('app.color.start_window_background')))
 
-        if (this.currentSortField === 'name' && this.pinyinSort && this.activeAlphabet.length > 0) {
-          this.AlphabetIndexerBuilder()
+                .borderRadius(12)
+                .width('100%')
+                .onAreaChange((_oldValue: Area, newValue: Area) => {
+                  KnockShareUtil.updateVideoRegion(repeatItem.item, newValue)
+                })
+                .onVisibleAreaChange([0], (visible: boolean) => {
+                  KnockShareUtil.setVideoRegionVisible(repeatItem.item.date, visible)
+                })
+                .clickEffect(this.videoClickEffect(repeatItem.item))
+                .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, 'video', repeatItem.item.date, () => {
+                  this.handleVideoItemTap(repeatItem.item).catch(() => {
+                  })
+                }))
+                .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
+                  this.videoMenuOptions(repeatItem.item, ResponseType.LongPress))
+                .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
+                  this.videoMenuOptions(repeatItem.item, ResponseType.RightClick))
+                .gesture(
+                  TapGesture({ count: 1, fingers: 1 })
+                    .onAction(async () => {
+                      await this.handleVideoItemTap(repeatItem.item)
+                    })
+                )
+              })
+              .key((item: VideoMetadata, _index: number) => item.date + item.last_play + item.title +
+                item.size.toString() +
+                this.videoListController.folder.name + item.time)
+              .virtualScroll()
+          }
+          .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
+          .columnsGap(16)
+          .rowsGap(16)
+          .padding({ left: 16, right: 16 })
+          // 原生 WaterFlow 自带顶部留白（API 22+），不再嵌套第二层滚动容器。
+          .contentStartOffset(HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100)
+          .contentEndOffset(SafeHeight.bottomSafeHeight)
+          .onScrollIndex((first: number) => {
+            if (this.currentSortField === SortField.NAME && this.pinyinSort) {
+              this.updateIndexerOnScroll(first)
+            }
+          })
+          .clip(false)
+          .fadingEdge(true)
+          .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+          .scrollBar(BarState.Off)
+          .width('100%')
+          .height('100%')
+          .onAppear(() => {
+            this.videoListController.waterFlowScroller.scrollEdge(Edge.Top)
+          })
+          .onDidScroll((scrollOffset: number, scrollState: ScrollState) => {
+            this.syncSearchBarVisible(scrollOffset, scrollState,
+              this.videoListController.waterFlowScroller.currentOffset()?.yOffset,
+              HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100)
+          })
+          .onReachStart(() => {
+            this.onScrollDirectionChange(false)
+          })
         }
 
-        if (this.currentSortField !== SortField.NAME || !this.pinyinSort) {
+        if (this.currentSortField === SortField.NAME && this.pinyinSort) {
+          if (this.activeAlphabet.length > 0) {
+            VideoAlphabetIndexerBuilder({
+              letters: this.activeAlphabet,
+              selected: this.indexerSelected,
+              alignLeft: this.indexerOnLeft,
+              topInset: this.alphabetIndexerTop,
+              offsetX: this.indexerOffsetX,
+              edgeMargin: this.indexerInSidebarGap ? 0 : undefined,
+              onSelect: (index: number) => {
+                this.scrollToLetter(this.activeAlphabet[index])
+              }
+            })
+          }
+        } else if (this.displayMode === ListDisplayMode.LIST_DISPLAY) {
+          ScrollBarBuilder({
+            videoListController: this.videoListController.listScroller,
+            fileFolderLength: this.file_folder_list.length
+          })
+        } else {
           ScrollBarBuilder({
             videoListController: this.videoListController.waterFlowScroller,
             fileFolderLength: this.file_folder_list.length
@@ -551,7 +533,7 @@ export struct VideoList {
       .transition(TransitionEffect.IDENTITY)
       .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
         detents: [SheetSize.LARGE],
-        blurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+        blurStyle: this.displayMode === ListDisplayMode.LIST_DISPLAY ? undefined : BlurStyle.COMPONENT_ULTRA_THIN,
         showClose: true,
         onWillDismiss: () => {
           this.showDetailSheet = false
@@ -592,30 +574,6 @@ export struct VideoList {
       this._invalidItem = item
       this.invalidFileDialog.open()
     }
-  }
-
-  @Builder
-  AlphabetIndexerBuilder() {
-    AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
-      .onSelect((index: number) => {
-        this.scrollToLetter(this.activeAlphabet[index])
-      })
-      .color($r('app.color.text_color'))
-      .selectedColor($r('sys.color.white'))
-      .popupColor($r('app.color.main_color'))
-      .selectedBackgroundColor($r('app.color.main_color'))
-      .popupBackground($r('app.color.start_window_background'))
-      .itemSize(20)
-      .width(28)
-      .autoCollapse(true)
-      .offset({ x: this.indexerOffsetX })
-      .height(`calc(100% - ${this.alphabetIndexerTop + SafeHeight.bottomSafeHeight}vp)`)
-      .margin({
-        top: this.alphabetIndexerTop,
-        bottom: SafeHeight.bottomSafeHeight,
-        left: !this.indexerInSidebarGap && this.indexerOnLeft ? 2 : 0,
-        right: this.indexerOnLeft ? 0 : 2
-      })
   }
 
   @Builder

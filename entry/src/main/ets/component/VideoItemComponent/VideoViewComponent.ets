@@ -734,10 +734,7 @@ export struct VideoView {
         .attributeModifier(new SymbolGlyphFancyModifier(26, '', ''))
     }
     .attributeModifier(new ButtonFancyModifier(HiCar.enabled ? 56 : 52, HiCar.enabled ? 56 : 52))
-    .position(HiCar.enabled ? { left: 20, bottom: 20 } :
-      IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ?
-        { left: 20, bottom: (SafeHeight.bottomSafeHeight + 16) * 2 } :
-        { right: 20, bottom: (SafeHeight.bottomSafeHeight + 16) * 2 })
+    .position(this.recentPlayButtonPosition)
     .attributeModifier(new LightMaterialModifier())
     .onClick(async () => {
       await this.playMostRecentlyPlayedVideo()
@@ -805,6 +802,13 @@ export struct VideoView {
    */
   private scrollToCurrentFolder(index: number): void {
     this.folderTabsScroller.scrollToIndex(index, true, ScrollAlign.CENTER)
+  }
+
+  private get recentPlayButtonPosition(): Edges {
+    const edge = 42
+    const bottom = HiCar.enabled ? 20 : (SafeHeight.bottomSafeHeight + 16) * 2
+    const buttonOnLeft = HiCar.enabled || IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand)
+    return buttonOnLeft ? { left: edge, bottom } : { right: edge, bottom }
   }
 
   /**

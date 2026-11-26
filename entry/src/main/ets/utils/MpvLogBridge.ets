@@ -12,7 +12,7 @@ export function sanitizeMpvLog(text: string): string {
 
 export class MpvLogBridge {
   private static started: boolean = false
-  // MPV 详细诊断开关，可由 Want 参数在运行时覆盖。
+  // MPV 详细诊断开关，可由 Want 参数在运行时覆盖，MPV debug。
   private static diagnosticsEnabled: boolean = false
 
   static applyDiagnosticsWant(want: Want): void {

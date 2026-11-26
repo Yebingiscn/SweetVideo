@@ -52,6 +52,7 @@ export interface VideoMetadata {
   external_audio_offset_ms?: number
   network_user_agent?: string
   is_iptv_live?: boolean
+  iptv_channel_key?: string
   /** Explicit user configuration; session-generated credentials stay in network_http_headers. */
   network_custom_headers?: Record<string, string>
   /** Stable SMB reference for an optional matching sidecar subtitle. */

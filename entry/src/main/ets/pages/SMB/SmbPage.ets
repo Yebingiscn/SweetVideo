@@ -354,7 +354,7 @@ export struct SmbPage {
       hideTitleArea: false,
       hideBottomBuilder: true,
       hideStatusBar: false,
-      mode: HideMode.SCROLL_UP
+      mode: HideMode.SCROLL_UP_TO
     })
     .onBackPressed(() => {
       if (this.loading) {
@@ -482,7 +482,7 @@ export struct SmbPage {
         subtitles[0]
     const subtitlePath = subtitle ? (this.folder ? `${this.folder}/${subtitle.name}` : subtitle.name) : ''
     const metadata = VideoInfoUtil.buildNetworkVideoMetadata(uri, await SmbUtil.fileId(uri), entry.name,
-      ToolsUtil.formatFileSize(entry.size), [1, 1])
+      ToolsUtil.formatFileSize(entry.size))
     metadata.smb_subtitle_uri = subtitle ? SmbUtil.uri(server, subtitlePath) : undefined
     metadata.external_subtitle_format = subtitle ? VideoInfoUtil.getExtension(subtitle.name) : ''
     return metadata
@@ -503,7 +503,7 @@ export struct SmbPage {
       const root = indexPath.replace(/(?:^|\/)BDMV\/index\.bdmv$/, '')
       const title = root.substring(root.lastIndexOf('/') + 1) || server.name
       const item =
-        previous ?? VideoInfoUtil.buildNetworkVideoMetadata(uri, await SmbUtil.fileId(uri), title, '', [0, 0])
+        previous ?? VideoInfoUtil.buildNetworkVideoMetadata(uri, await SmbUtil.fileId(uri), title, '')
       item.format = 'BDMV'
       item.has_video_track = true
       if (version !== this.requestVersion) {

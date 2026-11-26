@@ -278,40 +278,44 @@ export struct AudioEffectDialog {
   }
 
   build() {
-    Column({ space: 12 }) {
-      Text($r('app.string.sweet_audio_effect'))
-        .fontSize(20)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.text_color'))
-        .width('100%')
+    Scroll() {
+      Column({ space: 12 }) {
+        Text($r('app.string.sweet_audio_effect'))
+          .fontSize(20)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.text_color'))
+          .width('100%')
 
-      TabSelector({
-        labels: this.effectLabels,
-        values: this.effectValues,
-        current: this.effect,
-        onSelect: (value: string): void => {
-          this.effect = value
-          this.applyCurrentConfig()
-        }
-      })
+        TabSelector({
+          labels: this.effectLabels,
+          values: this.effectValues,
+          current: this.effect,
+          onSelect: (value: string): void => {
+            this.effect = value
+            this.applyCurrentConfig()
+          }
+        })
 
-      Scroll() {
-        Column({ space: 10 }) {
-          if (this.effect === 'equalizer') {
-            Column({ space: 8 }) {
-              TabSelector({
-                labels: EQ_LABELS,
-                values: EQ_VALUES,
-                current: this.eqPreset,
-                onSelect: (value: string): void => {
-                  this.eqPreset = value
-                  this.applyCurrentConfig()
-                }
-              })
-              if (this.eqPreset === 'custom') {
-                Row({ space: 4 }) {
-                  Repeat<string>(EQ_FREQ_LABELS)
-                    .each((repeatItem: RepeatItem<string>) => {
+        if (this.effect === 'equalizer') {
+          Column({ space: 8 }) {
+            TabSelector({
+              labels: EQ_LABELS,
+              values: EQ_VALUES,
+              current: this.eqPreset,
+              onSelect: (value: string): void => {
+                this.eqPreset = value
+                this.applyCurrentConfig()
+              }
+            })
+            if (this.eqPreset === 'custom') {
+              GridRow({
+                columns: { xs: 5, sm: 10 },
+                breakpoints: { value: ['280vp'], reference: BreakpointsReference.ComponentSize },
+                gutter: { y: 8 }
+              }) {
+                Repeat<string>(EQ_FREQ_LABELS)
+                  .each((repeatItem: RepeatItem<string>) => {
+                    GridCol() {
                       Column({ space: 4 }) {
                         Text(`${this.eqGains[repeatItem.index]}`)
                           .fontSize(11)
@@ -339,392 +343,386 @@ export struct AudioEffectDialog {
                           .fontColor($r('app.color.text_color'))
                           .height(16)
                       }
+                      .width('100%')
                       .justifyContent(FlexAlign.Center)
                       .alignItems(HorizontalAlign.Center)
-                    })
-                    .key((item: string, index: number) => `${index}_${item}`)
-                }
-                .width('100%')
-                .justifyContent(FlexAlign.SpaceAround)
+                    }
+                  })
+                  .key((item: string, index: number) => `${index}_${item}`)
               }
+              .width('100%')
             }
-            .width('100%')
-            .padding(12)
-            .borderRadius(16)
-            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          } else if (this.effect === 'sound-field') {
-            Column({ space: 8 }) {
-              TabSelector({
-                labels: SOUND_FIELD_LABELS,
-                values: SOUND_FIELD_VALUES,
-                current: this.soundField,
-                onSelect: (value: string): void => {
-                  this.soundField = value
-                  this.applyCurrentConfig()
-                }
-              })
-            }
-            .width('100%')
-            .padding(12)
-            .borderRadius(16)
-            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          } else if (this.effect === 'audio-separation') {
-            Column({ space: 8 }) {
-              TabSelector({
-                labels: SEPARATION_LABELS,
-                values: SEPARATION_VALUES,
-                current: this.separationOutput,
-                onSelect: (value: string): void => {
-                  this.separationOutput = value
-                  this.applyCurrentConfig()
-                }
-              })
-              this.HintText($r('app.string.npu_hint'))
-            }
-            .width('100%')
-            .padding(12)
-            .borderRadius(16)
-            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          } else if (this.effect === 'voice-beautifier') {
-            Column({ space: 8 }) {
-              TabSelector({
-                labels: BEAUTIFIER_LABELS,
-                values: BEAUTIFIER_VALUES,
-                current: this.beautifier,
-                onSelect: (value: string): void => {
-                  this.beautifier = value
-                  this.applyCurrentConfig()
-                }
-              })
-            }
-            .width('100%')
-            .padding(12)
-            .borderRadius(16)
-            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          } else if (this.effect === 'environment') {
-            Column({ space: 8 }) {
-              TabSelector({
-                labels: ENVIRONMENT_LABELS,
-                values: ENVIRONMENT_VALUES,
-                current: this.environment,
-                onSelect: (value: string): void => {
-                  this.environment = value
-                  this.applyCurrentConfig()
-                }
-              })
-            }
-            .width('100%')
-            .padding(12)
-            .borderRadius(16)
-            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          } else if (this.effect === 'space-render') {
-            Column({ space: 8 }) {
-              TabSelector({
-                labels: SPACE_MODE_LABELS,
-                values: SPACE_MODE_VALUES,
-                current: this.spaceMode,
-                onSelect: (value: string): void => {
-                  this.spaceMode = value
-                  this.applyCurrentConfig()
-                }
-              })
-              if (this.spaceMode === 'position' || this.spaceMode === 'rotation') {
-                ValueSliderComponent({
-                  title: $r('app.string.axis_x_m'),
-                  value: this.spaceX,
-                  min: -5,
-                  max: 5,
-                  step: 0.1,
-                  decimals: 1,
-                  onChange: (nextValue: number): void => {
-                    this.spaceX = nextValue;
-                    this.applyCurrentConfig()
-                  }
-                })
-                ValueSliderComponent({
-                  title: $r('app.string.axis_y_m'),
-                  value: this.spaceY,
-                  min: -5,
-                  max: 5,
-                  step: 0.1,
-                  decimals: 1,
-                  onChange: (nextValue: number): void => {
-                    this.spaceY = nextValue;
-                    this.applyCurrentConfig()
-                  }
-                })
-                ValueSliderComponent({
-                  title: $r('app.string.axis_z_m'),
-                  value: this.spaceZ,
-                  min: -5,
-                  max: 5,
-                  step: 0.1,
-                  decimals: 1,
-                  onChange: (nextValue: number): void => {
-                    this.spaceZ = nextValue;
-                    this.applyCurrentConfig()
-                  }
-                })
+          }
+          .width('100%')
+          .padding(12)
+          .borderRadius(16)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+        } else if (this.effect === 'sound-field') {
+          Column({ space: 8 }) {
+            TabSelector({
+              labels: SOUND_FIELD_LABELS,
+              values: SOUND_FIELD_VALUES,
+              current: this.soundField,
+              onSelect: (value: string): void => {
+                this.soundField = value
+                this.applyCurrentConfig()
               }
-              if (this.spaceMode === 'rotation') {
-                ValueSliderComponent({
-                  title: $r('app.string.surround_period_s'),
-                  value: this.spaceTime,
-                  min: 2,
-                  max: 40,
-                  step: 1,
-                  decimals: 0,
-                  onChange: (nextValue: number): void => {
-                    this.spaceTime = nextValue;
-                    this.applyCurrentConfig()
-                  }
-                })
-                TabSelector({
-                  labels: DIRECTION_LABELS,
-                  values: DIRECTION_VALUES,
-                  current: this.spaceDirection,
-                  onSelect: (value: string): void => {
-                    this.spaceDirection = value
-                    this.applyCurrentConfig()
-                  }
-                })
-              } else if (this.spaceMode === 'extension') {
-                ValueSliderComponent({
-                  title: $r('app.string.extension_radius_m'),
-                  value: this.spaceRadius,
-                  min: 1,
-                  max: 5,
-                  step: 0.1,
-                  decimals: 1,
-                  onChange: (nextValue: number): void => {
-                    this.spaceRadius = nextValue;
-                    this.applyCurrentConfig()
-                  }
-                })
-                ValueSliderComponent({
-                  title: $r('app.string.extension_angle'),
-                  value: this.spaceAngle,
-                  min: 1,
-                  max: 359,
-                  step: 1,
-                  decimals: 0,
-                  onChange: (nextValue: number): void => {
-                    this.spaceAngle = nextValue;
-                    this.applyCurrentConfig()
-                  }
-                })
+            })
+          }
+          .width('100%')
+          .padding(12)
+          .borderRadius(16)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+        } else if (this.effect === 'audio-separation') {
+          Column({ space: 8 }) {
+            TabSelector({
+              labels: SEPARATION_LABELS,
+              values: SEPARATION_VALUES,
+              current: this.separationOutput,
+              onSelect: (value: string): void => {
+                this.separationOutput = value
+                this.applyCurrentConfig()
               }
-            }
-            .width('100%')
-            .padding(12)
-            .borderRadius(16)
-            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          } else if (this.effect === 'pure-voice-change') {
-            Column({ space: 8 }) {
-              TabSelector({
-                labels: PURE_GENDER_LABELS,
-                values: PURE_GENDER_VALUES,
-                current: this.pureGender,
-                onSelect: (value: string): void => {
-                  this.pureGender = value
-                  this.applyCurrentConfig()
-                }
-              })
-              TabSelector({
-                labels: PURE_TYPE_LABELS,
-                values: PURE_TYPE_VALUES,
-                current: this.pureType,
-                onSelect: (value: string): void => {
-                  this.pureType = value
-                  this.applyCurrentConfig()
-                }
-              })
+            })
+            this.HintText($r('app.string.npu_hint'))
+          }
+          .width('100%')
+          .padding(12)
+          .borderRadius(16)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+        } else if (this.effect === 'voice-beautifier') {
+          Column({ space: 8 }) {
+            TabSelector({
+              labels: BEAUTIFIER_LABELS,
+              values: BEAUTIFIER_VALUES,
+              current: this.beautifier,
+              onSelect: (value: string): void => {
+                this.beautifier = value
+                this.applyCurrentConfig()
+              }
+            })
+          }
+          .width('100%')
+          .padding(12)
+          .borderRadius(16)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+        } else if (this.effect === 'environment') {
+          Column({ space: 8 }) {
+            TabSelector({
+              labels: ENVIRONMENT_LABELS,
+              values: ENVIRONMENT_VALUES,
+              current: this.environment,
+              onSelect: (value: string): void => {
+                this.environment = value
+                this.applyCurrentConfig()
+              }
+            })
+          }
+          .width('100%')
+          .padding(12)
+          .borderRadius(16)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+        } else if (this.effect === 'space-render') {
+          Column({ space: 8 }) {
+            TabSelector({
+              labels: SPACE_MODE_LABELS,
+              values: SPACE_MODE_VALUES,
+              current: this.spaceMode,
+              onSelect: (value: string): void => {
+                this.spaceMode = value
+                this.applyCurrentConfig()
+              }
+            })
+            if (this.spaceMode === 'position' || this.spaceMode === 'rotation') {
               ValueSliderComponent({
-                title: $r('app.string.pitch_auto'),
-                value: this.purePitch,
-                min: 0,
-                max: 3,
-                step: 0.1,
-                decimals: 1,
-                onChange: (nextValue: number): void => {
-                  this.purePitch = nextValue === 0 || nextValue >= 0.3 ? nextValue : 0.3
-                  this.applyCurrentConfig()
-                }
-              })
-            }
-            .width('100%')
-            .padding(12)
-            .borderRadius(16)
-            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          } else if (this.effect === 'general-voice-change') {
-            Column({ space: 8 }) {
-              TabSelector({
-                labels: GENERAL_LABELS,
-                values: GENERAL_VALUES,
-                current: this.generalType,
-                onSelect: (value: string): void => {
-                  this.generalType = value
-                  this.applyCurrentConfig()
-                }
-              })
-            }
-            .width('100%')
-            .padding(12)
-            .borderRadius(16)
-            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          } else if (this.effect === 'tempo-pitch') {
-            Column({ space: 8 }) {
-              if (!this.systemPlayer) {
-                ValueSliderComponent({
-                  title: $r('app.string.speed'),
-                  value: this.tempo,
-                  min: 0.5,
-                  max: 10,
-                  step: 0.1,
-                  decimals: 1,
-                  onChange: (nextValue: number): void => {
-                    this.tempo = nextValue;
-                    this.applyCurrentConfig()
-                  }
-                })
-              }
-              ValueSliderComponent({
-                title: $r('app.string.pitch'),
-                value: this.pitch,
-                min: 0.1,
+                title: $r('app.string.axis_x_m'),
+                value: this.spaceX,
+                min: -5,
                 max: 5,
                 step: 0.1,
                 decimals: 1,
                 onChange: (nextValue: number): void => {
-                  this.pitch = nextValue;
+                  this.spaceX = nextValue;
                   this.applyCurrentConfig()
                 }
               })
-              this.HintText(this.systemPlayer ? $r('app.string.tempo_pitch_hint') :
-                $r('app.string.speed_change_hint'))
-            }
-            .width('100%')
-            .padding(12)
-            .borderRadius(16)
-            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          } else if (this.effect === 'hoa-space-render') {
-            Column({ space: 8 }) {
-              TabSelector({
-                labels: HOA_LABELS,
-                values: HOA_VALUES,
-                current: this.hoaLayout,
-                onSelect: (value: string): void => {
-                  this.hoaLayout = value
+              ValueSliderComponent({
+                title: $r('app.string.axis_y_m'),
+                value: this.spaceY,
+                min: -5,
+                max: 5,
+                step: 0.1,
+                decimals: 1,
+                onChange: (nextValue: number): void => {
+                  this.spaceY = nextValue;
                   this.applyCurrentConfig()
                 }
               })
-              this.HintText($r('app.string.hoa_hint'))
-            }
-            .width('100%')
-            .padding(12)
-            .borderRadius(16)
-            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          } else if (this.effect === 'noise-reduction') {
-            Column({ space: 8 }) {
-              this.HintText(this.systemPlayer ? $r('app.string.nr_hint_system') :
-                $r('app.string.nr_hint_mpv'))
-            }
-            .width('100%')
-            .padding(12)
-            .borderRadius(16)
-            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          } else if (this.effect === 'audio-mixer') {
-            Column({ space: 8 }) {
-              this.HintText($r('app.string.mixer_hint'))
-            }
-            .width('100%')
-            .padding(12)
-            .borderRadius(16)
-            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          } else if (this.effect === 'off') {
-            Column({ space: 8 }) {
-              this.HintText(this.systemPlayer ? $r('app.string.space_hint_system') :
-                $r('app.string.space_hint_mpv'))
-            }
-            .width('100%')
-            .padding(12)
-            .borderRadius(16)
-            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          } else if (this.effect === 'preset') {
-            Column({ space: 8 }) {
-              TabSelector({
-                labels: PRESET_LABELS,
-                values: PRESET_VALUES,
-                current: this.currentPreset,
-                onSelect: (value: string): void => {
-                  this.currentPreset = value
-                  const presetConfig = createPresetConfig(value)
-                  this.loadPresetParams(presetConfig)
-                  this.scheduleApply(presetConfig)
+              ValueSliderComponent({
+                title: $r('app.string.axis_z_m'),
+                value: this.spaceZ,
+                min: -5,
+                max: 5,
+                step: 0.1,
+                decimals: 1,
+                onChange: (nextValue: number): void => {
+                  this.spaceZ = nextValue;
+                  this.applyCurrentConfig()
                 }
               })
-              this.HintText($r('app.string.preset_hint'))
             }
-            .width('100%')
-            .padding(12)
-            .borderRadius(16)
-            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+            if (this.spaceMode === 'rotation') {
+              ValueSliderComponent({
+                title: $r('app.string.surround_period_s'),
+                value: this.spaceTime,
+                min: 2,
+                max: 40,
+                step: 1,
+                decimals: 0,
+                onChange: (nextValue: number): void => {
+                  this.spaceTime = nextValue;
+                  this.applyCurrentConfig()
+                }
+              })
+              TabSelector({
+                labels: DIRECTION_LABELS,
+                values: DIRECTION_VALUES,
+                current: this.spaceDirection,
+                onSelect: (value: string): void => {
+                  this.spaceDirection = value
+                  this.applyCurrentConfig()
+                }
+              })
+            } else if (this.spaceMode === 'extension') {
+              ValueSliderComponent({
+                title: $r('app.string.extension_radius_m'),
+                value: this.spaceRadius,
+                min: 1,
+                max: 5,
+                step: 0.1,
+                decimals: 1,
+                onChange: (nextValue: number): void => {
+                  this.spaceRadius = nextValue;
+                  this.applyCurrentConfig()
+                }
+              })
+              ValueSliderComponent({
+                title: $r('app.string.extension_angle'),
+                value: this.spaceAngle,
+                min: 1,
+                max: 359,
+                step: 1,
+                decimals: 0,
+                onChange: (nextValue: number): void => {
+                  this.spaceAngle = nextValue;
+                  this.applyCurrentConfig()
+                }
+              })
+            }
           }
+          .width('100%')
+          .padding(12)
+          .borderRadius(16)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+        } else if (this.effect === 'pure-voice-change') {
+          Column({ space: 8 }) {
+            TabSelector({
+              labels: PURE_GENDER_LABELS,
+              values: PURE_GENDER_VALUES,
+              current: this.pureGender,
+              onSelect: (value: string): void => {
+                this.pureGender = value
+                this.applyCurrentConfig()
+              }
+            })
+            TabSelector({
+              labels: PURE_TYPE_LABELS,
+              values: PURE_TYPE_VALUES,
+              current: this.pureType,
+              onSelect: (value: string): void => {
+                this.pureType = value
+                this.applyCurrentConfig()
+              }
+            })
+            ValueSliderComponent({
+              title: $r('app.string.pitch_auto'),
+              value: this.purePitch,
+              min: 0,
+              max: 3,
+              step: 0.1,
+              decimals: 1,
+              onChange: (nextValue: number): void => {
+                this.purePitch = nextValue === 0 || nextValue >= 0.3 ? nextValue : 0.3
+                this.applyCurrentConfig()
+              }
+            })
+          }
+          .width('100%')
+          .padding(12)
+          .borderRadius(16)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+        } else if (this.effect === 'general-voice-change') {
+          Column({ space: 8 }) {
+            TabSelector({
+              labels: GENERAL_LABELS,
+              values: GENERAL_VALUES,
+              current: this.generalType,
+              onSelect: (value: string): void => {
+                this.generalType = value
+                this.applyCurrentConfig()
+              }
+            })
+          }
+          .width('100%')
+          .padding(12)
+          .borderRadius(16)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+        } else if (this.effect === 'tempo-pitch') {
+          Column({ space: 8 }) {
+            if (!this.systemPlayer) {
+              ValueSliderComponent({
+                title: $r('app.string.speed'),
+                value: this.tempo,
+                min: 0.5,
+                max: 10,
+                step: 0.1,
+                decimals: 1,
+                onChange: (nextValue: number): void => {
+                  this.tempo = nextValue;
+                  this.applyCurrentConfig()
+                }
+              })
+            }
+            ValueSliderComponent({
+              title: $r('app.string.pitch'),
+              value: this.pitch,
+              min: 0.1,
+              max: 5,
+              step: 0.1,
+              decimals: 1,
+              onChange: (nextValue: number): void => {
+                this.pitch = nextValue;
+                this.applyCurrentConfig()
+              }
+            })
+            this.HintText(this.systemPlayer ? $r('app.string.tempo_pitch_hint') :
+              $r('app.string.speed_change_hint'))
+          }
+          .width('100%')
+          .padding(12)
+          .borderRadius(16)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+        } else if (this.effect === 'hoa-space-render') {
+          Column({ space: 8 }) {
+            TabSelector({
+              labels: HOA_LABELS,
+              values: HOA_VALUES,
+              current: this.hoaLayout,
+              onSelect: (value: string): void => {
+                this.hoaLayout = value
+                this.applyCurrentConfig()
+              }
+            })
+            this.HintText($r('app.string.hoa_hint'))
+          }
+          .width('100%')
+          .padding(12)
+          .borderRadius(16)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+        } else if (this.effect === 'noise-reduction') {
+          Column({ space: 8 }) {
+            this.HintText(this.systemPlayer ? $r('app.string.nr_hint_system') :
+              $r('app.string.nr_hint_mpv'))
+          }
+          .width('100%')
+          .padding(12)
+          .borderRadius(16)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+        } else if (this.effect === 'audio-mixer') {
+          Column({ space: 8 }) {
+            this.HintText($r('app.string.mixer_hint'))
+          }
+          .width('100%')
+          .padding(12)
+          .borderRadius(16)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+        } else if (this.effect === 'off') {
+          Column({ space: 8 }) {
+            this.HintText(this.systemPlayer ? $r('app.string.space_hint_system') :
+              $r('app.string.space_hint_mpv'))
+          }
+          .width('100%')
+          .padding(12)
+          .borderRadius(16)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+        } else if (this.effect === 'preset') {
+          Column({ space: 8 }) {
+            TabSelector({
+              labels: PRESET_LABELS,
+              values: PRESET_VALUES,
+              current: this.currentPreset,
+              onSelect: (value: string): void => {
+                this.currentPreset = value
+                const presetConfig = createPresetConfig(value)
+                this.loadPresetParams(presetConfig)
+                this.scheduleApply(presetConfig)
+              }
+            })
+            this.HintText($r('app.string.preset_hint'))
+          }
+          .width('100%')
+          .padding(12)
+          .borderRadius(16)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
         }
-        .width('100%')
-        .alignItems(HorizontalAlign.Start)
-      }
-      .constraintSize({ maxHeight: 400 })
-      .scrollBar(BarState.Auto)
 
-      if (this.systemPlayer) {
-        this.HintText($r('app.string.system_effect_hint'))
-      }
-      if (this.applyStatus.length > 0) {
-        // Bind the text directly: a primitive @Builder argument can retain its
-        // initial value while the non-empty conditional branch stays mounted.
-        Row({ space: 6 }) {
-          Text(this.applyStatus)
-            .fontSize(13)
-            .fontColor('#909399')
+        if (this.systemPlayer) {
+          this.HintText($r('app.string.system_effect_hint'))
+        }
+        if (this.applyStatus.length > 0) {
+          // Bind the text directly: a primitive @Builder argument can retain its
+          // initial value while the non-empty conditional branch stays mounted.
+          Row({ space: 6 }) {
+            Text(this.applyStatus)
+              .fontSize(13)
+              .fontColor('#909399')
+              .layoutWeight(1)
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
+        }
+
+        Row({ space: 10 }) {
+          Button($r('app.string.reset'))
             .layoutWeight(1)
+            .height(40)
+            .fontSize(15)
+            .fontColor($r('app.color.text_color'))
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+            .borderRadius(16)
+            .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+            .onClick(() => {
+              this.loadConfig(new AudioEffectConfig())
+              this.applyCurrentConfig()
+            })
+          Button($r('app.string.off'))
+            .layoutWeight(1)
+            .height(40)
+            .fontSize(15)
+            .fontColor($r('app.color.text_color'))
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+            .borderRadius(16)
+            .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+            .onClick(() => this.controller?.close())
         }
         .width('100%')
-        .alignItems(VerticalAlign.Center)
-      }
-
-      Row({ space: 10 }) {
-        Button($r('app.string.reset'))
-          .layoutWeight(1)
-          .height(40)
-          .fontSize(15)
-          .fontColor($r('app.color.text_color'))
-          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          .borderRadius(16)
-          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-          .onClick(() => {
-            this.loadConfig(new AudioEffectConfig())
-            this.applyCurrentConfig()
-          })
-        Button($r('app.string.off'))
-          .layoutWeight(1)
-          .height(40)
-          .fontSize(15)
-          .fontColor($r('app.color.text_color'))
-          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          .borderRadius(16)
-          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-          .onClick(() => this.controller?.close())
       }
       .width('100%')
+      .padding(16)
     }
     .width('100%')
-    .padding({
-      left: 16,
-      right: 16,
-      top: 16,
-      bottom: 16
-    })
+    .constraintSize({ maxHeight: '90%' })
+    .scrollBar(BarState.Auto)
   }
 
   @Builder

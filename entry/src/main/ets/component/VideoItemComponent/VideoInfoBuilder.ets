@@ -1,42 +1,51 @@
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import TimeUtil from '../../utils/TimeUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
 import { AUDIO_TYPE, VIDEO_HDR_TYPE } from '../../common/enum/HDR_TYPE'
 import { GradientTagBuilder, SolidColorTagBuilder } from '../common/MediaTagBuilder'
 
 class VideoInfoBuilderParams {
   item: VideoMetadata | undefined = undefined
   nowPlaying?: VideoMetadata | undefined = undefined
+  playbackResolution?: string
 }
 
 @Builder
 export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
   Row() {
     if (params.item?.hdr_type === VIDEO_HDR_TYPE.HDR_VIVID) {
-      GradientTagBuilder({ symbol: $r('sys.symbol.hdr'), label: 'HDR Vivid' })
+      GradientTagBuilder({ symbol: $r('sys.symbol.hdr'), label: 'HDR Vivid', marginBottom: 0 })
     } else if (params.item?.hdr_type === VIDEO_HDR_TYPE.DOLBY_VISION) {
-      SolidColorTagBuilder({ symbol: $r('sys.symbol.dolby_fill'), label: 'DOLBY VISION', symbolSize: 16 })
+      SolidColorTagBuilder({
+        symbol: $r('sys.symbol.dolby_fill'),
+        label: 'DOLBY VISION',
+        symbolSize: 16,
+        marginBottom: 0
+      })
     } else if (params.item?.hdr_type === VIDEO_HDR_TYPE.HDR10) {
       SolidColorTagBuilder({
         label: 'HDR 10',
         textColor: $r('sys.color.black'),
         bgColor: '#de9e44',
-        opacity: 0.9
+        opacity: 0.9,
+        marginBottom: 0
       })
     }
 
     if (params.item?.audio_type === AUDIO_TYPE.AUDIO_VIVID) {
-      GradientTagBuilder({ symbol: $r('sys.symbol.hdr'), label: 'AUDIO Vivid' })
+      GradientTagBuilder({ symbol: $r('sys.symbol.hdr'), label: 'AUDIO Vivid', marginBottom: 0 })
 
     } else if (params.item?.audio_type === AUDIO_TYPE.DOLBY_AUDIO) {
       SolidColorTagBuilder({
         symbol: $r('sys.symbol.dolby_fill'),
         label: 'DOLBY AUDIO',
         symbolSize: 16,
+        marginBottom: 0
 
       })
     } else if (params.item?.audio_type === AUDIO_TYPE.DTS) {
-      SolidColorTagBuilder({ symbol: $r('sys.symbol.dts_circle'), label: 'DTS', bgColor: '#dd403d' })
+      SolidColorTagBuilder({ symbol: $r('sys.symbol.dts_circle'), label: 'DTS', bgColor: '#dd403d', marginBottom: 0 })
     }
 
     if (!VideoInfoUtil.hasVideoTrack(params.item)) {
@@ -44,8 +53,20 @@ export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
         label: VideoInfoUtil.getAudioQualityLabel(params.item),
         textColor: $r('sys.color.black'),
         bgColor: '#de9e44',
-        opacity: 0.9
+        opacity: 0.9,
+        marginBottom: 0
       })
+    } else if (params.nowPlaying && ToolsUtil.isNetworkUrl(params.item?.uri)) {
+      if (params.nowPlaying.date === params.item?.date && params.nowPlaying.uri === params.item?.uri &&
+        params.playbackResolution) {
+        SolidColorTagBuilder({
+          label: params.playbackResolution,
+          textColor: $r('sys.color.black'),
+          bgColor: '#de9e44',
+          opacity: 0.9,
+          marginBottom: 0
+        })
+      }
     } else if (!params.item?.hdr_type && !params.item?.audio_type) {
       if (VideoInfoUtil.getResolutionLabel(params.item).includes('HD')) {
         SolidColorTagBuilder({
@@ -53,14 +74,16 @@ export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
             (params.item!.frame_rate > 0 ? ` ${params.item!.frame_rate} fps` : ''),
           textColor: $r('sys.color.black'),
           bgColor: '#de9e44',
-          opacity: 0.9
+          opacity: 0.9,
+          marginBottom: 0
         })
       } else if (VideoInfoUtil.getResolutionLabel(params.item) === '0 x 0') {
         SolidColorTagBuilder({
           label: $r('app.string.unknown_resolution'),
           textColor: $r('sys.color.black'),
           bgColor: '#c1b2a3',
-          opacity: 0.9
+          opacity: 0.9,
+          marginBottom: 0
         })
       } else {
         Text(VideoInfoUtil.getResolutionLabel(params.item))

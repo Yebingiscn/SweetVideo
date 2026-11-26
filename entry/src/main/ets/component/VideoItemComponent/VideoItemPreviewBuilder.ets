@@ -7,7 +7,7 @@ import { VideoInfoBuilder } from './VideoInfoBuilder';
 @Builder
 export function VideoItemPreviewBuilder(item: VideoMetadata) {
   Column() {
-    // 封面图区域：固定 16:9 宽高比
+    // 标题和媒体信息优先占用空间，封面填满剩余高度。
     Image(PathUtils.coverUri(item.date))
       .attributeModifier(new ImageFancyModifier({
         topLeft: 12,
@@ -16,7 +16,7 @@ export function VideoItemPreviewBuilder(item: VideoMetadata) {
         bottomRight: 0
       }, '', ''))
       .width('100%')
-      .aspectRatio(16 / 9)
+      .layoutWeight(1)
       .objectFit(ImageFit.Cover)
       .clip(true)
     // 标题区域
@@ -34,6 +34,8 @@ export function VideoItemPreviewBuilder(item: VideoMetadata) {
     VideoInfoBuilder({ item: item })
   }
   .width('100%')
+  .height(256)
+  .padding({ bottom: 12 })
   .constraintSize({ maxWidth: 360 })
   .backgroundColor($r('app.color.start_window_background'))
   .borderRadius(12)

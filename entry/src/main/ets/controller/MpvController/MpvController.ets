@@ -85,6 +85,7 @@ import SubtitleUtil from '../../utils/SubtitleUtil'
 import { ThrottleUtil } from '../../utils/DebounceUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import IPTVPlaybackPreflight from '../../utils/IPTVPlaybackPreflight'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { fileUri } from '@kit.CoreFileKit'
 import { MpvPlayerEngineAdapter } from '../engine/MpvPlayerEngineAdapter'
@@ -147,6 +148,7 @@ export class MpvController implements PlayerControllerInterface {
   @Trace screenHeight: number = 0
   @Trace playAreaHeight: number = 0
   @Trace playAreaWidth: number = 0
+  @Trace playbackResolution: string = ''
   @Trace angle: number = 0
   @Trace repeatMode: SweetRepeatMode = SweetRepeatMode.LIST
   @Trace selectedText: string | undefined = '原始比例'
@@ -161,7 +163,7 @@ export class MpvController implements PlayerControllerInterface {
   @Trace secondarySubtitlePosition: number = 10
   @Trace secondarySubtitleSize: number = Number(Setting.subtitleSize)
   @Trace audioChannelMode: MpvAudioChannelMode = MpvAudioChannelMode.STEREO
-  audioEffectConfig: AudioEffectConfig = new AudioEffectConfig()
+  @Trace audioEffectConfig: AudioEffectConfig = new AudioEffectConfig()
   @Trace chapterList: MpvChapter[] = []
   @Trace discTitles: MpvDiscTitle[] = []
   @Trace longPress: boolean = false
@@ -313,6 +315,7 @@ export class MpvController implements PlayerControllerInterface {
     this.audioPauseGuard.cancel()
     this.audioController.usbSession.cancelPendingOpen()
     this.engineAdapter.invalidateLoad()
+    this.playbackResolution = ''
     this.pendingCompletionRequestId = 0
     this.transitionTo(MpvPlayerState.LOADING)
     this.playTime = 0
@@ -437,6 +440,7 @@ export class MpvController implements PlayerControllerInterface {
     const requestGeneration = this.playRequestGeneration
     this.cancelSmartRotationTimer()
     this.engineAdapter.invalidateLoad()
+    this.playbackResolution = ''
     this.pendingCompletionRequestId = 0
     this.applyDebugInfoVisibility()
     this.decodingRecovery.cancelDecodingModeVerification()
@@ -505,7 +509,7 @@ export class MpvController implements PlayerControllerInterface {
       }
       this.applyAutoDeinterlace()
       this.applyDecoderVrrPolicy()
-      if (!this.audioController.applyAudioPassthrough(this.speed, this.audioEffectConfig.effect)) {
+      if (!this.audioController.preparePlaybackOutput()) {
         throw new Error(ToolsUtil.getStringResource($r('app.string.set_audio_output_mode_failed').id))
       }
       this.audioController.applyAudioCoverMode()
@@ -662,6 +666,7 @@ export class MpvController implements PlayerControllerInterface {
     PiPWindowUtil.enableAutoStart()
     this.transitionTo(MpvPlayerState.PLAYING)
     mpvPlay(this.mpvHandle)
+    IPTVPlaybackPreflight.recordPlayback(this.nowPlaying)
     AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
     this.reactivateAudioSessionIfNeeded()
   }
@@ -718,6 +723,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async reset(): Promise<void> {
+    this.playbackResolution = ''
     this.audioPauseGuard.cancel()
     this.cancelSmartRotationTimer()
     this.engineAdapter.reset()
@@ -725,6 +731,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async release(): Promise<void> {
+    this.playbackResolution = ''
     clearTimeout(this.iptvRetryTimer)
     this.iptvRetryCount = 0
     this.resetListenVideo()
@@ -1862,6 +1869,7 @@ export class MpvController implements PlayerControllerInterface {
         if (!this.onSwiping) {
           ThrottleUtil.throttle('playTime', () => {
             if (generation === this.postLoadTaskGeneration && this.engineAdapter.isMediaLoaded()) {
+              this.audioController.retryRememberedAudioEffect()
               this.playTime = timeMs
             }
           }, 100)
@@ -1892,6 +1900,7 @@ export class MpvController implements PlayerControllerInterface {
         if (!this.engineAdapter.isMediaLoaded()) {
           return
         }
+        this.updatePlaybackResolution()
         this.decodingRecovery.completeDecodingModeVerificationOnVideoSize()
         if (!this.smartRotationAllowed) {
           return
@@ -1920,6 +1929,13 @@ export class MpvController implements PlayerControllerInterface {
       this.videoSizeCallbackRegistered = true
     } catch (error) {
       salmonLogger.addLog(TAG, 'Failed to register video size changed callback', error)
+    }
+  }
+
+  private updatePlaybackResolution(): void {
+    if (ToolsUtil.isNetworkUrl(this.nowPlaying?.uri)) {
+      this.playbackResolution =
+        VideoInfoUtil.getPlaybackResolutionLabel(this.getPlayAreaWidth(), this.getPlayAreaHeight())
     }
   }
 
@@ -2170,7 +2186,7 @@ export class MpvController implements PlayerControllerInterface {
       }
       this.applyAutoDeinterlace()
       this.applyDecoderVrrPolicy()
-      if (!this.audioController.applyAudioPassthrough(this.speed, this.audioEffectConfig.effect)) {
+      if (!this.audioController.preparePlaybackOutput()) {
         throw new Error('普通音频输出配置失败')
       }
       this.audioController.applyAudioCoverMode()
@@ -2208,6 +2224,7 @@ export class MpvController implements PlayerControllerInterface {
         }
 
         this.engineAdapter.markLoaded(requestId)
+        this.updatePlaybackResolution()
         this.refreshDiscTitles()
         try {
           this.nowPlaying!.time = this.getDuration()
@@ -2226,6 +2243,7 @@ export class MpvController implements PlayerControllerInterface {
         if (!this.usbExclusiveActive) {
           this.audioController.setLoudnessGain(Preferences.getLoudnessGain(PathUtils.appContext!), false)
         }
+        this.audioController.restoreRememberedAudioEffect()
         this.audioController.initializeUsbVolume()
         salmonLogger.addLog(TAG, `[MpvController] MPV file loaded request=${requestId}`, false)
         // loadfile replace 后再明确同步一次播放状态，避免 EOF 状态残留。
@@ -2236,6 +2254,7 @@ export class MpvController implements PlayerControllerInterface {
           } else {
             mpvPlay(this.mpvHandle)
             this.transitionTo(MpvPlayerState.PLAYING)
+            IPTVPlaybackPreflight.recordPlayback(this.nowPlaying)
           }
           AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
         } else if (this.isInState(MpvPlayerState.SWITCHING_MODE)) {
@@ -2488,7 +2507,7 @@ export class MpvController implements PlayerControllerInterface {
       try {
         this.applyAutoDeinterlace()
         this.applyDecoderVrrPolicy()
-        if (!this.audioController.applyAudioPassthrough(this.speed, this.audioEffectConfig.effect)) {
+        if (!this.audioController.preparePlaybackOutput()) {
           throw new Error(ToolsUtil.getStringResource($r('app.string.set_audio_output_mode_failed').id))
         }
         this.audioController.applyAudioCoverMode()
@@ -2545,6 +2564,7 @@ export class MpvController implements PlayerControllerInterface {
 
   // 清理MPV实例
   private cleanupMpvInstance(): void {
+    this.playbackResolution = ''
     this.cancelSmartRotationTimer()
     this.pendingCompletionRequestId = 0
     // 先发布空 generation，让 VO 放弃旧 EGLSurface，再销毁 mpv/ArkUI Surface。
@@ -2557,6 +2577,7 @@ export class MpvController implements PlayerControllerInterface {
       }
     }
 
+    this.audioEffectConfig = new AudioEffectConfig()
     // 重置回调注册标志
     this.osdVisibility = false
     this.playTime = 0

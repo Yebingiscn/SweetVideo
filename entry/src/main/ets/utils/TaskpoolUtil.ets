@@ -1,7 +1,7 @@
 import { taskpool } from '@kit.ArkTS'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { fileIo as fs } from '@kit.CoreFileKit'
-import NameSortUtil from './NameSortUtil'
+import NameSortUtil, { FULL_ALPHABET } from './NameSortUtil'
 import ToolsUtil from './ToolsUtil'
 
 export class FolderNameSortItem {
@@ -9,6 +9,7 @@ export class FolderNameSortItem {
   name: string
   index: number
   sortKey: string = ''
+  sortGroup: number = 0
 
   constructor(date: string, name: string, index: number) {
     this.date = date
@@ -19,13 +20,16 @@ export class FolderNameSortItem {
 
 @Concurrent
 async function sortFolderNamesTask(items: FolderNameSortItem[], ascending: boolean,
-  pinyinSort: boolean): Promise<number[]> {
+  pinyinSort: boolean, groupByLetter: boolean): Promise<number[]> {
   const collator = NameSortUtil.createCollator()
+  const useLetterGroups = pinyinSort && groupByLetter
   items.forEach(item => {
     item.sortKey = NameSortUtil.getSortKey(item.name || '', pinyinSort)
+    item.sortGroup = useLetterGroups ? FULL_ALPHABET.indexOf(NameSortUtil.getInitialLetter(item.sortKey)) : 0
   })
   items.sort((left, right) => {
-    const compare = collator.compare(left.sortKey, right.sortKey)
+    const groupOrder = left.sortGroup - right.sortGroup
+    const compare = groupOrder === 0 ? collator.compare(left.sortKey, right.sortKey) : groupOrder
     if (compare !== 0) {
       return ascending ? compare : -compare
     }
@@ -36,10 +40,10 @@ async function sortFolderNamesTask(items: FolderNameSortItem[], ascending: boole
 }
 
 export async function sortFolderNamesInTaskPool(items: FolderNameSortItem[], ascending: boolean = true,
-  pinyinSort: boolean = true): Promise<number[]> {
+  pinyinSort: boolean = true, groupByLetter: boolean = false): Promise<number[]> {
   try {
     const result = await taskpool.execute(
-      new taskpool.Task(sortFolderNamesTask, items, ascending, pinyinSort),
+      new taskpool.Task(sortFolderNamesTask, items, ascending, pinyinSort, groupByLetter),
       taskpool.Priority.HIGH
     )
     return result as number[]

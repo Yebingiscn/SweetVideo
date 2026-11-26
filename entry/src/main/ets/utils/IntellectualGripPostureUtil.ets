@@ -6,7 +6,25 @@ const TAG = 'IntellectualGripPostureUtil'
 
 export default class IntellectualGripPostureUtil {
   private static unsupportedEvents: Set<string> = new Set()
-  private static registeredEvents: Set<string> = new Set()
+  private static holdingCallbacks: Set<Callback<motion.HoldingHandStatus>> = new Set()
+  private static holdingHandRegistered: boolean = false
+  private static lastHoldingHandStatus: motion.HoldingHandStatus | null = null
+  private static operatingHandRegistered: boolean = false
+
+  private static dispatchHoldingHandStatus: Callback<motion.HoldingHandStatus> =
+    (status: motion.HoldingHandStatus): void => {
+      if (!Setting.gripPostureEnabled || IntellectualGripPostureUtil.holdingCallbacks.size === 0) {
+        return
+      }
+      IntellectualGripPostureUtil.lastHoldingHandStatus = status
+      const callbacks = Array.from(IntellectualGripPostureUtil.holdingCallbacks)
+      for (const callback of callbacks) {
+        if (IntellectualGripPostureUtil.holdingCallbacks.has(callback)) {
+          callback(status)
+        }
+      }
+    }
+
   static isLeftOperateHand(status: motion.OperatingHandStatus | null): boolean {
     if (!Setting.gripPostureEnabled) {
       return false
@@ -30,45 +48,57 @@ export default class IntellectualGripPostureUtil {
   }
 
   static createOperatingHandStatus(callback?: Callback<motion.OperatingHandStatus>) {
-    if (!Setting.gripPostureEnabled) {
-      return
+    const onChanged = callback ?? ((status: motion.OperatingHandStatus) => {
+      console.info('operatingHandChanged: ' + status)
+    })
+    if (IntellectualGripPostureUtil.registerMotionEvent('operatingHandChanged', () => {
+      motion.on('operatingHandChanged', onChanged)
+    })) {
+      IntellectualGripPostureUtil.operatingHandRegistered = true
     }
-    IntellectualGripPostureUtil.createHandStatus(callback, 'operatingHandChanged',
-      () => {
-      },
-      (cb) => {
-        IntellectualGripPostureUtil.registerMotionEvent('operatingHandChanged', cb)
-      })
   }
 
-  static createHoldingHandStatus(callback?: Callback<motion.HoldingHandStatus>) {
-    if (!Setting.gripPostureEnabled) {
+  static createHoldingHandStatus(callback: Callback<motion.HoldingHandStatus>) {
+    if (!Setting.gripPostureEnabled || IntellectualGripPostureUtil.holdingCallbacks.has(callback)) {
       return
     }
-    IntellectualGripPostureUtil.createHandStatus(callback, 'holdingHandChanged',
-      () => {
-      },
-      (cb) => {
-        IntellectualGripPostureUtil.registerMotionEvent('holdingHandChanged', cb)
+    IntellectualGripPostureUtil.holdingCallbacks.add(callback)
+    if (IntellectualGripPostureUtil.holdingHandRegistered) {
+      const status = IntellectualGripPostureUtil.lastHoldingHandStatus
+      if (status !== null) {
+        callback(status)
+      }
+      return
+    }
+    IntellectualGripPostureUtil.holdingHandRegistered =
+      IntellectualGripPostureUtil.registerMotionEvent('holdingHandChanged', () => {
+        motion.on('holdingHandChanged', IntellectualGripPostureUtil.dispatchHoldingHandStatus)
       })
+    if (!IntellectualGripPostureUtil.holdingHandRegistered) {
+      IntellectualGripPostureUtil.holdingCallbacks.delete(callback)
+    }
   }
 
   static destroyOperatingHandStatus() {
-    IntellectualGripPostureUtil.destroyHandStatus('operatingHandChanged',
-      () => {
-        IntellectualGripPostureUtil.unregisterMotionEvent('operatingHandChanged')
-      },
-      () => {
-      })
+    if (IntellectualGripPostureUtil.operatingHandRegistered &&
+      IntellectualGripPostureUtil.unregisterMotionEvent('operatingHandChanged', () => {
+        motion.off('operatingHandChanged')
+      })) {
+      IntellectualGripPostureUtil.operatingHandRegistered = false
+    }
   }
 
-  static destroyHoldingHandStatus(callback?: Callback<motion.HoldingHandStatus>) {
-    IntellectualGripPostureUtil.destroyHandStatus('holdingHandChanged',
-      () => {
-        IntellectualGripPostureUtil.unregisterMotionEvent('holdingHandChanged', callback)
-      },
-      () => {
-      })
+  static destroyHoldingHandStatus(callback: Callback<motion.HoldingHandStatus>) {
+    IntellectualGripPostureUtil.holdingCallbacks.delete(callback)
+    if (IntellectualGripPostureUtil.holdingCallbacks.size > 0 || !IntellectualGripPostureUtil.holdingHandRegistered) {
+      return
+    }
+    IntellectualGripPostureUtil.lastHoldingHandStatus = null
+    if (IntellectualGripPostureUtil.unregisterMotionEvent('holdingHandChanged', () => {
+      motion.off('holdingHandChanged', IntellectualGripPostureUtil.dispatchHoldingHandStatus)
+    })) {
+      IntellectualGripPostureUtil.holdingHandRegistered = false
+    }
   }
 
   static getOperatingHandStatus(): motion.OperatingHandStatus | null {
@@ -99,83 +129,34 @@ export default class IntellectualGripPostureUtil {
     return false
   }
 
-  private static registerMotionEvent<T>(eventName: string, cb: Callback<T>) {
-    if (IntellectualGripPostureUtil.unsupportedEvents.has(eventName)) {
-      return
+  private static registerMotionEvent(eventName: string, register: () => void): boolean {
+    if (!Setting.gripPostureEnabled || IntellectualGripPostureUtil.unsupportedEvents.has(eventName) ||
+      !canIUse('SystemCapability.MultimodalAwareness.Motion')) {
+      return false
     }
-    if (canIUse("SystemCapability.MultimodalAwareness.Motion")) {
-      try {
-        if (eventName === 'holdingHandChanged') {
-          motion.on('holdingHandChanged', cb as Callback<motion.HoldingHandStatus>)
-        } else {
-          motion.on('operatingHandChanged', cb as Callback<motion.OperatingHandStatus>)
-        }
-        IntellectualGripPostureUtil.registeredEvents.add(eventName)
-      } catch (error) {
-        if (error.code === 801) {
-          IntellectualGripPostureUtil.unsupportedEvents.add(eventName)
-          salmonLogger.addLog(TAG, eventName + ': 设备不支持，已跳过')
-        } else {
-          salmonLogger.addLog(TAG, eventName + ' 注册失败，code=' + error.code, true)
-        }
+    try {
+      register()
+      console.info(`${eventName} on succeeded`)
+      return true
+    } catch (error) {
+      if (error.code === 801) {
+        IntellectualGripPostureUtil.unsupportedEvents.add(eventName)
+        salmonLogger.addLog(TAG, eventName + ': 设备不支持，已跳过')
+      } else {
+        salmonLogger.addLog(TAG, eventName + ' 注册失败，code=' + error.code, true)
       }
-    } else {
-      salmonLogger.addLog(TAG, 'unsupported SystemCapability', true)
+      return false
     }
   }
 
-  private static unregisterMotionEvent(eventName: string, callback?: Callback<motion.HoldingHandStatus>) {
-    if (!IntellectualGripPostureUtil.registeredEvents.has(eventName)) {
-      return
-    }
-    if (canIUse("SystemCapability.MultimodalAwareness.Motion")) {
-      try {
-        if (eventName === 'holdingHandChanged' && callback) {
-          // 播放页只释放自己的订阅，其他页面可能仍在使用同一事件。
-          motion.off('holdingHandChanged', callback)
-        } else {
-          if (eventName === 'holdingHandChanged') {
-            motion.off('holdingHandChanged')
-          } else {
-            motion.off('operatingHandChanged')
-          }
-          IntellectualGripPostureUtil.registeredEvents.delete(eventName)
-        }
-      } catch (error) {
-        salmonLogger.addLog(TAG, `${eventName} error` + error, true)
-      }
-    } else {
-      salmonLogger.addLog(TAG, 'unsupported SystemCapability', true)
-    }
-  }
-
-  private static createHandStatus<T>(callback: Callback<T> | undefined, defaultLog: string,
-    callbackSetter: (cb: Callback<T> | null) => void, register: (cb: Callback<T>) => void) {
-    if (canIUse('SystemCapability.MultimodalAwareness.Motion')) {
-      const cb = callback ?? ((data: T) => {
-        console.info(`${defaultLog}: ` + data)
-      })
-      callbackSetter(cb)
-      try {
-        register(cb)
-        console.info(`${defaultLog} on succeeded`)
-      } catch (err) {
-        let error = err as BusinessError
-        console.error("Failed on and err code is " + error.code)
-      }
-    }
-  }
-
-  private static destroyHandStatus(logName: string, unregister: () => void, callbackSetter: () => void) {
-    if (canIUse('SystemCapability.MultimodalAwareness.Motion')) {
-      try {
-        unregister()
-        callbackSetter()
-        console.info(`${logName} off succeeded`)
-      } catch (err) {
-        let error = err as BusinessError
-        console.error("Failed off and err code is " + error.code)
-      }
+  private static unregisterMotionEvent(eventName: string, unregister: () => void): boolean {
+    try {
+      unregister()
+      console.info(`${eventName} off succeeded`)
+      return true
+    } catch (error) {
+      salmonLogger.addLog(TAG, eventName + ' 注销失败，code=' + error.code, true)
+      return false
     }
   }
 }

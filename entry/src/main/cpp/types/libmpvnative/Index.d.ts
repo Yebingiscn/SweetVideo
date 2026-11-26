@@ -238,6 +238,9 @@ declare module 'libmpvnative.so' {
 
   export const getCurrentAudioTrack: (mpvHandle: number) => number;
 
+  /** Actual output sample format, or an empty string while the audio chain is reconfiguring. */
+  export const getAudioOutputFormat: (mpvHandle: number) => string;
+
   export const setLoudnessGain: (mpvHandle: number, loudnessGain: number) => boolean;
 
   export const setAudioChannel: (mpvHandle: number, channelMode: number) => boolean;

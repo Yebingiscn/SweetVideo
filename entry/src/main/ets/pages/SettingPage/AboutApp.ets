@@ -225,7 +225,7 @@ export struct AboutApp {
       hideTitleArea: true,
       hideBottomBuilder: true,
       hideStatusBar: false,
-      mode: HideMode.SCROLL_UP
+      mode: HideMode.SCROLL_UP_TO
     })
     .backgroundColor($r('app.color.start_window_background'))
     .backgroundImage(

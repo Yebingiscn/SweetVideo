@@ -224,7 +224,7 @@ export default class MediaLibraryService {
         video.pointB = 0
         video.audio_track_id = undefined
         video.subtitle_track_id = undefined
-        video.size = [0, 0]
+        video.size = [1, 1]
         video.hdr_type = 0
         video.audio_type = 0
       }

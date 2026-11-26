@@ -3,7 +3,7 @@ import { salmonLogger } from 'salmonlogger'
 import { ImageFancyModifier, MenuFancyModifier } from '../../common/AttributeModifierConfig'
 import Preferences from '../../database/Preferences'
 import { PrivacySpaceErrorListDataSource } from '../../utils/DataUtil'
-import { Privacy, Setting } from '../../utils/ObservedUtil'
+import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
@@ -282,6 +282,7 @@ export struct PrivacySpaceErrorList {
           }
           .clip(false)
           .layoutWeight(1)
+          .contentEndOffset(SafeHeight.bottomSafeHeight)
           .padding({ left: 16, right: 16 })
           .width('100%')
           .height('auto')

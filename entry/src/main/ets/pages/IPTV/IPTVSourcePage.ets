@@ -262,7 +262,7 @@ export struct IPTVSourcePage {
       hideTitleArea: true,
       hideBottomBuilder: true,
       hideStatusBar: false,
-      mode: HideMode.SCROLL_UP
+      mode: HideMode.SCROLL_UP_TO
     })
     .onShown(() => this.reload())
   }

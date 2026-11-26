@@ -283,7 +283,7 @@ export struct SideBarContentComponent {
         this.isLogin = true
       })
       .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
-      .margin({ top: 10 })
+      .margin({ top: 6 })
       .justifyContent(FlexAlign.Start)
       .backgroundColor($r('app.color.list_item_background'))
       .borderRadius(16)
@@ -325,7 +325,7 @@ export struct SideBarContentComponent {
         })
       }
       .width('100%')
-      .margin({ top: 10 })
+      .margin({ top: 6 })
       .backgroundColor($r('app.color.list_item_background'))
       .borderRadius(16)
 
@@ -346,7 +346,7 @@ export struct SideBarContentComponent {
           lightEffect: {}
         })
       })
-        .margin({ top: 10, bottom: 6 })
+        .margin({ top: 6, bottom: 6 })
     }
     .width('100%')
     .padding({ left: 12, right: 12, top: 12 })

@@ -107,10 +107,15 @@ export struct VideoPlayer {
     builder: AudioEffectDialog({
       isSystemPlayer: (): boolean => this.player instanceof AVPlayerController,
       getCurrentConfig: (): AudioEffectConfig => {
-        if (this.player instanceof MpvController || this.player instanceof AVPlayerController) {
-          return AudioEffectConfig.copy(this.player.audioEffectConfig)
+        const active = this.getActiveAudioEffect()
+        if (active && active.effect !== 'off') {
+          return AudioEffectConfig.copy(active)
         }
-        return new AudioEffectConfig()
+        const context = PathUtils.appContext
+        const options = context ? Preferences.getAudioEffectConfig(context) : new AudioEffectConfig()
+        options.effect = 'off'
+        options.presetId = ''
+        return options
       },
       onApply: async (config: AudioEffectConfig, silent?: boolean): Promise<boolean> => {
         const player = this.player
@@ -119,6 +124,13 @@ export struct VideoPlayer {
         }
         const applied = player instanceof MpvController ?
           player.audioController.applyAudioEffect(config) : await player.applyAudioEffect(config)
+        if (this.player !== player) {
+          return false
+        }
+        const context = PathUtils.appContext
+        if (applied && context) {
+          Preferences.saveAudioEffectConfig(context, config)
+        }
         if (!silent) {
           ToolsUtil.showToast(applied ? ToolsUtil.getStringResource($r('app.string.audio_effect_applied').id) :
             ToolsUtil.getStringResource($r('app.string.audio_effect_apply_failed_mpv').id))
@@ -604,7 +616,8 @@ export struct VideoPlayer {
               })
             }
 
-            if (this.player.longPress || this.player.speedLocked) {
+            if ((this.player.longPress || this.player.speedLocked) &&
+              !this.player.onSwipingVoice && !this.player.onSwipingBrightness) {
               FastForwardPanelBuilder({
                 speed: this.player.speed,
                 location: VideoInfoUtil.playAreaHeight,
@@ -1104,7 +1117,7 @@ export struct VideoPlayer {
         this.sideBarStatus = v
       },
       onScreenRotationOrFullScreenClick: async () => {
-        VideoOperateUtil.fullScreenOrRotateScreen(this.player.screenWidth, this.player.screenHeight,
+        await VideoOperateUtil.fullScreenOrRotateScreen(this.player.screenWidth, this.player.screenHeight,
           this.getWindowClass())
       },
       onTogglePlaybackClick: () => {
@@ -1122,6 +1135,7 @@ export struct VideoPlayer {
   AudioTrackMenuBuilder() {
     AudioTrackComponent({
       player: this.player,
+      audioEffectActive: (this.getActiveAudioEffect()?.effect ?? 'off') !== 'off',
       onSelect: (index: number) => {
         this.closeTimeOffsetEdits()
         this.player.audioController.selectAudioTrackByIndex(index)
@@ -1140,6 +1154,14 @@ export struct VideoPlayer {
         this.audioEffectDialog.open()
       }
     })
+  }
+
+  private getActiveAudioEffect(): AudioEffectConfig | undefined {
+    const player = this.player
+    if (player instanceof MpvController || player instanceof AVPlayerController) {
+      return player.audioEffectConfig
+    }
+    return undefined
   }
 
   @Builder
@@ -2077,8 +2099,16 @@ export struct VideoPlayer {
     this.subtitleManager.syncMpvSubtitleVisibility()
   }
 
-  private getWindowClass(): Promise<window.Window | undefined> {
-    return this.player.getWindowClass() ?? this.windowClass
+  private async getWindowClass(): Promise<window.Window | undefined> {
+    try {
+      const mainWindow = await VideoOperateUtil.windowStage?.getMainWindow()
+      if (mainWindow) {
+        return mainWindow
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, `获取播放页主窗口失败：${error}`, true)
+    }
+    return WindowUtil.windowClass ?? this.player.getWindowClass() ?? this.windowClass
   }
 
   private exitVideo(timeOut: number): void {

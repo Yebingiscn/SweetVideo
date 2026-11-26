@@ -33,12 +33,14 @@ import PermissionUtil from '../../utils/PermissionUtil'
 import PiPWindowUtil from '../../utils/PiPWindowUtil'
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import IPTVPlaybackPreflight from '../../utils/IPTVPlaybackPreflight'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { fileIo } from '@kit.CoreFileKit'
 import { AVPlayerEngineAdapter } from '../engine/AVPlayerEngineAdapter'
 import { NativeAVPlayer, NativeBufferingInfo } from '../engine/NativeAVPlayer'
 import { AudioEffectConfig } from '../../interfaces/AudioEffectInterface'
+import lazy { userData } from '../../component/common/UserLoginComponent'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { AVPlayerSubtitleController } from './AVPlayerSubtitleController'
 import MediaLibraryService from '../../utils/MediaLibraryService'
@@ -104,6 +106,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Trace screenHeight: number = 0
   @Trace playAreaHeight: number = 0
   @Trace playAreaWidth: number = 0
+  @Trace playbackResolution: string = ''
   @Trace angle: number = 0
   @Trace pixelMap: PixelMap | null = null
   @Trace repeatMode: SweetRepeatMode = SweetRepeatMode.LIST
@@ -138,6 +141,8 @@ export class AVPlayerController implements PlayerControllerInterface {
   private stateChangeResolvers: Map<string, ((value: void) => void)> = new Map()
   private callbackPlayer: NativeAVPlayer | undefined = undefined
   private videoSwitchVersion: number = 0
+  private iptvRetryTimer: number = 0
+  private iptvRetryCount: number = 0
   private isSwitchingVideo: boolean = false
   private playbackDetailsInitialized: boolean = false
   private framePreviewPrepareTimer: number = 0
@@ -192,12 +197,8 @@ export class AVPlayerController implements PlayerControllerInterface {
     if (!player) {
       throw new Error(ToolsUtil.getStringResource($r('app.string.play_video_first').id))
     }
-    await player.applyAudioEffect(config)
-    if (!this.engineAdapter.isCurrent(player)) {
-      return false
-    }
-    this.audioEffectConfig = AudioEffectConfig.copy(config)
-    return true
+    const applied = await player.applyAudioEffect(config)
+    return applied && this.engineAdapter.isCurrent(player)
   }
 
   async create(): Promise<void> {
@@ -205,14 +206,9 @@ export class AVPlayerController implements PlayerControllerInterface {
       return
     }
     try {
-      const alreadyCreated = this.engineAdapter.isCreated()
-      const player = await this.engineAdapter.create()
+      await this.engineAdapter.create()
       if (this.pageExitStarted) {
         await this.engineAdapter.release()
-        return
-      }
-      if (!alreadyCreated) {
-        player?.restoreAudioEffect(this.audioEffectConfig)
       }
     } catch (error) {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.playback_exception').id))
@@ -445,10 +441,16 @@ export class AVPlayerController implements PlayerControllerInterface {
     await this.applyLoudnessGain(this.desiredLoudnessGain ?? this.volumeLoudnessGain, false)
   }
 
-  async getAudioTrackList() {
-    this.audioTrack = await VideoOperateUtil.getAudioTracks(this.avPlayer!)
-    this.selectAudioTrack(this.audioTrack[0].index)
-    this.restoreAudioTrackPreference()
+  async getAudioTrackList(): Promise<void> {
+    const player = this.avPlayer
+    if (!player) {
+      return
+    }
+    const switchVersion = this.videoSwitchVersion
+    const tracks = await VideoOperateUtil.getAudioTracks(player)
+    if (this.parameterRequestActive(player, switchVersion)) {
+      this.audioTrack = tracks
+    }
   }
 
   selectAudioTrack(index: number) {
@@ -468,18 +470,36 @@ export class AVPlayerController implements PlayerControllerInterface {
     return this.audioTrack.length
   }
 
-  restoreAudioTrackPreference(): void {
-    if (!this.nowPlaying || this.audioTrack.length <= 1) {
+  private async restoreAudioTrackPreference(player: NativeAVPlayer, switchVersion: number): Promise<void> {
+    this.audioTrack = []
+    this.audioTrackSelected = 0
+    const index = this.nowPlaying?.audio_track_id
+    // AVPlayer already starts with the first audio track that has data.
+    if (index === undefined || !Number.isInteger(index) || index <= 0) {
       return
     }
-    const audioTrackId = this.nowPlaying.audio_track_id
-    if (audioTrackId !== undefined && audioTrackId > 0 && audioTrackId < this.audioTrack.length) {
-      this.selectAudioTrack(this.audioTrack[audioTrackId].index)
-      this.audioTrackSelected = audioTrackId
+    await this.getAudioTrackList()
+    if (!this.parameterRequestActive(player, switchVersion) || player.state !== 'prepared' ||
+      index >= this.audioTrack.length) {
+      return
+    }
+    try {
+      await player.selectTrack(this.audioTrack[index].index)
+      if (this.parameterRequestActive(player, switchVersion)) {
+        this.audioTrackSelected = index
+        salmonLogger.addLog(TAG, `起播前已恢复音轨 ${index}`)
+      }
+    } catch (error) {
+      if (this.parameterRequestActive(player, switchVersion)) {
+        salmonLogger.addLog(TAG, `起播前恢复音轨 ${index} 失败：${(error as Error).message}`, true)
+      }
     }
   }
 
   async release(): Promise<void> {
+    this.playbackResolution = ''
+    this.cancelIptvRetry()
+    this.iptvRetryCount = 0
     this.invalidateProgressRequests()
     this.invalidateParameterRequests()
     this.videoTracks.reset()
@@ -513,6 +533,8 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   async reset(): Promise<void> {
+    this.playbackResolution = ''
+    this.audioEffectConfig = new AudioEffectConfig()
     this.invalidateProgressRequests()
     this.invalidateParameterRequests()
     this.videoTracks.reset()
@@ -836,6 +858,11 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack,
     windowClass?: Promise<window.Window | undefined>, xComponentController?: XComponentController): Promise<void> {
+    this.cancelIptvRetry()
+    if (item.date !== this.nowPlaying?.date || item.uri !== this.nowPlaying?.uri ||
+      this.playerState === PlayerState.ERROR) {
+      this.iptvRetryCount = 0
+    }
     framePreviewSession.cancelRequests(this)
     salmonLogger.addLog(TAG, "开始播放选择的视频", false)
     this.audioPauseGuard.cancel()
@@ -879,7 +906,7 @@ export class AVPlayerController implements PlayerControllerInterface {
         return
       }
       this.playbackPositionMs = 0
-      if (!PrivacySpaceUtil.getPrivacyMode()) {
+      if (!item.is_iptv_live && !PrivacySpaceUtil.getPrivacyMode()) {
         const findResult = Preferences.findVideoByDate(PathUtils.appContext!, item.date)
         const latestItem = findResult[0]
         const videoList = findResult[1]
@@ -1161,6 +1188,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     }
     const duration = Number.isFinite(player.duration) && player.duration > 0 ? player.duration : 0
     const hasSize = player.width > 0 && player.height > 0
+    this.playbackResolution = VideoInfoUtil.getPlaybackResolutionLabel(player.width, player.height)
     const needsDuration = metadata.time <= 0 && duration > 0
     const needsSize = hasSize && metadata.size[0] <= 1 && metadata.size[1] <= 1
     if (!needsDuration && !needsSize) {
@@ -1211,6 +1239,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       if (this.pageExitStarted || !this.engineAdapter.isCurrent(player)) {
         return
       }
+      this.playbackResolution = VideoInfoUtil.getPlaybackResolutionLabel(player.width, player.height)
       this.setRotation()
       PiPWindowUtil.updateContentSize()
     })
@@ -1231,7 +1260,7 @@ export class AVPlayerController implements PlayerControllerInterface {
           [this.completedHistoryPositionMs ?? this.playbackPositionMs, this.nowPlaying!, this.skipHistory])
       }
       this.subtitleController.updatePlaybackTime(duration)
-      if (this.playbackPolicy?.onPosition(duration) || this.pageExitStarted ||
+      if (this.nowPlaying?.is_iptv_live || this.playbackPolicy?.onPosition(duration) || this.pageExitStarted ||
         !this.engineAdapter.isCurrent(player)) {
         return
       }
@@ -1315,12 +1344,15 @@ export class AVPlayerController implements PlayerControllerInterface {
       }
     })
 
-    player.on('effectError', (error) => {
-      if (!this.engineAdapter.isCurrent(player)) {
-        return
+    player.on('effectChanged', (config: AudioEffectConfig) => {
+      if (!this.pageExitStarted && this.engineAdapter.isCurrent(player)) {
+        this.audioEffectConfig = config
       }
-      this.audioEffectConfig = new AudioEffectConfig()
-      ToolsUtil.showToast(error.message)
+    })
+    player.on('effectError', (error) => {
+      if (!this.pageExitStarted && this.engineAdapter.isCurrent(player)) {
+        ToolsUtil.showToast(error.message)
+      }
     })
     player.on('bufferingUpdate', (info: NativeBufferingInfo) => {
       if (!this.engineAdapter.isCurrent(player)) {
@@ -1376,11 +1408,16 @@ export class AVPlayerController implements PlayerControllerInterface {
           }
           this.transitionTo(PlayerState.PREPARING)
           this.playbackDetailsInitialized = false
-          const policyHandledReady = this.playbackPolicy?.onReady() ?? false
+          await this.restoreAudioTrackPreference(player, eventSwitchVersion)
+          if (!this.parameterRequestActive(player, eventSwitchVersion)) {
+            return
+          }
+          const isLive = this.nowPlaying?.is_iptv_live === true
+          const policyHandledReady = !isLive && (this.playbackPolicy?.onReady() ?? false)
           if (this.pageExitStarted || !this.engineAdapter.isCurrent(player)) {
             return
           }
-          if (policyHandledReady) {
+          if (isLive || policyHandledReady) {
             this.initialPlayTime = undefined
           } else if (this.initialPlayTime !== undefined) {
             const resumeTime = this.initialPlayTime
@@ -1404,7 +1441,12 @@ export class AVPlayerController implements PlayerControllerInterface {
           this.onSwiping = false
           salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "界面控制状态重置完成", false)
           break
-        case 'completed':
+        case 'completed': {
+          const liveChannel = this.nowPlaying
+          if (liveChannel?.is_iptv_live) {
+            this.reconnectIptvAfterCompletion(player, liveChannel, pathStack, windowClass, xComponentController)
+            break
+          }
           if (this.isSkippingEnding || this.playbackPolicy?.onCompleted() || this.pageExitStarted ||
             !this.engineAdapter.isCurrent(player)) {
             break
@@ -1424,10 +1466,12 @@ export class AVPlayerController implements PlayerControllerInterface {
             this.setPlayerCallback(pathStack, xComponentController, windowClass)
           }
           break
+        }
         case 'playing':
           salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "进入playing状态", false)
           this.transitionTo(PlayerState.PLAYING)
           this.playing = true
+          IPTVPlaybackPreflight.recordPlayback(this.nowPlaying)
           if (!VideoInfoUtil.hasVideoTrack(this.nowPlaying)) {
             this.scheduleFramePreviewPreparation(player)
           }
@@ -1493,6 +1537,41 @@ export class AVPlayerController implements PlayerControllerInterface {
       }
     })
 
+  }
+
+  private cancelIptvRetry(): void {
+    clearTimeout(this.iptvRetryTimer)
+    this.iptvRetryTimer = 0
+  }
+
+  private reconnectIptvAfterCompletion(player: NativeAVPlayer, channel: VideoMetadata, pathStack: NavPathStack,
+    windowClass?: Promise<window.Window | undefined>, xComponentController?: XComponentController): void {
+    if (this.pageExitStarted || !this.engineAdapter.isCurrent(player) || this.playerState === PlayerState.ERROR ||
+      this.playerState === PlayerState.COMPLETED) {
+      return
+    }
+    if (this.playbackPositionMs >= 30000) {
+      this.iptvRetryCount = 0
+    }
+    if (this.iptvRetryCount >= 2) {
+      salmonLogger.addLog(TAG, 'IPTV 直播流结束，已停止重连', true)
+      this.transitionTo(PlayerState.ERROR)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_load_failed_logged').id),
+        ToolsUtil.TOAST_LONG_MS)
+      return
+    }
+    this.transitionTo(PlayerState.COMPLETED)
+    AVSessionUtil.updatePlaybackSessionState(false, this.playTime, this.repeatMode, this.speed)
+    const version = this.videoSwitchVersion
+    const attempt = ++this.iptvRetryCount
+    salmonLogger.addLog(TAG, `IPTV 直播流结束，准备重连当前频道 attempt=${attempt}`, false)
+    this.iptvRetryTimer = setTimeout(() => {
+      this.iptvRetryTimer = 0
+      if (version === this.videoSwitchVersion && this.playerState === PlayerState.COMPLETED &&
+        !this.pageExitStarted && this.nowPlaying === channel && this.engineAdapter.isCurrent(player)) {
+        void this.playChooseVideo(channel, pathStack, windowClass, xComponentController)
+      }
+    }, 750 * attempt)
   }
 
   getAdjacentSubtitleOffset(direction: 'prev' | 'next', currentOffset: number): number | undefined {
@@ -1636,6 +1715,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     if (this.pageExitStarted) {
       return
     }
+    this.cancelIptvRetry()
     this.invalidateParameterRequests()
     this.pageExitStarted = true
     this.videoTracks.reset()
@@ -1851,6 +1931,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     // subtitleUpdate 会进入系统的 SetSubtitleCbDfxStatus，必须在 reset 开始前调用。
     this.clearPlayerSubscription(() => this.subtitleController.clear(player), 'subtitleUpdate')
     this.clearPlayerSubscription(() => player.offMetricsEvent(), 'metricsEvent')
+    this.clearPlayerSubscription(() => player.off('effectChanged'), 'effectChanged')
     this.clearPlayerSubscription(() => player.off('effectError'), 'effectError')
     this.clearPlayerSubscription(() => player.off('bufferingUpdate'), 'bufferingUpdate')
     if (this.callbackPlayer === player) {
@@ -1866,7 +1947,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.playbackDetailsInitialized = true
     Promise.all([
       this.videoTracks.refresh().catch(() => salmonLogger.addLog(TAG, '获取视频轨道失败', true)),
-      this.getAudioTrackList(),
+      this.audioTrack.length === 0 ? this.getAudioTrackList() : Promise.resolve(),
       this.subtitleController.getSubtitleTrackList(),
       this.initVolumeAndBrightness()
     ]).then(() => {
@@ -2023,6 +2104,13 @@ export class AVPlayerController implements PlayerControllerInterface {
       }
       this.invalidateProgressRequests()
       this.invalidateParameterRequests()
+      this.playbackResolution = ''
+      const context = PathUtils.appContext
+      const remembered = context && userData.isVip ? Preferences.getAudioEffectConfig(context) : new AudioEffectConfig()
+      // The system player handles playback speed separately from pitch shift.
+      remembered.tempo = 1
+      this.audioEffectConfig = new AudioEffectConfig()
+      player.restoreAudioEffect(remembered.supportsSystemPlayer() ? remembered : this.audioEffectConfig)
       if (!ToolsUtil.isNetworkUrl(uri)) {
         const file = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
         try {

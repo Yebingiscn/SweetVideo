@@ -99,7 +99,7 @@ export struct AddNetworkStreamDialog {
         network_custom_headers: headers,
         title: name,
         date: date,
-        size: [0, 0],
+        size: [1, 1],
         time: 0,
         last_play: 0,
         format: (SmbUtil.isSmb(url) || FtpUtil.isFtp(url)) ? VideoInfoUtil.getExtension(ToolsUtil.fileNameFromUri(url)) : '',

@@ -224,6 +224,10 @@ export default class IPTVParser {
     return lines[index]
   }
 
+  static playbackKey(sourceId: string, channel: IPTVChannel): string {
+    return `${sourceId}:${IPTVParser.hash(IPTVParser.channelIdentity(channel.name, channel.tvgId, channel.url))}`
+  }
+
   static selectLine(channel: IPTVChannel, index: number): void {
     const lines = IPTVParser.channelLines(channel)
     const selectedIndex = Math.max(0, Math.min(index, lines.length - 1))

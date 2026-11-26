@@ -308,7 +308,7 @@ export struct FtpPage {
       hideTitleArea: false,
       hideBottomBuilder: true,
       hideStatusBar: false,
-      mode: HideMode.SCROLL_UP
+      mode: HideMode.SCROLL_UP_TO
     })
     .onBackPressed(() => {
       if (this.loading) {
@@ -424,7 +424,7 @@ export struct FtpPage {
         subtitles[0]
     const subtitlePath = subtitle ? (this.folder ? `${this.folder}/${subtitle.name}` : subtitle.name) : ''
     const metadata = previous ?? VideoInfoUtil.buildNetworkVideoMetadata(uri, await FtpUtil.fileId(uri), entry.name,
-      ToolsUtil.formatFileSize(entry.size), [1, 1])
+      ToolsUtil.formatFileSize(entry.size))
     metadata.ftp_subtitle_uri = subtitle ? FtpAddress.uri(server, subtitlePath) : undefined
     metadata.external_subtitle_format = subtitle ? VideoInfoUtil.getExtension(subtitle.name) : ''
     return metadata

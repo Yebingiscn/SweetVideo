@@ -1,3 +1,4 @@
+import { LengthMetrics } from '@kit.ArkUI'
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
@@ -190,6 +191,7 @@ export struct SubtitlePanelComponent {
     }
     .width(270)
     .height('auto')
+    .menuItemGroupDivider({ strokeWidth: LengthMetrics.vp(0), color: Color.Transparent })
     .subMenuExpandingMode(SubMenuExpandingMode.STACK_EXPAND)
   }
 

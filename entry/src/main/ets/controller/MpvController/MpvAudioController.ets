@@ -4,6 +4,7 @@ import { LocalSidecarFile } from '../../utils/LocalSidecarFile'
 import { fileIo, picker } from '@kit.CoreFileKit'
 import {
   command as mpvCommand,
+  getAudioOutputFormat as mpvGetAudioOutputFormat,
   getAudioTracks as mpvGetAudioTracks,
   getCurrentAudioTrack as mpvGetCurrentAudioTrack,
   loadExternalAudio,
@@ -25,6 +26,7 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { MpvPlayerEngineAdapter } from '../engine/MpvPlayerEngineAdapter'
 import { AudioEffectConfig } from '../../interfaces/AudioEffectInterface'
+import lazy { userData } from '../../component/common/UserLoginComponent'
 import { AudioControllerInterface } from '../PlayerControllerFactory'
 import MediaLibraryService from '../../utils/MediaLibraryService'
 import Preferences from '../../database/Preferences'
@@ -56,6 +58,11 @@ interface MpvAudioState {
   speed: number
 }
 
+interface PendingAudioEffectRestore {
+  requestId: number
+  track: MpvAudioTrack
+}
+
 export interface AudioOffsetEdit {
   media: VideoMetadata
   requestId: number
@@ -66,6 +73,7 @@ export interface AudioOffsetEdit {
 }
 
 export class MpvAudioController implements AudioControllerInterface {
+  readonly usbSession: UsbAudioSession = new UsbAudioSession()
   private externalAudioQueue: Promise<void> = Promise.resolve()
   private externalAudioTrackId: number = -1
   private externalAudioGeneration: number = -1
@@ -75,9 +83,9 @@ export class MpvAudioController implements AudioControllerInterface {
   private usbDigitalVolume: number = 50
   private usbVolumeBackend: string = ''
   private usbVolumeProbePending: boolean = true
-  readonly usbSession: UsbAudioSession = new UsbAudioSession()
   private activeAudioPassthrough: boolean = false
   private eac3PassthroughEnabled: boolean = false
+  private pendingEffectRestore?: PendingAudioEffectRestore
   private selectionVersion: number = 0
   private selectionTimer: number = -1
   private selectingTrack: boolean = false
@@ -118,6 +126,7 @@ export class MpvAudioController implements AudioControllerInterface {
     this.usbSession.close()
     UsbAudioSession.volumeControl = undefined
     this.state.usbExclusiveActive = false
+    this.state.audioEffectConfig = new AudioEffectConfig()
     this.state.usbVolumeStatus = ''
     this.activeAudioPassthrough = false
     this.eac3PassthroughEnabled = false
@@ -143,6 +152,7 @@ export class MpvAudioController implements AudioControllerInterface {
         if (retryTracks && retryTracks.length > 0) {
           this.state.audioTrack = retryTracks
           this.restoreAudioTrackPreference()
+          this.restoreRememberedAudioEffect(this.currentAudioTrack())
           salmonLogger.addLog(TAG, `重试获取音轨成功，共 ${retryTracks.length} 条音轨`, false)
         } else {
           this.state.audioTrack = retryTracks || []
@@ -152,6 +162,7 @@ export class MpvAudioController implements AudioControllerInterface {
     } else {
       this.state.audioTrack = tracks
       this.restoreAudioTrackPreference()
+      this.restoreRememberedAudioEffect(this.currentAudioTrack())
       salmonLogger.addLog(TAG, `获取音轨成功，共 ${tracks.length} 条音轨`, false)
     }
   }
@@ -163,76 +174,6 @@ export class MpvAudioController implements AudioControllerInterface {
   selectAudioTrackByIndex(index: number): void {
     if (index >= 0 && index < this.state.audioTrack.length) {
       this.requestAudioTrack(this.state.audioTrack[index].id, true)
-    }
-  }
-
-  private cancelPendingTrackSelection(): void {
-    this.selectionVersion++
-    this.selectingTrack = false
-    if (this.selectionTimer !== -1) {
-      clearTimeout(this.selectionTimer)
-      this.selectionTimer = -1
-    }
-  }
-
-  private requestAudioTrack(trackId: number, remember: boolean): void {
-    const requestId = this.engine.getLoadRequestId()
-    if (!this.engine.handle || !this.engine.isMediaLoaded()) {
-      return
-    }
-    this.cancelPendingTrackSelection()
-    const version = this.selectionVersion
-    if (!mpvSelectAudio(this.engine.handle, trackId)) {
-      this.syncCurrentTrackDelay()
-      return
-    }
-    this.selectingTrack = true
-    // aid is set asynchronously: never apply the new offset against the old track.
-    const check = (attempt: number): void => {
-      if (version !== this.selectionVersion) {
-        return
-      }
-      this.selectionTimer = -1
-      if (!this.engine.isMediaLoaded() || this.engine.getLoadRequestId() !== requestId) {
-        this.selectingTrack = false
-        return
-      }
-      const track = this.currentAudioTrack()
-      if (track?.id !== trackId && attempt < 15) {
-        this.selectionTimer = setTimeout(() => check(attempt + 1), 80) as number
-        return
-      }
-      this.selectingTrack = false
-      this.syncCurrentTrackDelay(track)
-      if (!track || track.id !== trackId) {
-        return
-      }
-      if (remember) {
-        this.saveTrackSelection(track)
-      }
-      this.resetAudioChannelMode()
-      AVSessionUtil.updatePlaybackSessionState(this.state.playing, this.state.playTime, this.state.repeatMode,
-        this.state.speed)
-    }
-    const current = this.currentAudioTrack()
-    if (current?.id !== trackId) {
-      this.writeAudioDelay(0)
-    }
-    check(0)
-  }
-
-  private saveTrackSelection(track: MpvAudioTrack): void {
-    const media = this.state.nowPlaying
-    try {
-      if (media?.external_audio_file) {
-        MediaLibraryService.saveData(PathUtils.appContext!, media,
-          { externalAudioSelected: this.isImportedAudioTrack(track) })
-      }
-      if (!track.external) {
-        MediaLibraryService.saveAudioTrackPreference(media, this.state.audioTrackSelected, this.state.audioTrack.length)
-      }
-    } catch (_error) {
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.audio_track_offset_save_failed').id))
     }
   }
 
@@ -266,13 +207,6 @@ export class MpvAudioController implements AudioControllerInterface {
       return
     }
     this.syncCurrentTrackDelay()
-  }
-
-  private queueExternalAudio(task: () => Promise<void>): Promise<void> {
-    const result = this.externalAudioQueue.then(task)
-    this.externalAudioQueue = result.catch(() => {
-    })
-    return result
   }
 
   async importExternalAudio(): Promise<void> {
@@ -385,11 +319,11 @@ export class MpvAudioController implements AudioControllerInterface {
         const id = await loadExternalAudio(path,
           media!.external_audio_name || ToolsUtil.getStringResource($r('app.string.audio_external_title').id), request)
         if (!current()) {
-          await removeExternalAudio(path, request);
+          await removeExternalAudio(path, request)
           return
         }
         if (id < 0) {
-          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.audio_external_load_failed').id));
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.audio_external_load_failed').id))
           return
         }
         this.externalAudioTrackId = id
@@ -400,64 +334,6 @@ export class MpvAudioController implements AudioControllerInterface {
         salmonLogger.addLog(TAG, '恢复外挂音频失败', true)
       }
     })
-  }
-
-  private currentAudioTrack(): MpvAudioTrack | undefined {
-    if (!this.engine.handle || !this.engine.isMediaLoaded()) {
-      return undefined
-    }
-    const id = mpvGetCurrentAudioTrack(this.engine.handle)
-    return this.state.audioTrack.find((track: MpvAudioTrack) => track.id === id)
-  }
-
-  private isImportedAudioTrack(track: MpvAudioTrack): boolean {
-    return track.external && track.id === this.externalAudioTrackId &&
-      this.externalAudioGeneration === this.getGeneration()
-  }
-
-  private canDelayTrack(track: MpvAudioTrack): boolean {
-    const codec = (track.codec ?? '').toLowerCase()
-    const eac3 = codec === 'eac3' || codec === 'e-ac-3' || codec === 'ec-3'
-    return !this.state.usbExclusiveActive && !(this.eac3PassthroughEnabled && eac3) &&
-      VideoInfoUtil.hasVideoTrack(this.state.nowPlaying) && (!track.external || this.isImportedAudioTrack(track))
-  }
-
-  private storedTrackDelay(media: VideoMetadata, track: MpvAudioTrack): number {
-    if (!track.external) {
-      return getInternalTrackDelay(media, track)
-    }
-    const value = this.isImportedAudioTrack(track) ? media.external_audio_offset_ms ?? 0 : 0
-    return validAudioTrackDelay(value) ? value : 0
-  }
-
-  private syncCurrentTrackDelay(track: MpvAudioTrack | undefined = this.currentAudioTrack()): void {
-    if (!this.engine.isMediaLoaded()) {
-      return
-    }
-    if (track) {
-      const index = this.state.audioTrack.findIndex((item: MpvAudioTrack) => item.id === track.id)
-      if (index >= 0) {
-        this.state.audioTrackSelected = index
-      }
-    }
-    const media = this.state.nowPlaying
-    this.writeAudioDelay(track && media && this.canDelayTrack(track) ? this.storedTrackDelay(media, track) : 0)
-  }
-
-  private writeAudioDelay(value: number): boolean {
-    const requestId = this.engine.getLoadRequestId()
-    if (!this.engine.isMediaLoaded()) {
-      return false
-    }
-    if (this.delayRequestId === requestId && this.appliedDelayMs === value) {
-      return true
-    }
-    if (!setExternalAudioDelay(value / 1000)) {
-      return false
-    }
-    this.delayRequestId = requestId
-    this.appliedDelayMs = value
-    return true
   }
 
   beginAudioOffsetEdit(): AudioOffsetEdit | undefined {
@@ -514,7 +390,7 @@ export class MpvAudioController implements AudioControllerInterface {
 
   setLoudnessGain(loudnessGain: number, persist: boolean = true): void {
     if (this.state.usbExclusiveActive) {
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.adjust_usb_volume').id));
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.adjust_usb_volume').id))
       return
     }
     if (!Number.isFinite(loudnessGain)) {
@@ -532,7 +408,7 @@ export class MpvAudioController implements AudioControllerInterface {
 
   setAudioChannelMode(mode: MpvAudioChannelMode) {
     if (this.state.usbExclusiveActive) {
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.usb_no_channel_processing').id));
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.usb_no_channel_processing').id))
       return
     }
     this.state.audioChannelMode = mode
@@ -551,16 +427,77 @@ export class MpvAudioController implements AudioControllerInterface {
     }
   }
 
+  retryRememberedAudioEffect(): void {
+    const pending = this.pendingEffectRestore
+    if (!pending) {
+      return
+    }
+    if (!this.engine.isMediaLoaded() || this.engine.getLoadRequestId() !== pending.requestId ||
+      mpvGetCurrentAudioTrack(this.engine.handle) !== pending.track.id) {
+      this.pendingEffectRestore = undefined
+      return
+    }
+    const format = mpvGetAudioOutputFormat(this.engine.handle)
+    if (format) {
+      this.restoreRememberedAudioEffect(pending.track, format)
+    }
+  }
+
+  restoreRememberedAudioEffect(track?: MpvAudioTrack, outputFormat?: string): void {
+    this.pendingEffectRestore = undefined
+    if (this.state.usbExclusiveActive || this.selectingTrack || !this.engine.isMediaLoaded()) {
+      return
+    }
+    const context = PathUtils.appContext
+    const current = this.state.audioEffectConfig
+    const remembered = context && userData.isVip ? Preferences.getAudioEffectConfig(context) : new AudioEffectConfig()
+    if (current.effect === 'off' && remembered.effect === 'off') {
+      return
+    }
+    const selected = track ?? this.getNativeAudioTrack()
+    const checkingPassthrough = selected && this.eac3PassthroughEnabled && this.isEac3Track(selected)
+    if (checkingPassthrough && selected) {
+      const format = outputFormat ?? mpvGetAudioOutputFormat(this.engine.handle)
+      if (!format) {
+        this.pendingEffectRestore = { requestId: this.engine.getLoadRequestId(), track: selected }
+        return
+      }
+      if (format === 'spdif-eac3') {
+        if (current.effect !== 'off') {
+          // Clear the PCM option left by the previous track without restarting the compressed output.
+          mpvCommand(this.engine.handle, ['set', 'options/ohaudio-suite-effect', 'off'])
+          this.state.audioEffectConfig = new AudioEffectConfig()
+        }
+        return
+      }
+    }
+    const next = selected && selected.codec?.toLowerCase() !== 'av3a' ? remembered : new AudioEffectConfig()
+    if (JSON.stringify(current) === JSON.stringify(next)) {
+      if (checkingPassthrough && current.effect !== 'off') {
+        this.applyAudioPassthrough(this.state.speed, current.effect)
+      }
+      return
+    }
+    try {
+      if (!this.applyAudioEffect(next)) {
+        salmonLogger.addLog(TAG, `恢复记忆音效失败: ${next.effect}`, true)
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, `恢复记忆音效失败: ${error}`, true)
+    }
+  }
+
   applyAudioEffect(config: AudioEffectConfig): boolean {
+    this.pendingEffectRestore = undefined
     if (this.state.usbExclusiveActive) {
       if (config.effect !== 'off') {
-        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.usb_no_audio_effect').id));
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.usb_no_audio_effect').id))
         return false
       }
       this.state.audioEffectConfig = AudioEffectConfig.copy(config)
       return true
     }
-    if (config.effect !== 'off' && this.isAudioVividTrack()) {
+    if (config.effect !== 'off' && this.getNativeAudioTrack()?.codec?.toLowerCase() === 'av3a') {
       throw new Error(ToolsUtil.getStringResource($r('app.string.audio_vivid_no_effect').id))
     }
     if (!this.engine.handle || !this.engine.isAlive()) {
@@ -582,16 +519,6 @@ export class MpvAudioController implements AudioControllerInterface {
     this.applyAudioPassthrough(this.state.speed, config.effect)
     salmonLogger.addLog(TAG, `已应用 AudioSuite 声音效果: ${config.effect}`, false)
     return true
-  }
-
-  private isAudioVividTrack(): boolean {
-    if (!this.engine.handle || !this.engine.isAlive()) {
-      return false
-    }
-    const selected = mpvGetCurrentAudioTrack(this.engine.handle)
-    const tracks = mpvGetAudioTracks(this.engine.handle) as MpvAudioTrack[]
-    return tracks?.some((track: MpvAudioTrack) =>
-    track.id === selected && track.codec?.toLowerCase() === 'av3a') ?? false
   }
 
   applyAudioCoverMode(): void {
@@ -738,6 +665,10 @@ export class MpvAudioController implements AudioControllerInterface {
     return result?.success === true
   }
 
+  preparePlaybackOutput(): boolean {
+    return this.applyAudioPassthrough(this.state.speed, 'off')
+  }
+
   applyAudioPassthrough(speed: number, effect: string): boolean {
     if (!this.engine.handle || !this.engine.isAlive()) {
       return false
@@ -767,5 +698,167 @@ export class MpvAudioController implements AudioControllerInterface {
       }
     }
     return result?.success === true
+  }
+
+  private cancelPendingTrackSelection(): void {
+    this.selectionVersion++
+    this.selectingTrack = false
+    this.pendingEffectRestore = undefined
+    if (this.selectionTimer !== -1) {
+      clearTimeout(this.selectionTimer)
+      this.selectionTimer = -1
+    }
+  }
+
+  private requestAudioTrack(trackId: number, remember: boolean): void {
+    const requestId = this.engine.getLoadRequestId()
+    if (!this.engine.handle || !this.engine.isMediaLoaded()) {
+      return
+    }
+    this.cancelPendingTrackSelection()
+    const version = this.selectionVersion
+    const current = this.currentAudioTrack()
+    const changingTrack = current?.id !== trackId
+    const target = this.state.audioTrack.find((track: MpvAudioTrack) => track.id === trackId)
+    // A PCM effect from the previous track may have suppressed passthrough.
+    const preparedPassthrough = changingTrack && this.isEac3Track(target) && this.activeAudioPassthrough &&
+      this.state.speed === 1 && !this.state.usbExclusiveActive && !this.eac3PassthroughEnabled &&
+      this.preparePlaybackOutput() && this.eac3PassthroughEnabled
+    if (!mpvSelectAudio(this.engine.handle, trackId)) {
+      if (preparedPassthrough) {
+        this.applyAudioPassthrough(this.state.speed, this.state.audioEffectConfig.effect)
+      }
+      this.syncCurrentTrackDelay()
+      return
+    }
+    this.selectingTrack = true
+    // aid is set asynchronously: never apply the new offset against the old track.
+    const check = (attempt: number): void => {
+      if (version !== this.selectionVersion) {
+        return
+      }
+      this.selectionTimer = -1
+      if (!this.engine.isMediaLoaded() || this.engine.getLoadRequestId() !== requestId) {
+        this.selectingTrack = false
+        return
+      }
+      const track = this.currentAudioTrack()
+      if (track?.id !== trackId && attempt < 15) {
+        this.selectionTimer = setTimeout(() => check(attempt + 1), 80) as number
+        return
+      }
+      this.selectingTrack = false
+      this.syncCurrentTrackDelay(track)
+      if (!track || track.id !== trackId) {
+        if (preparedPassthrough) {
+          this.applyAudioPassthrough(this.state.speed, this.state.audioEffectConfig.effect)
+        }
+        this.restoreRememberedAudioEffect(track)
+        return
+      }
+      if (remember) {
+        this.saveTrackSelection(track)
+      }
+      this.resetAudioChannelMode()
+      this.restoreRememberedAudioEffect(track)
+      AVSessionUtil.updatePlaybackSessionState(this.state.playing, this.state.playTime, this.state.repeatMode,
+        this.state.speed)
+    }
+    if (changingTrack) {
+      this.writeAudioDelay(0)
+    }
+    check(0)
+  }
+
+  private saveTrackSelection(track: MpvAudioTrack): void {
+    const media = this.state.nowPlaying
+    try {
+      if (media?.external_audio_file) {
+        MediaLibraryService.saveData(PathUtils.appContext!, media,
+          { externalAudioSelected: this.isImportedAudioTrack(track) })
+      }
+      if (!track.external) {
+        MediaLibraryService.saveAudioTrackPreference(media, this.state.audioTrackSelected, this.state.audioTrack.length)
+      }
+    } catch (_error) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.audio_track_offset_save_failed').id))
+    }
+  }
+
+  private queueExternalAudio(task: () => Promise<void>): Promise<void> {
+    const result = this.externalAudioQueue.then(task)
+    this.externalAudioQueue = result.catch(() => {
+    })
+    return result
+  }
+
+  private currentAudioTrack(): MpvAudioTrack | undefined {
+    if (!this.engine.handle || !this.engine.isMediaLoaded()) {
+      return undefined
+    }
+    const id = mpvGetCurrentAudioTrack(this.engine.handle)
+    return this.state.audioTrack.find((track: MpvAudioTrack) => track.id === id)
+  }
+
+  private isImportedAudioTrack(track: MpvAudioTrack): boolean {
+    return track.external && track.id === this.externalAudioTrackId &&
+      this.externalAudioGeneration === this.getGeneration()
+  }
+
+  private isEac3Track(track?: MpvAudioTrack): boolean {
+    const codec = track?.codec?.toLowerCase()
+    return codec === 'eac3' || codec === 'e-ac-3' || codec === 'ec-3'
+  }
+
+  private canDelayTrack(track: MpvAudioTrack): boolean {
+    return !this.state.usbExclusiveActive && !(this.eac3PassthroughEnabled && this.isEac3Track(track)) &&
+      VideoInfoUtil.hasVideoTrack(this.state.nowPlaying) && (!track.external || this.isImportedAudioTrack(track))
+  }
+
+  private storedTrackDelay(media: VideoMetadata, track: MpvAudioTrack): number {
+    if (!track.external) {
+      return getInternalTrackDelay(media, track)
+    }
+    const value = this.isImportedAudioTrack(track) ? media.external_audio_offset_ms ?? 0 : 0
+    return validAudioTrackDelay(value) ? value : 0
+  }
+
+  private syncCurrentTrackDelay(track: MpvAudioTrack | undefined = this.currentAudioTrack()): void {
+    if (!this.engine.isMediaLoaded()) {
+      return
+    }
+    if (track) {
+      const index = this.state.audioTrack.findIndex((item: MpvAudioTrack) => item.id === track.id)
+      if (index >= 0) {
+        this.state.audioTrackSelected = index
+      }
+    }
+    const media = this.state.nowPlaying
+    this.writeAudioDelay(track && media && this.canDelayTrack(track) ? this.storedTrackDelay(media, track) : 0)
+  }
+
+  private writeAudioDelay(value: number): boolean {
+    const requestId = this.engine.getLoadRequestId()
+    if (!this.engine.isMediaLoaded()) {
+      return false
+    }
+    if (this.delayRequestId === requestId && this.appliedDelayMs === value) {
+      return true
+    }
+    if (!setExternalAudioDelay(value / 1000)) {
+      return false
+    }
+    this.delayRequestId = requestId
+    this.appliedDelayMs = value
+    return true
+  }
+
+  private getNativeAudioTrack(): MpvAudioTrack | undefined {
+    if (!this.engine.handle || !this.engine.isAlive()) {
+      return undefined
+    }
+    const selected = mpvGetCurrentAudioTrack(this.engine.handle)
+    const tracks = mpvGetAudioTracks(this.engine.handle) as MpvAudioTrack[]
+    return tracks?.find((track: MpvAudioTrack) => track.id === selected)
   }
 }

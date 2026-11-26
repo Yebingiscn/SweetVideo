@@ -81,6 +81,7 @@ export struct SettingsPage { //设置页
               .height(78)
               .borderRadius(16)
               .padding({ left: 14, right: 14 })
+              .margin({ bottom: 5 })
               .linearGradient({
                 direction: GradientDirection.Right,
                 colors: userData.isVip ?

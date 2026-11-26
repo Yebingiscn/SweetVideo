@@ -13,7 +13,7 @@ import {
   SymbolGlyphFancyModifier
 } from '../../common/AttributeModifierConfig'
 import { SortField } from '../../common/enum/SortField'
-import { Setting } from '../../utils/ObservedUtil'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { SortMenuComponent } from '../../component/common/SortMenuComponent'
 
@@ -328,6 +328,7 @@ export struct StreamPage {
             .clip(false)
             .lanes(this.list_line)
             .layoutWeight(1)
+            .contentEndOffset(SafeHeight.bottomSafeHeight)
             .padding({ left: 16, right: 16 })
             .width('100%')
             .height('100%')
@@ -390,6 +391,7 @@ export struct StreamPage {
             .columnsTemplate('1fr '.repeat(this.list_line).trim())
             .columnsGap(16)
             .rowsGap(16)
+            .contentEndOffset(SafeHeight.bottomSafeHeight)
             .padding({ left: 16, right: 16 })
             .clip(false)
             .layoutWeight(1)
@@ -503,7 +505,7 @@ export struct StreamPage {
       hideTitleArea: true,
       hideBottomBuilder: true,
       hideStatusBar: false,
-      mode: HideMode.SCROLL_UP
+      mode: HideMode.SCROLL_UP_TO
     })
     .hideBackButton(false)
     .onHidden(() => {

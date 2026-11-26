@@ -43,16 +43,28 @@ export default class TextEncodingUtil {
     }
   }
 
-  /** Decode FFmpeg's original tag bytes without first forcing them through UTF-8. */
+  /** Prefer valid UTF-8 and fall back to legacy encodings when needed. */
   static decodeMetadata(buffer: ArrayBuffer | undefined, fallback: string = ''): string {
     if (!buffer || buffer.byteLength === 0) {
       return TextEncodingUtil.clean(fallback)
     }
 
+    const utf8 = TextEncodingUtil.decode(buffer, 'UTF-8')
+    const decoded = TextEncodingUtil.isUsable(utf8) ? utf8 : TextEncodingUtil.decodeLegacyMetadata(buffer)
+    const repaired = TextEncodingUtil.repairWesternMojibake(decoded)
+    // A legacy decoder can consume ASCII letters after an accented character.
+    if (TextEncodingUtil.isUsable(repaired) && TextEncodingUtil.containsCjk(repaired) &&
+      repaired.replace(/[^\x20-\x7E]/g, '') === decoded.replace(/[^\x20-\x7E]/g, '')) {
+      return repaired
+    }
+    return TextEncodingUtil.isUsable(decoded) ? decoded : ''
+  }
+
+  private static decodeLegacyMetadata(buffer: ArrayBuffer): string {
     const detectedEncoding = TextEncodingUtil.detectBufferEncoding(buffer)
     let decoded = TextEncodingUtil.decode(buffer, detectedEncoding)
     if (!TextEncodingUtil.isUsable(decoded)) {
-      const fallbacks: string[] = ['UTF-8', 'GB18030', 'GBK']
+      const fallbacks: string[] = ['GB18030', 'GBK']
       for (const encoding of fallbacks) {
         if (encoding === detectedEncoding.toUpperCase()) {
           continue
@@ -69,18 +81,13 @@ export default class TextEncodingUtil {
     // Prefer a clean GB18030 result only when it clearly restores CJK text.
     if (!TextEncodingUtil.containsCjk(decoded)) {
       const gbCandidate = TextEncodingUtil.decode(buffer, 'GB18030')
-      if (TextEncodingUtil.containsCjk(gbCandidate) &&
+      if (TextEncodingUtil.isUsable(gbCandidate) && TextEncodingUtil.containsCjk(gbCandidate) &&
         TextEncodingUtil.extendedCharacterCount(decoded) >= 2) {
         decoded = gbCandidate
       }
     }
 
-    const repaired = TextEncodingUtil.repairWesternMojibake(decoded)
-    if (TextEncodingUtil.containsCjk(repaired) && !TextEncodingUtil.containsCjk(decoded)) {
-      decoded = repaired
-    }
-    decoded = TextEncodingUtil.clean(decoded)
-    return TextEncodingUtil.isUsable(decoded) ? decoded : ''
+    return decoded
   }
 
   static isUsable(value: string): boolean {
@@ -130,14 +137,14 @@ export default class TextEncodingUtil {
     if (extendedCharacters < 2) {
       return ''
     }
+    const utf8 = TextEncodingUtil.decode(raw, 'UTF-8')
+    if (TextEncodingUtil.isUsable(utf8) && TextEncodingUtil.containsCjk(utf8)) {
+      return utf8
+    }
     const detectedEncoding = TextEncodingUtil.detectBufferEncoding(raw)
     const decoded = TextEncodingUtil.decode(raw, detectedEncoding)
-    if (TextEncodingUtil.containsCjk(decoded)) {
+    if (TextEncodingUtil.isUsable(decoded) && TextEncodingUtil.containsCjk(decoded)) {
       return decoded
-    }
-    const utf8 = TextEncodingUtil.decode(raw, 'UTF-8')
-    if (TextEncodingUtil.containsCjk(utf8)) {
-      return utf8
     }
     return TextEncodingUtil.decode(raw, 'GB18030')
   }

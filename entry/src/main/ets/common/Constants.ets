@@ -81,8 +81,9 @@ export const OPTIONS: ImageAIOptions = {
 }
 
 export const SUPPORT_VIDEO_FORMAT: string[] =
-  ['视频|.mpv,.mkv,.mp4,.m4s,.mov,.rmvb,.wmv,.avi,.m4v,.iso,.bdmv,.webm,.flv,.ts,.vob,.m2ts,.mxf,.pmp',
-    'mp4', 'm4s', 'flv', 'mkv', 'ts', 'vob', 'm2ts', 'mxf', 'mov', 'rmvb', 'wmv', 'avi', 'm4v', 'iso', 'bdmv', 'webm', 'pmp'
+  ['视频|.mpv,.mkv,.mp4,.m4s,.mov,.rmvb,.wmv,.avi,.m4v,.iso,.bdmv,.webm,.flv,.ts,.vob,.m2ts,.mxf,.pmp,.mpg,.mpeg',
+    'mp4', 'm4s', 'flv', 'mkv', 'ts', 'vob', 'm2ts', 'mxf', 'mov', 'rmvb', 'wmv', 'avi', 'm4v', 'iso', 'bdmv', 'webm', 'pmp',
+    'mpg', 'mpeg'
   ]
 
 export const SUPPORT_AUDIO_FORMAT: string[] =
@@ -140,8 +141,3 @@ export const WARNING_COLOR = '#FAAD14'
 export const WARNING_COLOR_ALPHA_15 = 'rgba(250, 173, 20, 0.15)'
 
 export const DIALOG_TITLE_FONT_SIZE: number = 25
-
-export const FULL_ALPHABET: string[] = [
-  '#', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
-]

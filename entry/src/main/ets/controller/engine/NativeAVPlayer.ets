@@ -15,8 +15,9 @@ type SubtitleCallback = (subtitle: media.SubtitleInfo) => void
 type InterruptCallback = (event: audio.InterruptEvent) => void
 type DeviceCallback = (event: audio.AudioStreamDeviceChangeInfo) => void
 type BufferCallback = (event: NativeBufferingInfo) => void
+type AudioEffectCallback = (config: AudioEffectConfig) => void
 type PlayerCallback = StateCallback | NumberCallback | EmptyCallback | ErrorCallback | BooleanCallback |
-  SubtitleCallback | InterruptCallback | DeviceCallback | BufferCallback
+  SubtitleCallback | InterruptCallback | DeviceCallback | BufferCallback | AudioEffectCallback
 
 export interface NativeBufferingInfo {
   type: number
@@ -249,8 +250,9 @@ export class NativeAVPlayer {
     }).catch((error: BusinessError) => callback(error, []))
   }
 
-  async applyAudioEffect(config: AudioEffectConfig): Promise<void> {
+  async applyAudioEffect(config: AudioEffectConfig): Promise<boolean> {
     const version = ++this.effectVersion
+    const generation = this.generation
     const next = AudioEffectConfig.copy(config)
     const options = this.effectOptions(next)
     options.effectVersion = version
@@ -261,34 +263,47 @@ export class NativeAVPlayer {
       salmonLogger.addLog('NativeAVPlayer', `音效 ${next.effect} 版本 ${version} 失败：${(error as Error).message}`, true)
       throw error as Error
     }
+    if (this.closed || generation !== this.generation) {
+      return false
+    }
     // Native commands complete in order. If a later edit fails, this remains the actual active choice.
     this.activeEffectVersion = version
     this.desiredEffect = next
+    this.publishAudioEffect(next)
     salmonLogger.addLog('NativeAVPlayer', `音效 ${next.effect} 版本 ${version} 已应用`)
+    return true
   }
 
   restoreAudioEffect(config: AudioEffectConfig): void {
-    // Used only when creating a replacement native instance; its PCM format is not known yet.
+    // The next source has no PCM format yet. Wait for its PCM notification before applying.
     this.effectVersion++
     this.desiredEffect = AudioEffectConfig.copy(config)
   }
 
   private restoreDesiredEffect(): void {
-    const version = this.effectVersion
+    const version = ++this.effectVersion
     const generation = this.generation
     const task = this.tail.then(async () => {
-      // A PCM event may be queued behind a user edit, reset or release. Recheck on execution,
-      // not just on event receipt, or an old effect could turn itself back on after "off".
+      // A newer PCM event or user edit can supersede this request while it waits in the command queue.
       if (this.closed || version !== this.effectVersion || generation !== this.generation ||
-        this.desiredEffect.effect === 'off') return
-      const options = this.effectOptions(this.desiredEffect)
+        this.desiredEffect.effect === 'off' || !this.pcmSupported) return
+      const config = this.desiredEffect
+      const options = this.effectOptions(config)
       options.effectVersion = version
       await nativePlayer.avPlayerCommand(this.id, 'effect', options)
-      this.activeEffectVersion = version
+      if (!this.closed && generation === this.generation) {
+        this.activeEffectVersion = version
+        this.publishAudioEffect(config)
+        salmonLogger.addLog('NativeAVPlayer', `已恢复音效 ${config.effect}，版本 ${version}`)
+      }
     })
     this.tail = task.then(() => {}, () => {})
     task.catch((error: BusinessError) => {
-      if (!this.closed && version === this.effectVersion && generation === this.generation) this.effectFailed(error)
+      if (!this.closed && version === this.effectVersion && generation === this.generation) {
+        // A track or seek can invalidate PCM during setup. The next PCM change can retry the same config.
+        this.publishAudioEffect(new AudioEffectConfig())
+        salmonLogger.addLog('NativeAVPlayer', `暂未恢复音效 ${this.desiredEffect.effect}：${error.message}`, true)
+      }
     })
   }
 
@@ -327,6 +342,7 @@ export class NativeAVPlayer {
   on(type: 'timeUpdate' | 'seekDone' | 'playbackRateDone', callback: NumberCallback): void
   on(type: 'startRenderFrame' | 'videoSizeChange', callback: EmptyCallback): void
   on(type: 'error' | 'effectError', callback: ErrorCallback): void
+  on(type: 'effectChanged', callback: AudioEffectCallback): void
   on(type: 'superResolutionChanged', callback: BooleanCallback): void
   on(type: 'subtitleUpdate', callback: SubtitleCallback): void
   on(type: 'audioInterrupt', callback: InterruptCallback): void
@@ -398,6 +414,9 @@ export class NativeAVPlayer {
           break
         case 'pcmFormat':
           if (this.desiredEffect.effect !== 'off') {
+            this.publishAudioEffect(new AudioEffectConfig())
+          }
+          if (this.pcmSupported) {
             this.restoreDesiredEffect()
           }
           break
@@ -423,9 +442,15 @@ export class NativeAVPlayer {
       }
     }).catch((error: Error) => salmonLogger.addLog('NativeAVPlayer', error.message, true))
   }
+  private publishAudioEffect(config: AudioEffectConfig): void {
+    const callback = this.listeners.get('effectChanged') as AudioEffectCallback | undefined
+    callback?.(AudioEffectConfig.copy(config))
+  }
+
   private effectFailed(error: BusinessError): void {
     this.desiredEffect = new AudioEffectConfig()
     this.effectVersion++
+    this.publishAudioEffect(this.desiredEffect)
     const callback = this.listeners.get('effectError') as ErrorCallback | undefined
     callback?.(error)
     salmonLogger.addLog('NativeAVPlayer', `音效关闭：${error.message}`, true)

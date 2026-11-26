@@ -8,7 +8,7 @@ import { DELAY_JUMP_TO_PLAYER } from '../common/Constants'
 import { VideoItemBuilder } from '../component/PlayerComponent/PlayerSideBarComponent'
 import { VideoItemPreviewBuilder } from '../component/VideoItemComponent/VideoItemPreviewBuilder'
 
-import { Setting } from '../utils/ObservedUtil'
+import { SafeHeight, Setting } from '../utils/ObservedUtil'
 import RecentPlayUtil from '../utils/RecentPlayUtil'
 import { RecentPlaybackSnapshot } from '../utils/RecentPlaybackSnapshot'
 import SelectFileUtil from '../utils/SelectFileUtil'
@@ -214,6 +214,7 @@ export struct RecentPlay { // 最近播放页
         .clip(false)
         .layoutWeight(1)
         .padding({ left: 16, right: 16 })
+        .contentEndOffset(SafeHeight.bottomSafeHeight)
         .width('100%')
         .height('100%')
         .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
@@ -320,7 +321,7 @@ export struct RecentPlay { // 最近播放页
       hideTitleArea: true,
       hideBottomBuilder: true,
       hideStatusBar: false,
-      mode: HideMode.SCROLL_UP
+      mode: HideMode.SCROLL_UP_TO
     })
     .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
       detents: [SheetSize.LARGE],

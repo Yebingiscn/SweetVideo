@@ -38,10 +38,11 @@ export class WindowUtil {
     })
   }
 
-  public static async getWindowsStatus(): Promise<window.WindowStatusType | undefined> {
+  public static async getWindowsStatus(windowClass: Promise<window.Window | undefined>):
+    Promise<window.WindowStatusType | undefined> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       try {
-        return (await WindowUtil.getWindow())?.getWindowStatus()
+        return (await windowClass)?.getWindowStatus()
       } catch (error) {
         salmonLogger.addLog(TAG, 'get windows status error', true)
         return undefined
@@ -97,17 +98,17 @@ export class WindowUtil {
         }
         switch (WindowUtil.trackedWindowStatus) {
           case window.WindowStatusType.FLOATING:
-            await WindowUtil?.maximize?.()
+            await WindowUtil.maximize(windowClass)
             return undefined
           case window.WindowStatusType.MAXIMIZE:
           case window.WindowStatusType.FULL_SCREEN:
-            await WindowUtil?.recover?.()
+            await WindowUtil.recover(windowClass)
             return undefined
           default:
             return undefined
         }
       }
-      switch (await WindowUtil.getWindowsStatus()) {
+      switch (await WindowUtil.getWindowsStatus(windowClass)) {
         case window.WindowStatusType.FLOATING:
           AppStorage.get('enableLandscapeMultiWindow') ? WindowUtil.disableLandscapeMultiWindow(windowClass) :
             WindowUtil.enableLandscapeMultiWindow(windowClass)
@@ -174,12 +175,12 @@ export class WindowUtil {
     }
   }
 
-  public static async maximize(): Promise<void> {
+  public static async maximize(windowClass: Promise<window.Window | undefined>): Promise<void> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       try {
         if (WindowUtil.trackedWindowStatus === window.WindowStatusType.FLOATING ||
           WindowUtil.trackedWindowStatus === window.WindowStatusType.MAXIMIZE) {
-          (await WindowUtil.getWindow())?.maximize()
+          (await windowClass)?.maximize()
             .then(() => {
               salmonLogger.addLog(TAG, 'test Succeed in maximizing the window.', false)
             })
@@ -195,12 +196,12 @@ export class WindowUtil {
     }
   }
 
-  public static async recover(): Promise<void> {
+  public static async recover(windowClass: Promise<window.Window | undefined>): Promise<void> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       try {
         if (WindowUtil.trackedWindowStatus === window.WindowStatusType.FULL_SCREEN ||
           WindowUtil.trackedWindowStatus === window.WindowStatusType.MAXIMIZE) {
-          (await WindowUtil.getWindow())?.recover()
+          (await windowClass)?.recover()
             .then(() => {
               salmonLogger.addLog(TAG, 'test Succeed in recovering the window.', false)
             })

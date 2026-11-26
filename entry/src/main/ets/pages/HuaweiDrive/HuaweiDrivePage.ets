@@ -151,7 +151,7 @@ export struct HuaweiDrivePage {
       hideTitleArea: false,
       hideBottomBuilder: true,
       hideStatusBar: false,
-      mode: HideMode.SCROLL_UP
+      mode: HideMode.SCROLL_UP_TO
     })
     .hideBackButton(false)
     .onHidden(() => { this.pageActive = false; this.directoryVersion++; this.loading = false })

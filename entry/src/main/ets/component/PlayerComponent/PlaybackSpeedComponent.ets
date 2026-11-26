@@ -55,7 +55,7 @@ export struct PlaybackSpeedListComponent {
     .chainAnimation(true)
     .scrollBar(BarState.Off)
     .width(100)
-    .height('50%')
+    .height('75%')
   }
 }
 

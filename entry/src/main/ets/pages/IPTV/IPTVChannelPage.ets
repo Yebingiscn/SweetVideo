@@ -1,11 +1,13 @@
-import NavigationAddress, { IPTVChannelParams, PlayerEngine, PlayerParams } from '../../common/NavigationCommon'
+import NavigationAddress, { IPTVChannelParams, PlayerParams } from '../../common/NavigationCommon'
 import Preferences from '../../database/Preferences'
 import { IPTVChannel, IPTVLine, IPTVSource } from '../../interfaces/IPTVInterface'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import IPTVSourceService from '../../utils/IPTVSourceService'
 import IPTVParser from '../../utils/IPTVParser'
+import IPTVPlaybackPreflight from '../../utils/IPTVPlaybackPreflight'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
@@ -140,6 +142,7 @@ export struct IPTVChannelPage {
     .backgroundImagePosition(Alignment.Center)
     .onShown(() => {
       this.loadSource()
+      IPTVPlaybackPreflight.resolveLastChannel(this.source)
       this.refreshEpgIfNeeded()
     })
     .onBackPressed(() => {
@@ -155,7 +158,7 @@ export struct IPTVChannelPage {
       hideTitleArea: false,
       hideBottomBuilder: false,
       hideStatusBar: false,
-      mode: HideMode.SCROLL_UP
+      mode: HideMode.SCROLL_UP_TO
     })
   }
 
@@ -247,6 +250,18 @@ export struct IPTVChannelPage {
             this.ChannelCard({ channel: item.item })
           }
           .onClick(() => this.play(item.item))
+          .bindContextMenu(this.ChannelMenu(item.item), ResponseType.LongPress, {
+            systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+              style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+            }) : undefined,
+            hapticFeedbackMode: HapticFeedbackMode.ENABLED
+          })
+          .bindContextMenu(this.ChannelMenu(item.item), ResponseType.RightClick, {
+            systemMaterial: MaterialCapability.hdsSupported ? new uiMaterial.ImmersiveMaterial({
+              style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+            }) : undefined,
+            hapticFeedbackMode: HapticFeedbackMode.ENABLED
+          })
           .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
         })
         .key((item: IPTVChannel) => item.id)
@@ -326,6 +341,14 @@ export struct IPTVChannelPage {
     .width('100%')
     .borderRadius(16)
     .backgroundColor($r('app.color.list_item_background'))
+  }
+
+  @Builder
+  ChannelMenu(channel: IPTVChannel) {
+    Menu() {
+      MenuItem({ content: VideoOperateUtil.getPlayerName(Setting.defaultPlayerEngine, true) })
+        .onClick(() => this.play(channel, true))
+    }
   }
 
   @Builder
@@ -539,17 +562,18 @@ export struct IPTVChannelPage {
     return group
   }
 
-  private play(channel: IPTVChannel): void {
+  private play(channel: IPTVChannel, reverse: boolean = false): void {
     if (!this.source) {
       return
     }
     const metadataList = this.source.channels.map(item => this.toMetadata(item))
     const metadata = this.toMetadata(channel)
+    const engine = VideoOperateUtil.resolvePlayerType(metadata, reverse)
     salmonLogger.addLog(TAG,
       `play channel=${channel.name}, id=${channel.id}, line=${(channel.selectedLineIndex ?? 0) + 1}/${this.lineCount(
-        channel)}, url=${metadata.uri}`,
+        channel)}, engine=${engine}`,
       false)
-    const params = new PlayerParams(metadata, metadataList, undefined, true, PlayerEngine.MPV_PLAYER)
+    const params = new PlayerParams(metadata, metadataList, undefined, true, engine)
     this.pathStack.pushPathByName(NavigationAddress.VIDEO_PLAYER, params, true)
   }
 
@@ -588,7 +612,7 @@ export struct IPTVChannelPage {
       uri: selectedLine.url,
       title: this.activeProgramTitle(channel),
       date: channel.id,
-      size: [0, 0],
+      size: [1, 1],
       time: 0,
       last_play: 0,
       format: 'm3u8',
@@ -602,6 +626,7 @@ export struct IPTVChannelPage {
       pointA: 0,
       pointB: 0,
       is_iptv_live: true,
+      iptv_channel_key: IPTVParser.playbackKey(this.source!.id, channel),
       network_user_agent: selectedLine.userAgent,
       network_custom_headers: selectedLine.headers
     }

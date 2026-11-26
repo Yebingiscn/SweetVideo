@@ -9,7 +9,7 @@ import { VisualSearchService } from '../utils/VisualSearchService'
 import { PathUtils } from '../utils/PathUtils'
 import SelectFileUtil from '../utils/SelectFileUtil'
 import ToolsUtil from '../utils/ToolsUtil'
-import { Setting } from '../utils/ObservedUtil'
+import { SafeHeight, Setting } from '../utils/ObservedUtil'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics, uiMaterial } from '@kit.ArkUI'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
@@ -51,6 +51,9 @@ export struct GlobalSearch {
   private refreshTask: SearchFrameTask | undefined = undefined
   private focusTask: SearchFrameTask | undefined = undefined
   private filterTimer: number | undefined = undefined
+  private holdingHandCallback: Callback<motion.HoldingHandStatus> = (status: motion.HoldingHandStatus): void => {
+    this.HoldingHand = status
+  }
 
   aboutToDisappear(): void {
     this.hide()
@@ -97,7 +100,11 @@ export struct GlobalSearch {
             })
             .key((entry: SearchVideoEntry) => entry.video.uri || entry.video.date)
             .virtualScroll()
-        }.layoutWeight(1).width('100%').height('100%')
+        }
+        .layoutWeight(1)
+        .width('100%')
+        .height('100%')
+        .contentEndOffset(SafeHeight.bottomSafeHeight)
       }
       .padding({ left: 16, right: 16, top: 8 })
       .width('100%')
@@ -177,7 +184,7 @@ export struct GlobalSearch {
       hideTitleArea: false,
       hideBottomBuilder: true,
       hideStatusBar: false,
-      mode: HideMode.SCROLL_UP
+      mode: HideMode.SCROLL_UP_TO
     })
     .onBackPressed(() => {
       if (this.query.length > 0) {
@@ -220,12 +227,10 @@ export struct GlobalSearch {
       this.hide()
     })
     .onReady(() => {
-      IntellectualGripPostureUtil.createHoldingHandStatus((data: motion.HoldingHandStatus) => {
-        this.HoldingHand = data
-      })
+      IntellectualGripPostureUtil.createHoldingHandStatus(this.holdingHandCallback)
     })
     .onWillDisappear(() => {
-      IntellectualGripPostureUtil.destroyHoldingHandStatus()
+      IntellectualGripPostureUtil.destroyHoldingHandStatus(this.holdingHandCallback)
     })
   }
 

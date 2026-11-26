@@ -15,7 +15,7 @@ export default class MediaSortUtil {
   private static pinyinKeys: WeakMap<VideoMetadata | FileFolder, CachedPinyinKey> = new WeakMap()
 
   static async sortByNameProcess(list: VideoMetadata[], ascending: boolean = true, pinyinSort: boolean = true): Promise<VideoMetadata[]> {
-    return MediaSortUtil.sortByName(list, item => item.title || '', ascending, pinyinSort)
+    return MediaSortUtil.sortByName(list, item => item.title || '', ascending, pinyinSort, true)
   }
 
   static async sortFolderByNameProcess(list: FileFolder[], ascending: boolean = true, pinyinSort: boolean = true): Promise<FileFolder[]> {
@@ -75,24 +75,12 @@ export default class MediaSortUtil {
   }
 
   static getFirstLetter(title: string): string {
-    if (!title || title.length === 0) {
-      return '#'
-    }
-    const pinyin = NameSortUtil.getSortKey(title, true)
-    if (pinyin.length === 0) {
-      return '#'
-    }
-    const first = pinyin[0].toUpperCase()
-    if (first >= 'A' && first <= 'Z') {
-      return first
-    }
-    return '#'
+    return NameSortUtil.getInitialLetter(NameSortUtil.getSortKey(title || '', true))
   }
 
   static getFirstLetterForVideo(video: VideoMetadata): string {
     const key = MediaSortUtil.getPinyinKey(video, video.title || '')
-    const first = key.length > 0 ? key[0].toUpperCase() : '#'
-    return first >= 'A' && first <= 'Z' ? first : '#'
+    return NameSortUtil.getInitialLetter(key)
   }
 
   private static getPinyinKey(item: VideoMetadata | FileFolder, name: string): string {
@@ -104,13 +92,13 @@ export default class MediaSortUtil {
   }
 
   private static async sortByName<T extends VideoMetadata | FileFolder>(list: T[],
-    nameExtractor: (item: T) => string, ascending: boolean = true, pinyinSort: boolean = true): Promise<T[]> {
+    nameExtractor: (item: T) => string, ascending: boolean, pinyinSort: boolean, groupByLetter: boolean = false): Promise<T[]> {
     const snapshot = [...list]
     if (snapshot.length <= 1) return snapshot
     const names = snapshot.map(nameExtractor)
     const items = snapshot.map((item, index) => new FolderNameSortItem(item.date, names[index], index))
     try {
-      const indices = await sortFolderNamesInTaskPool(items, ascending, pinyinSort)
+      const indices = await sortFolderNamesInTaskPool(items, ascending, pinyinSort, groupByLetter)
       if (indices.length !== snapshot.length || new Set(indices).size !== snapshot.length ||
         indices.some(index => !Number.isInteger(index) || index < 0 || index >= snapshot.length)) {
         throw new Error('Invalid media sort result')

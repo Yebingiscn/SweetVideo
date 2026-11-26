@@ -3,6 +3,7 @@ import FolderHierarchy from '../utils/FolderHierarchy'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { VideoFormData } from '../forms/VideoFormData'
+import { AudioEffectConfig } from '../interfaces/AudioEffectInterface'
 
 import PreferencesUtil from './PreferencesUtil'
 import { Context } from '@kit.AbilityKit'
@@ -22,6 +23,7 @@ import AICaptionSettings, { AICaptionSettingsValue } from '../utils/AICaptionSet
 import lazy ToolsUtil from '../utils/ToolsUtil'
 
 const DATA_BASE_NAME = 'sweet_video'
+const AUDIO_EFFECT_CONFIG_KEY = 'audio_effect_config'
 const MAX_PREFERENCES_STRING_BYTES = 16 * 1024 * 1024
 
 export default class Preferences {
@@ -239,6 +241,15 @@ export default class Preferences {
   static saveLoudnessGain(context: Context, gain: number): void {
     if (!Number.isFinite(gain)) return
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'loudness_gain', Math.max(-90, Math.min(24, gain)))
+  }
+
+  static getAudioEffectConfig(context: Context): AudioEffectConfig {
+    const value = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, AUDIO_EFFECT_CONFIG_KEY, '')
+    return typeof value === 'string' ? AudioEffectConfig.fromStored(value) : new AudioEffectConfig()
+  }
+
+  static saveAudioEffectConfig(context: Context, config: AudioEffectConfig): void {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, AUDIO_EFFECT_CONFIG_KEY, JSON.stringify(config))
   }
 
   static getRepeatModeState(context: Context): SweetRepeatMode {
@@ -777,6 +788,14 @@ export default class Preferences {
 
   static saveNetworkStreams(context: Context, streams: VideoMetadata[], requireSuccess: boolean = false) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'network_streams', streams, requireSuccess)
+  }
+
+  static getLastIPTVChannelKey(context: Context): string {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'iptv_last_channel_key', '', true) as string
+  }
+
+  static saveLastIPTVChannelKey(context: Context, key: string): void {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'iptv_last_channel_key', key, true)
   }
 
   static getIPTVSources(context: Context): IPTVSource[] {

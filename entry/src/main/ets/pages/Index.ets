@@ -165,6 +165,9 @@ struct Index {
   private homeLifecycleVersion: number = 0
   private homeInitialization: Promise<boolean> | undefined = undefined
   private cancelHomeCheck: (() => void) | undefined = undefined
+  private holdingHandCallback: Callback<motion.HoldingHandStatus> = (status: motion.HoldingHandStatus): void => {
+    this.holdingHand = status
+  }
 
   async onPageShow(): Promise<void> {
     this.cancelHomeCheck?.()
@@ -234,6 +237,8 @@ struct Index {
     }
     this.onPageHide()
     this.homeLifecycleVersion++
+    IntellectualGripPostureUtil.destroyHoldingHandStatus(this.holdingHandCallback)
+    IntellectualGripPostureUtil.destroyOperatingHandStatus()
     this.homeReady = false
     this.videoListController.homeReady = false
     this.homeInitialization = undefined
@@ -511,6 +516,9 @@ struct Index {
         }
       }
       if (isVisible) {
+        if (this.homeReady) {
+          this.updateHoldingHandSubscription()
+        }
         this.scheduleHomeResume(true)
         const lifecycleVersion = this.homeLifecycleVersion
         void PlaybackExitCoordinator.waitForExit().then(() => {
@@ -952,6 +960,15 @@ struct Index {
     return true
   }
 
+  private updateHoldingHandSubscription(): void {
+    if (Setting.gripPostureEnabled) {
+      IntellectualGripPostureUtil.createHoldingHandStatus(this.holdingHandCallback)
+    } else {
+      IntellectualGripPostureUtil.destroyHoldingHandStatus(this.holdingHandCallback)
+      this.holdingHand = null
+    }
+  }
+
   private async initializeHome(lifecycleVersion: number): Promise<boolean> {
     // 首次安装没有文件夹，必须在首次 await 前准备数据，避免子组件先进入 aboutToAppear。
     const context = PathUtils.appContext!
@@ -981,6 +998,8 @@ struct Index {
       await this.handleKnockReceive(payload)
     })
     VideoOperateUtil.initSetting(PathUtils.appContext!)
+    this.updateHoldingHandSubscription()
+    IntellectualGripPostureUtil.createOperatingHandStatus()
     const hasCardWant = WantProcessUtil.hasPendingCardWant()
     if (startupPage && !hasCardWant) {
       setTimeout(() => {
@@ -999,10 +1018,6 @@ struct Index {
       SelectFileUtil.getDownloadUri()
       FileFolderUtil.fileFolderExistCheck()
       AccountUtil.initAccount()
-      IntellectualGripPostureUtil.createHoldingHandStatus((data: motion.HoldingHandStatus) => {
-        this.holdingHand = data
-      })
-      IntellectualGripPostureUtil.createOperatingHandStatus()
     }, 0)
     await WantProcessUtil.setCardNavigationReady(this.pathStack)
     if (lifecycleVersion !== this.homeLifecycleVersion) {

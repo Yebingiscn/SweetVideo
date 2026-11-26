@@ -1,5 +1,6 @@
 import MediaLibraryService from '../../utils/MediaLibraryService'
 import MediaSortUtil from '../../utils/MediaSortUtil'
+import { FULL_ALPHABET } from '../../utils/NameSortUtil'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import { VideoDataSource } from '../../utils/DataUtil'
@@ -27,10 +28,9 @@ import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemCompo
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { SortField } from '../../common/enum/SortField'
 import ShareUtil from '../../utils/ShareUtil'
-import { Privacy, PrivacySecureUtil, Setting } from '../../utils/ObservedUtil'
+import { Privacy, PrivacySecureUtil, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import {
   DELAY_JUMP_TO_PLAYER,
-  FULL_ALPHABET,
   NO_BLUR_AMOUNT,
   PRIVACY_BACKGROUND_BLUR_AMOUNT
 } from '../../common/Constants'
@@ -40,6 +40,7 @@ import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit
 import { motion } from '@kit.MultimodalAwarenessKit'
 import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
 import { ScrollBarBuilder } from '../../component/VideoItemComponent/ScrollBarBuilder'
+import { VideoAlphabetIndexerBuilder } from '../../component/VideoItemComponent/VideoAlphabetIndexerBuilder'
 import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent'
 import { VideoListController } from '../../controller/VideoListController'
 import { SortMenuComponent } from '../../component/common/SortMenuComponent'
@@ -177,6 +178,9 @@ export struct PrivacySpace { // 隐私空间页
   @Local showDetailSheet: boolean = false
   @Local detailMetadata: VideoMetadata | undefined = undefined
   @Local HoldingHand: motion.HoldingHandStatus | null = null
+  private holdingHandCallback: Callback<motion.HoldingHandStatus> = (status: motion.HoldingHandStatus): void => {
+    this.HoldingHand = status
+  }
   batchDeleteConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
       textInfo: $r('app.string.delete_selected_videos_permanent'),
@@ -716,11 +720,11 @@ export struct PrivacySpace { // 隐私空间页
           .justifyContent(FlexAlign.Center)
           .animation({ duration: 150, curve: Curve.Ease })
         } else {
-          if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
-            Stack({
-              alignContent: IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand) ? Alignment.TopStart :
-                Alignment.TopEnd
-            }) {
+          Stack({
+            alignContent: IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand) ? Alignment.TopStart :
+              Alignment.TopEnd
+          }) {
+            if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
               List({ scroller: this.listScroller, space: 10 }) {
                 Repeat<VideoMetadata>(this.videoDataSource.data)
                   .each((repeatItem: RepeatItem<VideoMetadata>) => {
@@ -794,6 +798,7 @@ export struct PrivacySpace { // 隐私空间页
               .clip(false)
               .lanes(this.list_line)
               .layoutWeight(1)
+              .contentEndOffset(SafeHeight.bottomSafeHeight)
               .padding({ left: 16, right: 16 })
               .width('100%')
               .height('100%')
@@ -805,37 +810,7 @@ export struct PrivacySpace { // 隐私空间页
                   this.updateIndexerOnScroll(start)
                 }
               })
-
-              if (this.currentSortField === 'name' && this.pinyinSort && this.activeAlphabet.length > 0) {
-                AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
-                  .onSelect((index: number) => {
-                    this.scrollToLetter(this.activeAlphabet[index])
-                  })
-                  .color($r('app.color.text_color'))
-                  .selectedColor($r('sys.color.white'))
-                  .popupColor($r('app.color.main_color'))
-                  .selectedBackgroundColor($r('app.color.main_color'))
-                  .popupBackground($r('app.color.start_window_background'))
-                  .itemSize(20)
-                  .height('100%')
-                  .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand) ? { left: 2 } : { right: 2 })
-              }
-
-              if (this.currentSortField !== SortField.NAME || !this.pinyinSort) {
-                ScrollBarBuilder({
-                  videoListController: this.listScroller,
-                  fileFolderLength: 0
-                })
-              }
-            }
-            .animation({ duration: 300, curve: Curve.Ease })
-            .layoutWeight(1)
-            .width('100%')
-          } else {
-            Stack({
-              alignContent: IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand) ? Alignment.TopStart :
-                Alignment.TopEnd
-            }) {
+            } else {
               WaterFlow({ scroller: this.waterFlowScroller, layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW }) {
                 Repeat<VideoMetadata>(this.videoDataSource.data)
                   .each((repeatItem: RepeatItem<VideoMetadata>) => {
@@ -905,6 +880,7 @@ export struct PrivacySpace { // 隐私空间页
               .columnsTemplate('1fr '.repeat(this.list_line).trim())
               .columnsGap(16)
               .rowsGap(16)
+              .contentEndOffset(SafeHeight.bottomSafeHeight)
               .padding({ left: 16, right: 16 })
               .onScrollIndex((first: number) => {
                 if (this.currentSortField === SortField.NAME && this.pinyinSort) {
@@ -917,33 +893,34 @@ export struct PrivacySpace { // 隐私空间页
               .width('100%')
               .height('100%')
               .layoutWeight(1)
+            }
 
-              if (this.currentSortField === 'name' && this.pinyinSort && this.activeAlphabet.length > 0) {
-                AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
-                  .onSelect((index: number) => {
+            if (this.currentSortField === SortField.NAME && this.pinyinSort) {
+              if (this.activeAlphabet.length > 0) {
+                VideoAlphabetIndexerBuilder({
+                  letters: this.activeAlphabet,
+                  selected: this.indexerSelected,
+                  alignLeft: IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand),
+                  onSelect: (index: number) => {
                     this.scrollToLetter(this.activeAlphabet[index])
-                  })
-                  .color($r('app.color.text_color'))
-                  .selectedColor($r('sys.color.white'))
-                  .popupColor($r('app.color.main_color'))
-                  .selectedBackgroundColor($r('app.color.main_color'))
-                  .popupBackground($r('app.color.start_window_background'))
-                  .itemSize(20)
-                  .height('100%')
-                  .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand) ? { left: 2 } : { right: 2 })
-              }
-
-              if (this.currentSortField !== SortField.NAME || !this.pinyinSort) {
-                ScrollBarBuilder({
-                  videoListController: this.waterFlowScroller,
-                  fileFolderLength: 0
+                  }
                 })
               }
+            } else if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
+              ScrollBarBuilder({
+                videoListController: this.listScroller,
+                fileFolderLength: 0
+              })
+            } else {
+              ScrollBarBuilder({
+                videoListController: this.waterFlowScroller,
+                fileFolderLength: 0
+              })
             }
-            .animation({ duration: 300, curve: Curve.Ease })
-            .layoutWeight(1)
-            .width('100%')
           }
+          .animation({ duration: 300, curve: Curve.Ease })
+          .layoutWeight(1)
+          .width('100%')
         }
       }
       .width('100%')
@@ -974,7 +951,7 @@ export struct PrivacySpace { // 隐私空间页
     .onWillDisappear(() => {
       this.pageActive = false
       this.searchSortVersion++
-      IntellectualGripPostureUtil.destroyHoldingHandStatus()
+      IntellectualGripPostureUtil.destroyHoldingHandStatus(this.holdingHandCallback)
       PrivacySpaceUtil.closePrivacyMode()
     })
     .onShown(() => {
@@ -1129,15 +1106,13 @@ export struct PrivacySpace { // 隐私空间页
       if (privacySpaceParams?.needGotoSetting) {
         this.isPresent = true
       }
-      IntellectualGripPostureUtil.createHoldingHandStatus((data: motion.HoldingHandStatus) => {
-        this.HoldingHand = data
-      })
+      IntellectualGripPostureUtil.createHoldingHandStatus(this.holdingHandCallback)
     })
     .dynamicHideTitleBar({
       hideTitleArea: true,
       hideBottomBuilder: true,
       hideStatusBar: false,
-      mode: HideMode.SCROLL_UP
+      mode: HideMode.SCROLL_UP_TO
     })
     .hideBackButton(false)
     .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {

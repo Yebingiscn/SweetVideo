@@ -157,10 +157,10 @@ export default class VideoInfoUtil {
   }
 
   static getDisplayResolution(metadata: VideoMetadata | undefined): number[] {
-    if (metadata?.size && metadata.size[0] > 0 && metadata.size[1] > 0) {
+    if (metadata?.size && VideoInfoUtil.isKnownResolution(metadata.size[0], metadata.size[1])) {
       return metadata.size
     }
-    if (metadata?.cover_size && metadata.cover_size[0] > 0 && metadata.cover_size[1] > 0) {
+    if (metadata?.cover_size && VideoInfoUtil.isKnownResolution(metadata.cover_size[0], metadata.cover_size[1])) {
       return metadata.cover_size
     }
     return [0, 0]
@@ -270,12 +270,12 @@ export default class VideoInfoUtil {
   }
 
   static buildNetworkVideoMetadata(uri: string, date: string, fileName: string, video_size: string,
-    size: number[]): VideoMetadata {
+    size?: number[]): VideoMetadata {
     return {
       uri: uri,
       title: VideoInfoUtil.getVideoTitle(fileName),
       date: date,
-      size: size,
+      size: size && VideoInfoUtil.isKnownResolution(size[0], size[1]) ? size : [1, 1],
       time: 0,
       last_play: 0,
       format: VideoInfoUtil.getExtension(fileName),
@@ -319,14 +319,25 @@ export default class VideoInfoUtil {
     if (cached && cached.width === width && cached.height === height) {
       return forceDefault ? cached.raw : cached.label
     }
-    const sizeKey = `${width}x${height}`
     const raw = `${width} x ${height}`
-    const label = VIDEO_SIZE_MAP[sizeKey] || // 1. 精确匹配宽高
-      VIDEO_SIZE_MAP[height] || // 2. 标准高度命名
-      VIDEO_SIZE_MAP[width] || // 3. 特殊宽度标准
-      raw // 4. 默认格式
+    const label = VideoInfoUtil.getResolutionName(width, height) || raw
     if (metadata) VideoInfoUtil.resolutionLabels.set(metadata, { width: width, height: height, label: label, raw: raw })
     return forceDefault ? raw : label
+  }
+
+  static getResolutionName(width: number, height: number): string {
+    return VIDEO_SIZE_MAP[`${width}x${height}`] || VIDEO_SIZE_MAP[height] || VIDEO_SIZE_MAP[width] || ''
+  }
+
+  static getPlaybackResolutionLabel(width: number, height: number): string {
+    if (!VideoInfoUtil.isKnownResolution(width, height)) {
+      return ''
+    }
+    return VideoInfoUtil.getResolutionName(width, height) || `${width} × ${height}`
+  }
+
+  private static isKnownResolution(width: number, height: number): boolean {
+    return Number.isFinite(width) && Number.isFinite(height) && width > 1 && height > 1
   }
 
   // 获取视频大小

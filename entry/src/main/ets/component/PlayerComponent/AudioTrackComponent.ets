@@ -31,6 +31,7 @@ export struct AudioTrackComponent {
     12: '7.1.4'
   }
   @Require @Param player: PlayerControllerInterface
+  @Param audioEffectActive: boolean = false
   @Event onSelect: (_index: number) => void = () => {
   }
   @Event onAudioEffects: () => void = () => {
@@ -335,14 +336,14 @@ export struct AudioTrackComponent {
           Row({ space: 8 }) {
             SymbolGlyph($r('sys.symbol.rays'))
               .fontSize(18)
-              .fontColor([$r('app.color.text_color')])
+              .fontColor([this.audioEffectActive ? $r('sys.color.white') : $r('app.color.text_color')])
             Text($r('app.string.sweet_audio_effect'))
               .fontSize(16)
-              .fontColor($r('app.color.text_color'))
+              .fontColor(this.audioEffectActive ? $r('sys.color.white') : $r('app.color.text_color'))
             Text('VIP')
               .fontSize(12)
-              .fontColor(Color.White)
-              .backgroundColor($r('app.color.main_color'))
+              .fontColor(this.audioEffectActive ? $r('app.color.main_color') : $r('sys.color.white'))
+              .backgroundColor(this.audioEffectActive ? $r('sys.color.white') : $r('app.color.main_color'))
               .borderRadius(6)
               .padding({
                 left: 4,
@@ -357,7 +358,7 @@ export struct AudioTrackComponent {
         .padding({ left: 20, right: 10 })
         .enabled(userData.isVip)
         .onClick(() => this.onAudioEffects())
-        .backgroundColor(Color.Transparent)
+        .backgroundColor(this.audioEffectActive ? $r('app.color.main_color') : Color.Transparent)
       }
       .width('100%')
       .onClick(() => {

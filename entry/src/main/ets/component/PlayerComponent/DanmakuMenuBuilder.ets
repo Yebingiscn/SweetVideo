@@ -1,3 +1,4 @@
+import { LengthMetrics } from '@kit.ArkUI'
 import { DanmakuSession } from '../../utils/DanmakuSession'
 import { Setting } from '../../utils/ObservedUtil'
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
@@ -40,7 +41,11 @@ export struct DanmakuMenuComponent {
         header: this.DanmakuSizeSlider,
         footer: this.DanmakuOpacitySlider
       })
-    }.width(270).height('auto').subMenuExpandingMode(SubMenuExpandingMode.STACK_EXPAND)
+    }
+    .width(270)
+    .height('auto')
+    .menuItemGroupDivider({ strokeWidth: LengthMetrics.vp(0), color: Color.Transparent })
+    .subMenuExpandingMode(SubMenuExpandingMode.STACK_EXPAND)
   }
 
   @Builder

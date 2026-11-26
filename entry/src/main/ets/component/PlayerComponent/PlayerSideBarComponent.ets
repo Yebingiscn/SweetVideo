@@ -86,6 +86,8 @@ export struct PlayerSideBarComponent {
               VideoItemBuilder({
                 item: repeatItem.item,
                 nowPlaying: this.player.nowPlaying,
+                playbackResolution: this.player.playbackResolution,
+                marqueeTitle: true,
               })
             }
             .borderRadius(16)
@@ -180,6 +182,8 @@ export struct PlayerSideBarComponent {
 class VideoItemValue {
   item: VideoMetadata | undefined = undefined
   nowPlaying?: VideoMetadata | undefined = undefined
+  playbackResolution?: string
+  marqueeTitle?: boolean
 }
 
 @Builder
@@ -192,8 +196,8 @@ export function VideoItemBuilder(videoItemValue: VideoItemValue) {
       Text(VideoInfoUtil.getVideoTitle(videoItemValue.item?.title, videoItemValue.item?.format ?? ''))
         .fontSize(16)
         .fontWeight(FontWeight.Bold)
-        .maxLines(2)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .maxLines(videoItemValue.marqueeTitle ? 1 : 2)
+        .textOverflow({ overflow: videoItemValue.marqueeTitle ? TextOverflow.MARQUEE : TextOverflow.Ellipsis })
         .width('100%')
         .margin({ left: 5 })
         .wordBreak(WordBreak.BREAK_ALL)
@@ -202,7 +206,8 @@ export function VideoItemBuilder(videoItemValue: VideoItemValue) {
 
       VideoInfoBuilder({
         item: videoItemValue.item,
-        nowPlaying: videoItemValue.nowPlaying
+        nowPlaying: videoItemValue.nowPlaying,
+        playbackResolution: videoItemValue.playbackResolution,
       })
     }.alignItems(HorizontalAlign.Start)
     .padding({ left: 12, right: 12 })

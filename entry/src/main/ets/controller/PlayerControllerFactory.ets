@@ -55,6 +55,7 @@ export interface PlayerControllerInterface extends FramePreviewTarget, PlaybackP
   selectedText: string | undefined
   playAreaHeight: number
   playAreaWidth: number
+  readonly playbackResolution: string
   screenWidth: number
   screenHeight: number
   speed: number
